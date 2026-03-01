@@ -66,7 +66,7 @@ export const ChatRoomPage = () => {
 
       {/* Messages List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
-        {messages.map((msg, index) => {
+        {messages.map((msg) => {
           const isMine = msg.senderId === 'u1';
           return (
             <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
