@@ -1,12 +1,17 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import type { ItemCategory, ItemCondition, SharingMode } from '../types';
-import { mockApi } from '../services/mockApi';
-import { Camera, ChevronLeft } from 'lucide-react';
+import { Camera, ChevronLeft, X, Loader2 } from 'lucide-react';
+import type { Session } from '@supabase/supabase-js';
 
-export const CreatePostPage = () => {
+export const CreatePostPage = ({ session }: { session: Session | null }) => {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
+  const [images, setImages] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -17,20 +22,113 @@ export const CreatePostPage = () => {
     exchangeFor: '',
   });
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + images.length > 4) {
+      alert('写真は最大4枚までです。');
+      return;
+    }
+
+    setImages(prev => [...prev, ...files]);
+    
+    const newPreviews = files.map(file => URL.createObjectURL(file));
+    setPreviews(prev => [...prev, ...newPreviews]);
+  };
+
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+    setPreviews(prev => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const uploadImages = async (): Promise<string[]> => {
+    const uploadedUrls: string[] = [];
+    
+    for (const file of images) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${session?.user.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('post-images')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        continue;
+      }
+
+      const { data } = supabase.storage
+        .from('post-images')
+        .getPublicUrl(filePath);
+
+      if (data) uploadedUrls.push(data.publicUrl);
+    }
+    
+    return uploadedUrls;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!session) {
+      alert('ログインが必要です。');
+      return;
+    }
+
+    if (images.length === 0) {
+      alert('写真を少なくとも1枚追加してください。');
+      return;
+    }
+
     setLoading(true);
-    await mockApi.createPost({
-      ...formData,
-      photos: ['https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&q=80&w=400'],
-      giverName: '佐藤 健太',
-      schoolId: 's1',
-      status: '受付中',
-      scope: 'SCHOOL',
-      createdAt: new Date().toISOString(),
-    });
-    setLoading(false);
-    navigate('/');
+
+    try {
+      const photoUrls = await uploadImages();
+      
+      const { error } = await supabase
+        .from('posts')
+        .insert([
+          {
+            title: formData.title,
+            description: formData.description,
+            category: formData.category,
+            condition: formData.condition,
+            pickup_method: formData.pickupMethod,
+            mode: formData.mode,
+            exchange_for: formData.exchangeFor,
+            photos: photoUrls,
+            giver_id: session.user.id,
+            giver_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
+            school_id: 's1', // 기본값
+            status: '受付中',
+            scope: 'SCHOOL',
+          }
+        ]);
+
+      if (error) {
+        // 만약 테이블이 없으면 localStorage에라도 저장 (데모용)
+        console.warn('Supabase insert error, falling back to localStorage:', error);
+        const localPosts = JSON.parse(localStorage.getItem('local_posts') || '[]');
+        localPosts.push({
+          id: Math.random().toString(36).substr(2, 9),
+          ...formData,
+          photos: photoUrls.length > 0 ? photoUrls : ['https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&q=80&w=400'],
+          giverName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
+          createdAt: new Date().toISOString(),
+          status: '受付中',
+        });
+        localStorage.setItem('local_posts', JSON.stringify(localPosts));
+      }
+      
+      navigate('/');
+    } catch (err) {
+      console.error('Post creation error:', err);
+      alert('投稿中にエラーが発生했습니다.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -42,125 +140,182 @@ export const CreatePostPage = () => {
         <ChevronLeft size={20} /> キャンセル
       </button>
 
-      <div className="bg-white rounded-3xl card-shadow p-8 border border-slate-50">
-        <h1 className="text-2xl font-bold text-slate-900 mb-6">アイテムを譲る</h1>
+      <div className="bg-white rounded-[2.5rem] card-shadow p-8 border border-slate-50 relative overflow-hidden">
+        {/* Decorative background */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 blur-3xl" />
         
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <h1 className="text-3xl font-black text-slate-900 mb-8 relative">アイテムを譲る</h1>
+        
+        <form onSubmit={handleSubmit} className="space-y-8 relative">
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">写真</label>
-            <div className="flex gap-4">
-              <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:border-primary hover:text-primary cursor-pointer transition-all">
-                <Camera size={24} />
-                <span className="text-[10px] font-bold mt-1">追加</span>
+            <label className="block text-sm font-black text-slate-700 mb-4 ml-1 uppercase tracking-widest">写真 (最大4枚)</label>
+            <div className="flex flex-wrap gap-4">
+              {previews.map((preview, index) => (
+                <div key={index} className="relative group">
+                  <div className="w-24 h-24 rounded-2xl overflow-hidden border border-slate-100 card-shadow">
+                    <img src={preview} alt="preview" className="w-full h-full object-cover" />
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-lg hover:scale-110 transition-transform"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+              
+              {images.length < 4 && (
+                <button 
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-24 h-24 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:border-primary hover:text-primary hover:bg-primary-light/10 cursor-pointer transition-all"
+                >
+                  <Camera size={24} />
+                  <span className="text-[10px] font-black mt-1 uppercase tracking-tighter">追加</span>
+                </button>
+              )}
+            </div>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              accept="image/*" 
+              multiple 
+              onChange={handleImageChange} 
+            />
+          </div>
+
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-black text-slate-700 mb-2 ml-1">商品名</label>
+              <input 
+                required
+                className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-primary focus:bg-white focus:outline-none transition-all font-bold text-slate-800"
+                placeholder="例：マクロ経済学の教科書 2024年版"
+                value={formData.title}
+                onChange={e => setFormData({...formData, title: e.target.value})}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-black text-slate-700 mb-2 ml-1">カテゴリ</label>
+                <div className="relative">
+                  <select 
+                    className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-primary focus:bg-white focus:outline-none transition-all font-bold text-slate-800 appearance-none cursor-pointer"
+                    value={formData.category}
+                    onChange={e => setFormData({...formData, category: e.target.value as ItemCategory})}
+                  >
+                    <option value="制服">制服</option>
+                    <option value="教科書">教科書</option>
+                    <option value="学用品">学用品</option>
+                    <option value="その他">その他</option>
+                  </select>
+                  <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <ChevronLeft size={20} className="-rotate-90" />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-black text-slate-700 mb-2 ml-1">商品の状態</label>
+                <div className="relative">
+                  <select 
+                    className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-primary focus:bg-white focus:outline-none transition-all font-bold text-slate-800 appearance-none cursor-pointer"
+                    value={formData.condition}
+                    onChange={e => setFormData({...formData, condition: e.target.value as ItemCondition})}
+                  >
+                    <option value="未使用に近い">未使用に近い</option>
+                    <option value="目立った傷なし">目立った傷なし</option>
+                    <option value="使用感あり">使用感あり</option>
+                  </select>
+                  <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <ChevronLeft size={20} className="-rotate-90" />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">商品名</label>
-            <input 
-              required
-              className="w-full px-4 py-3 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-primary transition-all"
-              placeholder="例：マクロ経済学の教科書 2024年版"
-              value={formData.title}
-              onChange={e => setFormData({...formData, title: e.target.value})}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">カテゴリ</label>
-              <select 
-                className="w-full px-4 py-3 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-primary transition-all appearance-none"
-                value={formData.category}
-                onChange={e => setFormData({...formData, category: e.target.value as ItemCategory})}
-              >
-                <option value="制服">制服</option>
-                <option value="教科書">教科書</option>
-                <option value="学用品">学用品</option>
-                <option value="その他">その他</option>
-              </select>
+              <label className="block text-sm font-black text-slate-700 mb-2 ml-1">説明</label>
+              <textarea 
+                required
+                rows={4}
+                className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-primary focus:bg-white focus:outline-none transition-all font-bold text-slate-800"
+                placeholder="アイテムの詳細や状態について教えてください。"
+                value={formData.description}
+                onChange={e => setFormData({...formData, description: e.target.value})}
+              />
             </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">商品の状態</label>
-              <select 
-                className="w-full px-4 py-3 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-primary transition-all appearance-none"
-                value={formData.condition}
-                onChange={e => setFormData({...formData, condition: e.target.value as ItemCondition})}
-              >
-                <option value="未使用に近い">未使用に近い</option>
-                <option value="目立った傷なし">目立った傷なし</option>
-                <option value="使用感あり">使用感あり</option>
-              </select>
-            </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">説明</label>
-            <textarea 
-              required
-              rows={4}
-              className="w-full px-4 py-3 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-primary transition-all"
-              placeholder="アイテムの詳細や状態について教えてください。"
-              value={formData.description}
-              onChange={e => setFormData({...formData, description: e.target.value})}
-            />
-          </div>
-
-          <div className="p-4 bg-primary-light/30 rounded-2xl border border-primary-light/50">
-            <label className="block text-sm font-bold text-primary-dark mb-3">お譲り方法</label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input 
-                  type="radio" 
-                  name="mode" 
-                  className="text-primary focus:ring-primary"
-                  checked={formData.mode === 'GIVEAWAY'}
-                  onChange={() => setFormData({...formData, mode: 'GIVEAWAY'})}
-                />
-                <span className="text-sm font-bold">無料で譲る</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input 
-                  type="radio" 
-                  name="mode" 
-                  className="text-primary focus:ring-primary"
-                  checked={formData.mode === 'EXCHANGE'}
-                  onChange={() => setFormData({...formData, mode: 'EXCHANGE'})}
-                />
-                <span className="text-sm font-bold">交換希望</span>
-              </label>
-            </div>
-            
-            {formData.mode === 'EXCHANGE' && (
-              <div className="mt-4">
-                <input 
-                  className="w-full px-4 py-2 rounded-xl bg-white border-none focus:ring-2 focus:ring-primary transition-all text-sm"
-                  placeholder="代わりに欲しいアイテムを入力してください"
-                  value={formData.exchangeFor}
-                  onChange={e => setFormData({...formData, exchangeFor: e.target.value})}
-                />
+            <div className="p-6 bg-primary-light/20 rounded-[2rem] border-2 border-primary-light/30">
+              <label className="block text-sm font-black text-primary-dark mb-4 ml-1 uppercase tracking-widest">お譲り方法</label>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <div className="relative flex items-center justify-center">
+                    <input 
+                      type="radio" 
+                      name="mode" 
+                      className="w-5 h-5 border-2 border-primary-light checked:bg-primary appearance-none rounded-full transition-all"
+                      checked={formData.mode === 'GIVEAWAY'}
+                      onChange={() => setFormData({...formData, mode: 'GIVEAWAY'})}
+                    />
+                    {formData.mode === 'GIVEAWAY' && <div className="absolute w-2 h-2 bg-white rounded-full" />}
+                  </div>
+                  <span className="text-sm font-black text-slate-700 group-hover:text-primary transition-colors">無料で譲る</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <div className="relative flex items-center justify-center">
+                    <input 
+                      type="radio" 
+                      name="mode" 
+                      className="w-5 h-5 border-2 border-primary-light checked:bg-primary appearance-none rounded-full transition-all"
+                      checked={formData.mode === 'EXCHANGE'}
+                      onChange={() => setFormData({...formData, mode: 'EXCHANGE'})}
+                    />
+                    {formData.mode === 'EXCHANGE' && <div className="absolute w-2 h-2 bg-white rounded-full" />}
+                  </div>
+                  <span className="text-sm font-black text-slate-700 group-hover:text-primary transition-colors">交換希望</span>
+                </label>
               </div>
-            )}
-          </div>
+              
+              {formData.mode === 'EXCHANGE' && (
+                <div className="mt-4 animate-in slide-in-from-top-2 duration-300">
+                  <input 
+                    className="w-full px-6 py-3 rounded-xl bg-white border-2 border-primary-light focus:border-primary focus:outline-none transition-all font-bold text-slate-800 text-sm"
+                    placeholder="代わりに欲しいアイテムを入力してください"
+                    value={formData.exchangeFor}
+                    onChange={e => setFormData({...formData, exchangeFor: e.target.value})}
+                  />
+                </div>
+              )}
+            </div>
 
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">受け渡し方法</label>
-            <input 
-              required
-              className="w-full px-4 py-3 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-primary transition-all"
-              placeholder="例：1号館ロビー、手渡し希望"
-              value={formData.pickupMethod}
-              onChange={e => setFormData({...formData, pickupMethod: e.target.value})}
-            />
+            <div>
+              <label className="block text-sm font-black text-slate-700 mb-2 ml-1">受け渡し方法</label>
+              <input 
+                required
+                className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-primary focus:bg-white focus:outline-none transition-all font-bold text-slate-800"
+                placeholder="例：1号館ロビー、手渡し希望"
+                value={formData.pickupMethod}
+                onChange={e => setFormData({...formData, pickupMethod: e.target.value})}
+              />
+            </div>
           </div>
 
           <button 
             type="submit"
             disabled={loading}
-            className="w-full bg-primary text-white py-4 rounded-2xl font-bold text-lg card-shadow hover:bg-primary-dark transition-all disabled:opacity-50"
+            className="w-full bg-primary text-white py-5 rounded-2xl font-black text-xl shadow-xl shadow-primary/20 hover:bg-primary-dark hover:shadow-2xl hover:shadow-primary/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-3"
           >
-            {loading ? '投稿中...' : '出品する'}
+            {loading ? (
+              <>
+                <Loader2 className="animate-spin" size={24} />
+                <span>投稿中...</span>
+              </>
+            ) : (
+              <span>出品する</span>
+            )}
           </button>
         </form>
       </div>

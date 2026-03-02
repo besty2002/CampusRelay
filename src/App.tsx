@@ -162,7 +162,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={session ? <Navigate to="/" replace /> : <LoginPage />} />
           <Route path="/post/:id" element={<PostDetailPage />} />
-          <Route path="/post/new" element={session ? <CreatePostPage /> : <Navigate to="/login" replace />} />
+          <Route path="/post/new" element={session ? <CreatePostPage session={session} /> : <Navigate to="/login" replace />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/messages" element={session ? <MessagesPage /> : <Navigate to="/login" replace />} />
           <Route path="/messages/:id" element={session ? <ChatRoomPage /> : <Navigate to="/login" replace />} />
