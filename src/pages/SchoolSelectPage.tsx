@@ -42,6 +42,20 @@ export const SchoolSelectPage = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // [Fail-safe] 프로필이 있는지 먼저 확인하고 없으면 생성
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile) {
+      await supabase.from('profiles').insert({
+        id: user.id,
+        display_name: user.user_metadata?.display_name || user.email?.split('@')[0] || 'User'
+      });
+    }
+
     const { error } = await supabase
       .from('user_schools')
       .insert({ user_id: user.id, school_id: school.id });
