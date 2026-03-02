@@ -184,59 +184,63 @@ export const HomePage = () => {
             const thumbnail = post.post_images?.sort((a,b) => a.sort_order - b.sort_order)[0]?.storage_path;
             const isWishlisted = wishlistIds.includes(post.id);
             return (
-              <Link 
-                key={post.id} 
-                to={`/post/${post.id}`}
-                className="group bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-2xl hover:shadow-slate-200/50 transition-all flex gap-5 active:scale-[0.98] relative"
-              >
-                <div className="w-28 h-28 shrink-0 rounded-[1.5rem] bg-slate-50 overflow-hidden border border-slate-50 shadow-inner">
-                  {thumbnail ? (
-                    <img src={thumbnail} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-300">
-                      <School size={32} strokeWidth={1} />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0 flex flex-col justify-between py-1 text-left">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
-                        post.mode === 'GIVEAWAY' ? 'bg-lime-50 text-lime-600' : 'bg-purple-50 text-purple-600'
-                      }`}>
-                        {post.mode}
-                      </span>
-                      <span className="text-[10px] font-bold text-slate-400 truncate">{post.schools?.name_ja}</span>
-                    </div>
-                    <h2 className="text-xl font-black text-slate-800 truncate group-hover:text-lime-600 transition-colors mb-1">
-                      {post.title}
-                    </h2>
-                    <p className="text-slate-500 text-xs line-clamp-1 font-medium">{post.description}</p>
-                  </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-sky-50 rounded-full flex items-center justify-center text-sky-600 font-black text-[10px]">
-                        {post.profiles.display_name[0]}
+              <div key={post.id} className="relative">
+                <Link 
+                  to={`/post/${post.id}`}
+                  className="group bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-2xl hover:shadow-slate-200/50 transition-all flex gap-5 active:scale-[0.98] relative"
+                >
+                  <div className="w-28 h-28 shrink-0 rounded-[1.5rem] bg-slate-50 overflow-hidden border border-slate-50 shadow-inner">
+                    {thumbnail ? (
+                      <img src={thumbnail} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-300">
+                        <School size={32} strokeWidth={1} />
                       </div>
-                      <span className="text-xs font-bold text-slate-600">{post.profiles.display_name}</span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 flex flex-col justify-between py-1 text-left">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
+                          post.mode === 'GIVEAWAY' ? 'bg-lime-50 text-lime-600' : 'bg-purple-50 text-purple-600'
+                        }`}>
+                          {post.mode}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-400 truncate">{post.schools?.name_ja}</span>
+                      </div>
+                      <h2 className="text-xl font-black text-slate-800 truncate group-hover:text-lime-600 transition-colors mb-1">
+                        {post.title}
+                      </h2>
+                      <p className="text-slate-500 text-xs line-clamp-1 font-medium">{post.description}</p>
                     </div>
-                    <div className="flex items-center gap-1 text-[10px] font-black text-slate-400">
-                      <Star size={12} className="fill-amber-400 text-amber-400" /> 
-                      <span className="text-slate-700">{post.profiles.avg_rating}</span>
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-50">
+                      <Link 
+                        to={`/user/${post.user_id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-2 hover:text-lime-600 transition-colors"
+                      >
+                        <div className="w-6 h-6 bg-sky-50 rounded-full flex items-center justify-center text-sky-600 font-black text-[10px]">
+                          {post.profiles.display_name[0]}
+                        </div>
+                        <span className="text-xs font-bold">{post.profiles.display_name}</span>
+                      </Link>
+                      <div className="flex items-center gap-1 text-[10px] font-black text-slate-400">
+                        <Star size={12} className="fill-amber-400 text-amber-400" /> 
+                        <span className="text-slate-700">{post.profiles.avg_rating}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                
+                </Link>
                 {/* Wishlist Button */}
                 <button 
                   onClick={(e) => toggleWishlist(e, post.id)}
-                  className={`absolute top-4 right-4 p-2 rounded-xl transition-all ${
+                  className={`absolute top-4 right-4 p-2 rounded-xl transition-all z-10 ${
                     isWishlisted ? 'bg-pink-50 text-pink-500' : 'bg-slate-50 text-slate-300 hover:text-pink-400'
                   }`}
                 >
                   <Heart size={18} fill={isWishlisted ? 'currentColor' : 'none'} />
                 </button>
-              </Link>
+              </div>
             );
           })}
         </div>

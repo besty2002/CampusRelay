@@ -40,6 +40,7 @@ export interface Post {
   profiles: Profile;
   post_images?: PostImage[];
   schools?: School;
+  post_requests?: any[]; // Added for activity dashboard
 }
 
 export interface PostRequest {
@@ -50,4 +51,5 @@ export interface PostRequest {
   status: 'Pending' | 'Approved' | 'Rejected';
   created_at: string;
   profiles: Profile;
+  posts?: Post;
 }
