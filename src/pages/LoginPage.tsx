@@ -44,10 +44,13 @@ export const LoginPage = () => {
     setLoading(true);
     setError(null);
     try {
+      // GitHub Pages 등 서브 디렉토리 배포 환경을 고려한 리디렉션 URL 설정
+      const redirectUrl = `${window.location.origin}${import.meta.env.BASE_URL}`;
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: redirectUrl,
         },
       });
       if (error) throw error;
