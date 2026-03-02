@@ -2,35 +2,44 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Post, PostRequest } from '../types';
-import { ArrowLeft, MessageCircle, CheckCircle2, Loader2, User } from 'lucide-react';
+import { ArrowLeft, MessageCircle, CheckCircle2, Loader2, User, Star } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 export const PostDetailPage = () => {
   const { postId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  
   const [post, setPost] = useState<Post | null>(null);
   const [requests, setRequests] = useState<PostRequest[]>([]);
-  const [isOwner, setIsOwner] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
+  
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+
+  const isOwner = user?.id === post?.user_id;
 
   useEffect(() => {
     fetchDetail();
-  }, [postId]);
+  }, [postId, user]);
 
   const fetchDetail = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setCurrentUser(user);
-
+    if (!postId) return;
+    
+    // Fetch post details with images and user profile
     const { data: postData } = await supabase
       .from('posts')
-      .select('*, profiles(display_name, completed_count)')
+      .select(`
+        *,
+        profiles (display_name, completed_count, avg_rating, rating_count),
+        post_images (storage_path)
+      `)
       .eq('id', postId)
       .single();
     
     if (postData) {
       setPost(postData as any);
-      setIsOwner(user?.id === postData.user_id);
       
       if (user?.id === postData.user_id) {
         const { data: reqs } = await supabase
@@ -44,15 +53,19 @@ export const PostDetailPage = () => {
   };
 
   const handleRequest = async () => {
-    if (!currentUser) return alert('로그인이 필요합니다.');
+    if (!user) return alert('로그인이 필요합니다.');
     setRequesting(true);
     const { error } = await supabase.from('post_requests').insert({
       post_id: postId,
-      requester_id: currentUser.id,
+      requester_id: user.id,
       message: '나눔 신청합니다!'
     });
-    if (error) alert(error.message);
-    else alert('신청이 완료되었습니다!');
+    if (error) {
+      if (error.code === '23505') alert('이미 신청했습니다.');
+      else alert(error.message);
+    } else {
+      alert('신청이 완료되었습니다!');
+    }
     setRequesting(false);
   };
 
@@ -67,13 +80,41 @@ export const PostDetailPage = () => {
     fetchDetail();
   };
 
+  const handleSubmitReview = async () => {
+    if (!user || !post) return;
+    try {
+      // Find the approved requester
+      const { data: reqData } = await supabase.from('post_requests').select('requester_id').eq('post_id', post.id).eq('status', 'Approved').single();
+      if (!reqData) return alert('승인된 사용자를 찾을 수 없습니다.');
+      
+      const toUserId = isOwner ? reqData.requester_id : post.user_id;
+
+      const { error } = await supabase.from('reviews').insert({
+        post_id: post.id,
+        from_user_id: user.id,
+        to_user_id: toUserId,
+        rating: reviewRating,
+        comment: reviewComment
+      });
+
+      if (error) {
+        if (error.code === '23505') alert('이미 리뷰를 작성하셨습니다.');
+        else alert(error.message);
+      } else {
+        alert('리뷰가 등록되었습니다!');
+      }
+    } catch(err) {
+      console.error(err);
+    }
+  };
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
       <Loader2 className="animate-spin text-lime-500" />
     </div>
   );
 
-  if (!post) return <div className="p-8 text-center font-bold">Post not found.</div>;
+  if (!post) return <div className="p-8 text-center font-bold">게시글을 찾을 수 없습니다.</div>;
 
   return (
     <div className="max-w-2xl mx-auto p-4 pt-12 pb-24">
@@ -82,6 +123,21 @@ export const PostDetailPage = () => {
       </button>
 
       <div className="bg-white rounded-[3rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+        
+        {/* Images Slider / Grid */}
+        {post.post_images && post.post_images.length > 0 && (
+          <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar bg-slate-100 h-64 md:h-96">
+            {post.post_images.sort((a,b) => a.sort_order - b.sort_order).map((img, i) => (
+              <div key={img.id} className="min-w-full snap-center relative">
+                <img src={img.storage_path} alt="Post image" className="w-full h-full object-cover" />
+                <div className="absolute bottom-4 right-4 bg-black/50 text-white px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md">
+                  {i + 1} / {post.post_images!.length}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="p-8 md:p-12">
           <div className="flex justify-between items-start mb-6">
             <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest ${
@@ -120,10 +176,12 @@ export const PostDetailPage = () => {
             </div>
             <div>
               <p className="font-black text-slate-800 text-lg">{post.profiles.display_name}</p>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">Trust Score</span>
+              <div className="flex items-center gap-3 mt-0.5">
                 <span className="bg-lime-500 text-white px-2 py-0.5 rounded-md text-[10px] font-black">
                   {post.profiles.completed_count} Given
+                </span>
+                <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                  <Star size={12} className="text-amber-400" /> {post.profiles.avg_rating} ({post.profiles.rating_count})
                 </span>
               </div>
             </div>
@@ -188,8 +246,31 @@ export const PostDetailPage = () => {
           )}
 
           {post.status === 'Given' && (
-            <div className="w-full bg-white py-5 rounded-[2rem] font-black text-xl text-slate-400 text-center border-2 border-dashed border-slate-200">
-              이미 나눔이 완료된 아이템입니다.
+            <div className="space-y-6">
+              <div className="w-full bg-white py-5 rounded-[2rem] font-black text-xl text-slate-400 text-center border-2 border-dashed border-slate-200">
+                이미 나눔이 완료된 아이템입니다.
+              </div>
+              
+              {user && <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                <h3 className="font-bold text-slate-800 mb-4">상대방에게 리뷰 남기기</h3>
+                <div className="flex gap-2 mb-4">
+                  {[1,2,3,4,5].map(star => (
+                    <button key={star} onClick={() => setReviewRating(star)}>
+                      <Star size={24} className={star <= reviewRating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'} />
+                    </button>
+                  ))}
+                </div>
+                <textarea 
+                  className="w-full p-4 bg-slate-50 rounded-xl mb-4 border-none focus:ring-2 focus:ring-lime-500 outline-none" 
+                  placeholder="거래는 어떠셨나요? (최대 300자)"
+                  maxLength={300}
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                />
+                <button onClick={handleSubmitReview} className="bg-lime-500 text-white px-6 py-2 rounded-xl font-bold">
+                  리뷰 등록
+                </button>
+              </div>}
             </div>
           )}
         </div>

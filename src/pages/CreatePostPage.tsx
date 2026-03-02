@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { PostMode, PostCategory, PostCondition } from '../types';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Camera, X } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 export const CreatePostPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<PostMode>('GIVEAWAY');
   const [category, setCategory] = useState<PostCategory>('Textbook');
@@ -17,28 +20,78 @@ export const CreatePostPage = () => {
   const [description, setDescription] = useState('');
   const [exchangeWanted, setExchangeWanted] = useState('');
 
+  const [images, setImages] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + images.length > 5) {
+      alert('이미지는 최대 5장까지 가능합니다.');
+      return;
+    }
+    setImages(prev => [...prev, ...files]);
+    const newPreviews = files.map(file => URL.createObjectURL(file));
+    setPreviews(prev => [...prev, ...newPreviews]);
+  };
+
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+    setPreviews(prev => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!schoolId) return alert('학교 정보가 없습니다.');
-    
+    if (!user) return alert('로그인이 필요합니다.');
+    if (images.length === 0) return alert('최소 1장의 이미지가 필요합니다.');
+
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('로그인이 필요합니다.');
+      // 1. Create Post
+      const { data: postData, error: postError } = await supabase
+        .from('posts')
+        .insert({
+          school_id: schoolId,
+          user_id: user.id,
+          mode,
+          category,
+          condition,
+          title,
+          description,
+          exchange_wanted: mode === 'EXCHANGE' ? exchangeWanted : null,
+          status: 'Available'
+        })
+        .select()
+        .single();
 
-      const { error } = await supabase.from('posts').insert({
-        school_id: schoolId,
-        user_id: user.id,
-        mode,
-        category,
-        condition,
-        title,
-        description,
-        exchange_wanted: mode === 'EXCHANGE' ? exchangeWanted : null,
-        status: 'Available'
-      });
+      if (postError) throw postError;
 
-      if (error) throw error;
+      // 2. Upload Images and insert into post_images
+      for (let i = 0; i < images.length; i++) {
+        const file = images[i];
+        const ext = file.name.split('.').pop();
+        const fileName = `${postData.id}/${crypto.randomUUID()}.${ext}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('post-images')
+          .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from('post-images')
+          .getPublicUrl(fileName);
+
+        await supabase.from('post_images').insert({
+          post_id: postData.id,
+          storage_path: publicUrlData.publicUrl,
+          sort_order: i
+        });
+      }
+
       navigate(`/feed/${schoolId}`);
     } catch (err: any) {
       alert(err.message);
@@ -57,6 +110,33 @@ export const CreatePostPage = () => {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 space-y-6">
+          
+          <div>
+            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Images (Max 5)</label>
+            <div className="flex flex-wrap gap-4">
+              {previews.map((preview, index) => (
+                <div key={index} className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+                  <img src={preview} alt="preview" className="w-full h-full object-cover" />
+                  <button 
+                    type="button" onClick={() => removeImage(index)}
+                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+              {images.length < 5 && (
+                <button 
+                  type="button" onClick={() => fileInputRef.current?.click()}
+                  className="w-20 h-20 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-xl text-slate-400 hover:text-lime-500 hover:border-lime-500 transition-colors"
+                >
+                  <Camera size={24} />
+                </button>
+              )}
+            </div>
+            <input type="file" ref={fileInputRef} className="hidden" accept="image/jpeg, image/png, image/webp" multiple onChange={handleImageChange} />
+          </div>
+
           <div>
             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Title</label>
             <input
