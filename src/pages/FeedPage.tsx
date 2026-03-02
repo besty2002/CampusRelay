@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Post } from '../types';
-import { Search, Plus, Filter, Loader2, ArrowLeft } from 'lucide-react';
+import { Plus, Loader2, ArrowLeft } from 'lucide-react';
 
 export const FeedPage = () => {
   const { schoolId } = useParams();
