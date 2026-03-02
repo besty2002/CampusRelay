@@ -1,16 +1,20 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { ItemCategory, ItemCondition, SharingMode } from '../types';
 import { Camera, ChevronLeft, X, Loader2 } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 
 export const CreatePostPage = ({ session }: { session: Session | null }) => {
+  const { id } = useParams(); // 수정 모드일 경우 ID가 있음
+  const isEditMode = !!id;
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(isEditMode);
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -22,9 +26,51 @@ export const CreatePostPage = ({ session }: { session: Session | null }) => {
     exchangeFor: '',
   });
 
+  useEffect(() => {
+    if (isEditMode && session) {
+      fetchPostData();
+    }
+  }, [id, session]);
+
+  const fetchPostData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        // 권한 확인
+        if (data.giver_id !== session?.user.id) {
+          alert('修正権限がありません。');
+          navigate('/');
+          return;
+        }
+
+        setFormData({
+          title: data.title,
+          description: data.description,
+          category: data.category,
+          condition: data.condition,
+          pickupMethod: data.pickup_method,
+          mode: data.mode,
+          exchangeFor: data.exchange_for || '',
+        });
+        setExistingPhotos(data.photos || []);
+        setPreviews(data.photos || []);
+      }
+    } catch (err) {
+      console.error('Fetch error:', err);
+    } finally {
+      setInitialLoading(false);
+    }
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length + images.length > 4) {
+    if (files.length + previews.length > 4) {
       alert('写真は最大4枚までです。');
       return;
     }
@@ -36,17 +82,22 @@ export const CreatePostPage = ({ session }: { session: Session | null }) => {
   };
 
   const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
-    setPreviews(prev => {
-      URL.revokeObjectURL(prev[index]);
-      return prev.filter((_, i) => i !== index);
-    });
+    const previewToRemove = previews[index];
+    
+    if (existingPhotos.includes(previewToRemove)) {
+      setExistingPhotos(prev => prev.filter(p => p !== previewToRemove));
+    } else {
+      const blobIndex = previews.filter((p, i) => i < index && !existingPhotos.includes(p)).length;
+      setImages(prev => prev.filter((_, i) => i !== blobIndex));
+      URL.revokeObjectURL(previewToRemove);
+    }
+    
+    setPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const uploadImages = async (): Promise<string[]> => {
     const uploadedUrls: string[] = [];
     
-    // 순차적으로 업로드하여 순환 참조나 순서 뒤바뀜 방지
     for (const file of images) {
       const timestamp = Date.now();
       const randomString = Math.random().toString(36).substring(2, 8);
@@ -56,23 +107,15 @@ export const CreatePostPage = ({ session }: { session: Session | null }) => {
 
       const { error: uploadError } = await supabase.storage
         .from('post-images')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+        .upload(filePath, file);
 
-      if (uploadError) {
-        console.error('Upload error details:', uploadError);
-        throw new Error(`이미지 업로드 실패: ${file.name}`);
-      }
+      if (uploadError) throw uploadError;
 
       const { data } = supabase.storage
         .from('post-images')
         .getPublicUrl(filePath);
 
-      if (data?.publicUrl) {
-        uploadedUrls.push(data.publicUrl);
-      }
+      if (data?.publicUrl) uploadedUrls.push(data.publicUrl);
     }
     
     return uploadedUrls;
@@ -80,12 +123,8 @@ export const CreatePostPage = ({ session }: { session: Session | null }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!session) {
-      alert('ログインが必要です。');
-      return;
-    }
-
-    if (images.length === 0) {
+    if (!session) return;
+    if (previews.length === 0) {
       alert('写真を少なくとも1枚追加してください。');
       return;
     }
@@ -93,61 +132,51 @@ export const CreatePostPage = ({ session }: { session: Session | null }) => {
     setLoading(true);
 
     try {
-      // 1. 이미지 업로드 수행
-      const photoUrls = await uploadImages();
-      
-      if (photoUrls.length === 0) {
-        throw new Error('이미지 주소를 생성할 수 없습니다.');
+      const newPhotoUrls = await uploadImages();
+      const finalPhotoUrls = [...existingPhotos, ...newPhotoUrls];
+
+      const postData = {
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        condition: formData.condition,
+        pickup_method: formData.pickupMethod,
+        mode: formData.mode,
+        exchange_for: formData.exchangeFor,
+        photos: finalPhotoUrls,
+        giver_id: session.user.id,
+        giver_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
+      };
+
+      if (isEditMode) {
+        const { error } = await supabase
+          .from('posts')
+          .update(postData)
+          .eq('id', id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('posts')
+          .insert([{ ...postData, school_id: 's1', status: '受付中' }]);
+        if (error) throw error;
       }
-
-      // 2. Supabase DB에 포스트 저장
-      const { error } = await supabase
-        .from('posts')
-        .insert([
-          {
-            title: formData.title,
-            description: formData.description,
-            category: formData.category,
-            condition: formData.condition,
-            pickup_method: formData.pickupMethod,
-            mode: formData.mode,
-            exchange_for: formData.exchangeFor,
-            photos: photoUrls,
-            giver_id: session.user.id,
-            giver_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
-            school_id: 's1',
-            status: '受付中',
-            scope: 'SCHOOL',
-          }
-        ]);
-
-      if (error) throw error;
       
-      navigate('/');
+      navigate(isEditMode ? `/post/${id}` : '/');
     } catch (err: any) {
-      console.error('Post creation error:', err);
-      // 에러 메시지 상세화
-      const msg = err.message || '投稿中にエラーが発生しました。';
-      alert(msg);
-      
-      // DB 에러 시 로컬 저장 시도 (데모 목적)
-      if (!err.message?.includes('이미지')) {
-        const localPosts = JSON.parse(localStorage.getItem('local_posts') || '[]');
-        localPosts.push({
-          id: Math.random().toString(36).substr(2, 9),
-          ...formData,
-          photos: previews, // 로컬에서는 미리보기 주소라도 저장
-          giverName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
-          createdAt: new Date().toISOString(),
-          status: '受付中',
-        });
-        localStorage.setItem('local_posts', JSON.stringify(localPosts));
-        navigate('/');
-      }
+      alert(err.message || 'エラーが発生しました');
     } finally {
       setLoading(false);
     }
   };
+
+  if (initialLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-32">
+        <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+        <p className="text-slate-400 font-bold">情報を読み込み中...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -159,10 +188,11 @@ export const CreatePostPage = ({ session }: { session: Session | null }) => {
       </button>
 
       <div className="bg-white rounded-[2.5rem] card-shadow p-8 border border-slate-50 relative overflow-hidden">
-        {/* Decorative background */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 blur-3xl" />
         
-        <h1 className="text-3xl font-black text-slate-900 mb-8 relative">アイテムを譲る</h1>
+        <h1 className="text-3xl font-black text-slate-900 mb-8 relative">
+          {isEditMode ? '投稿を編集する' : 'アイテムを譲る'}
+        </h1>
         
         <form onSubmit={handleSubmit} className="space-y-8 relative">
           <div>
@@ -183,7 +213,7 @@ export const CreatePostPage = ({ session }: { session: Session | null }) => {
                 </div>
               ))}
               
-              {images.length < 4 && (
+              {previews.length < 4 && (
                 <button 
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -194,14 +224,7 @@ export const CreatePostPage = ({ session }: { session: Session | null }) => {
                 </button>
               )}
             </div>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              className="hidden" 
-              accept="image/*" 
-              multiple 
-              onChange={handleImageChange} 
-            />
+            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" multiple onChange={handleImageChange} />
           </div>
 
           <div className="space-y-6">
@@ -329,10 +352,10 @@ export const CreatePostPage = ({ session }: { session: Session | null }) => {
             {loading ? (
               <>
                 <Loader2 className="animate-spin" size={24} />
-                <span>投稿中...</span>
+                <span>更新中...</span>
               </>
             ) : (
-              <span>出品する</span>
+              <span>{isEditMode ? '変更를 저장한다' : '出品する'}</span>
             )}
           </button>
         </form>

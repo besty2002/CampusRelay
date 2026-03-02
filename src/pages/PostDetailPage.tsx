@@ -2,14 +2,16 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Post } from '../types';
-import { ChevronLeft, Calendar, ShieldCheck, MessageCircle, Loader2 } from 'lucide-react';
+import { ChevronLeft, Calendar, ShieldCheck, MessageCircle, Loader2, Edit, Trash2 } from 'lucide-react';
 
-export const PostDetailPage = () => {
+export const PostDetailPage = ({ session }: { session: any }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [requestSent, setRequestSent] = useState(false);
+
+  const isOwner = session?.user && post && session.user.id === (post as any).giver_id;
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -17,7 +19,6 @@ export const PostDetailPage = () => {
       
       setLoading(true);
       try {
-        // 1. Supabase에서 조회
         const { data } = await supabase
           .from('posts')
           .select('*')
@@ -34,11 +35,6 @@ export const PostDetailPage = () => {
             createdAt: data.created_at,
             exchangeFor: data.exchange_for
           });
-        } else {
-          // 2. LocalStorage에서 조회 (fallback)
-          const localPosts = JSON.parse(localStorage.getItem('local_posts') || '[]');
-          const localPost = localPosts.find((p: any) => p.id === id);
-          if (localPost) setPost(localPost);
         }
       } catch (err) {
         console.error('Error fetching post:', err);
@@ -49,11 +45,22 @@ export const PostDetailPage = () => {
     fetchPost();
   }, [id]);
 
+  const handleDelete = async () => {
+    if (!window.confirm('この投稿を削除してもよろしいですか？')) return;
+    try {
+      const { error } = await supabase.from('posts').delete().eq('id', id);
+      if (error) throw error;
+      navigate('/');
+    } catch (err) {
+      alert('削除に失敗しました');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center">
         <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-        <p className="text-slate-400 font-bold">アイテム情報を読み込み中...</p>
+        <p className="text-slate-400 font-bold">情報を読み込み中...</p>
       </div>
     );
   }
@@ -72,12 +79,31 @@ export const PostDetailPage = () => {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 md:py-12">
-      <button 
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-1 text-slate-400 hover:text-primary mb-8 transition-all font-bold group"
-      >
-        <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" /> 一覧に戻る
-      </button>
+      <div className="flex justify-between items-center mb-8">
+        <button 
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-1 text-slate-400 hover:text-primary transition-all font-bold group"
+        >
+          <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" /> 一覧に戻る
+        </button>
+
+        {isOwner && (
+          <div className="flex gap-2">
+            <button 
+              onClick={() => navigate(`/post/edit/${post.id}`)}
+              className="flex items-center gap-2 bg-slate-100 text-slate-600 px-4 py-2 rounded-xl font-bold hover:bg-slate-200 transition-all text-sm"
+            >
+              <Edit size={16} /> 編集
+            </button>
+            <button 
+              onClick={handleDelete}
+              className="flex items-center gap-2 bg-red-50 text-red-500 px-4 py-2 rounded-xl font-bold hover:bg-red-100 transition-all text-sm"
+            >
+              <Trash2 size={16} /> 削除
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="grid md:grid-cols-2 gap-12 items-start">
         {/* Images */}
@@ -105,7 +131,7 @@ export const PostDetailPage = () => {
             <h1 className="text-4xl font-black text-slate-900 leading-tight mb-4">{post.title}</h1>
             <div className="flex items-center gap-6 text-sm text-slate-500 font-bold">
               <span className="flex items-center gap-2"><Calendar size={18} className="text-slate-300"/> {new Date(post.createdAt).toLocaleDateString('ja-JP')}</span>
-              <span className="flex items-center gap-2"><ShieldCheck size={18} className="text-secondary"/> 学内認証済み</span>
+              <span className="flex items-center gap-2"><ShieldCheck size={18} className="text-secondary"/> 学내 인증 완료</span>
             </div>
           </div>
 
@@ -168,9 +194,6 @@ export const PostDetailPage = () => {
               リクエストを送信しました！
             </div>
           )}
-          <p className="text-center text-[10px] font-bold text-slate-400 mt-6 leading-relaxed uppercase tracking-tighter">
-            お金のやり取りは一切ありません。0円シェアリングで学内リサイクルを促進しましょう。
-          </p>
         </div>
       </div>
     </div>
