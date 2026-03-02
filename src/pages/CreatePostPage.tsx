@@ -46,25 +46,33 @@ export const CreatePostPage = ({ session }: { session: Session | null }) => {
   const uploadImages = async (): Promise<string[]> => {
     const uploadedUrls: string[] = [];
     
+    // 순차적으로 업로드하여 순환 참조나 순서 뒤바뀜 방지
     for (const file of images) {
+      const timestamp = Date.now();
+      const randomString = Math.random().toString(36).substring(2, 8);
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
+      const fileName = `${timestamp}-${randomString}.${fileExt}`;
       const filePath = `${session?.user.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('post-images')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
       if (uploadError) {
-        console.error('Upload error:', uploadError);
-        continue;
+        console.error('Upload error details:', uploadError);
+        throw new Error(`이미지 업로드 실패: ${file.name}`);
       }
 
       const { data } = supabase.storage
         .from('post-images')
         .getPublicUrl(filePath);
 
-      if (data) uploadedUrls.push(data.publicUrl);
+      if (data?.publicUrl) {
+        uploadedUrls.push(data.publicUrl);
+      }
     }
     
     return uploadedUrls;
@@ -85,8 +93,14 @@ export const CreatePostPage = ({ session }: { session: Session | null }) => {
     setLoading(true);
 
     try {
+      // 1. 이미지 업로드 수행
       const photoUrls = await uploadImages();
       
+      if (photoUrls.length === 0) {
+        throw new Error('이미지 주소를 생성할 수 없습니다.');
+      }
+
+      // 2. Supabase DB에 포스트 저장
       const { error } = await supabase
         .from('posts')
         .insert([
@@ -101,31 +115,35 @@ export const CreatePostPage = ({ session }: { session: Session | null }) => {
             photos: photoUrls,
             giver_id: session.user.id,
             giver_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
-            school_id: 's1', // 기본값
+            school_id: 's1',
             status: '受付中',
             scope: 'SCHOOL',
           }
         ]);
 
-      if (error) {
-        // 만약 테이블이 없으면 localStorage에라도 저장 (데모용)
-        console.warn('Supabase insert error, falling back to localStorage:', error);
+      if (error) throw error;
+      
+      navigate('/');
+    } catch (err: any) {
+      console.error('Post creation error:', err);
+      // 에러 메시지 상세화
+      const msg = err.message || '投稿中にエラーが発生しました。';
+      alert(msg);
+      
+      // DB 에러 시 로컬 저장 시도 (데모 목적)
+      if (!err.message?.includes('이미지')) {
         const localPosts = JSON.parse(localStorage.getItem('local_posts') || '[]');
         localPosts.push({
           id: Math.random().toString(36).substr(2, 9),
           ...formData,
-          photos: photoUrls.length > 0 ? photoUrls : ['https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&q=80&w=400'],
+          photos: previews, // 로컬에서는 미리보기 주소라도 저장
           giverName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
           createdAt: new Date().toISOString(),
           status: '受付中',
         });
         localStorage.setItem('local_posts', JSON.stringify(localPosts));
+        navigate('/');
       }
-      
-      navigate('/');
-    } catch (err) {
-      console.error('Post creation error:', err);
-      alert('投稿中にエラーが発生했습니다.');
     } finally {
       setLoading(false);
     }
