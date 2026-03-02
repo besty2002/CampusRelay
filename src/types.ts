@@ -1,5 +1,12 @@
 export type PostMode = 'GIVEAWAY' | 'EXCHANGE';
-export type PostCategory = 'Uniform' | 'Textbook' | 'Supplies' | 'Other';
+export type PostCategory = 
+  | 'Uniform' 
+  | 'Textbook' 
+  | 'Digital' 
+  | 'Life' 
+  | 'ArtSport' 
+  | 'Other';
+
 export type PostCondition = 'Like New' | 'Good' | 'Used';
 export type PostStatus = 'Available' | 'Reserved' | 'Given' | 'Hidden';
 
@@ -40,7 +47,7 @@ export interface Post {
   profiles: Profile;
   post_images?: PostImage[];
   schools?: School;
-  post_requests?: any[]; // Added for activity dashboard
+  post_requests?: any[];
 }
 
 export interface PostRequest {

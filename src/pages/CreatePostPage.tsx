@@ -8,7 +8,7 @@ import { useAuth } from '../hooks/useAuth';
 export const CreatePostPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { postId } = useParams(); // For edit mode
+  const { postId } = useParams();
   const [searchParams] = useSearchParams();
   const schoolIdFromQuery = searchParams.get('schoolId');
   
@@ -50,7 +50,6 @@ export const CreatePostPage = () => {
 
       if (error) throw error;
       if (data) {
-        // Auth check
         if (data.user_id !== user?.id && user) {
           alert('권한이 없습니다.');
           navigate('/');
@@ -90,20 +89,14 @@ export const CreatePostPage = () => {
 
   const removeImage = async (index: number) => {
     const previewToRemove = previews[index];
-    
-    // If it's an existing image, we need to handle it separately
     const existingImg = existingImages.find(img => img.storage_path === previewToRemove);
-    
     if (existingImg) {
-      // In edit mode, we'll mark it for deletion or just remove from state and handle on submit
       setExistingPhotos(prev => prev.filter(img => img.id !== existingImg.id));
     } else {
-      // If it's a new blob image
       const blobIndex = previews.filter((p, i) => i < index && !existingImages.some(ei => ei.storage_path === p)).length;
       setImages(prev => prev.filter((_, i) => i !== blobIndex));
       URL.revokeObjectURL(previewToRemove);
     }
-    
     setPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -116,8 +109,6 @@ export const CreatePostPage = () => {
     setLoading(true);
     try {
       let currentPostId = postId;
-
-      // 1. Create or Update Post
       const postPayload = {
         school_id: targetSchoolId,
         user_id: user.id,
@@ -146,14 +137,10 @@ export const CreatePostPage = () => {
         currentPostId = postData.id;
       }
 
-      // 2. Handle Images (This is a simplified version: delete and re-add for simplicity in MVP)
-      // For production, you'd want to be more surgical.
       if (isEditMode) {
-        // Delete all old records in DB (Storage cleanup can be handled by bucket lifecycle or manual logic)
         await supabase.from('post_images').delete().eq('post_id', currentPostId);
       }
 
-      // Re-insert existing images
       for (let i = 0; i < existingImages.length; i++) {
         await supabase.from('post_images').insert({
           post_id: currentPostId,
@@ -162,22 +149,13 @@ export const CreatePostPage = () => {
         });
       }
 
-      // Upload and insert new images
       for (let i = 0; i < images.length; i++) {
         const file = images[i];
         const ext = file.name.split('.').pop();
         const fileName = `${currentPostId}/${crypto.randomUUID()}.${ext}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('post-images')
-          .upload(fileName, file);
-
+        const { error: uploadError } = await supabase.storage.from('post-images').upload(fileName, file);
         if (uploadError) throw uploadError;
-
-        const { data: publicUrlData } = supabase.storage
-          .from('post-images')
-          .getPublicUrl(fileName);
-
+        const { data: publicUrlData } = supabase.storage.from('post-images').getPublicUrl(fileName);
         await supabase.from('post_images').insert({
           post_id: currentPostId,
           storage_path: publicUrlData.publicUrl,
@@ -211,28 +189,17 @@ export const CreatePostPage = () => {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 space-y-6">
-          
           <div>
             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Images (Max 5)</label>
             <div className="flex flex-wrap gap-4">
               {previews.map((preview, index) => (
                 <div key={index} className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-200 shadow-sm group">
                   <img src={preview} alt="preview" className="w-full h-full object-cover" />
-                  <button 
-                    type="button" onClick={() => removeImage(index)}
-                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                  >
-                    <X size={12} />
-                  </button>
+                  <button type="button" onClick={() => removeImage(index)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"><X size={12} /></button>
                 </div>
               ))}
               {previews.length < 5 && (
-                <button 
-                  type="button" onClick={() => fileInputRef.current?.click()}
-                  className="w-20 h-20 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-xl text-slate-400 hover:text-lime-500 hover:border-lime-500 transition-colors"
-                >
-                  <Camera size={24} />
-                </button>
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="w-20 h-20 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-xl text-slate-400 hover:text-lime-500 hover:border-lime-500 transition-colors"><Camera size={24} /></button>
               )}
             </div>
             <input type="file" ref={fileInputRef} className="hidden" accept="image/jpeg, image/png, image/webp" multiple onChange={handleImageChange} />
@@ -240,13 +207,7 @@ export const CreatePostPage = () => {
 
           <div>
             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Title</label>
-            <input
-              required
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-bold"
-              placeholder="예: 弘道小学校 체육복 상의"
-            />
+            <input required value={title} onChange={e => setTitle(e.target.value)} className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-bold" placeholder="예: 弘道小学校 체육복 상의" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -258,16 +219,15 @@ export const CreatePostPage = () => {
               >
                 <option value="Uniform">교복/의류</option>
                 <option value="Textbook">교과서/도서</option>
-                <option value="Supplies">학용품</option>
+                <option value="Digital">IT/디지털</option>
+                <option value="ArtSport">예술/체육</option>
+                <option value="Life">생활용품</option>
                 <option value="Other">기타</option>
               </select>
             </div>
             <div>
               <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Condition</label>
-              <select 
-                value={condition} onChange={e => setCondition(e.target.value as any)}
-                className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-bold appearance-none"
-              >
+              <select value={condition} onChange={e => setCondition(e.target.value as any)} className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-bold appearance-none">
                 <option value="Like New">거의 새것</option>
                 <option value="Good">상태 좋음</option>
                 <option value="Used">사용감 있음</option>
@@ -277,58 +237,25 @@ export const CreatePostPage = () => {
 
           <div>
             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Description</label>
-            <textarea
-              required
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              rows={4}
-              className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-medium"
-              placeholder="상세 정보를 입력해 주세요."
-            />
+            <textarea required value={description} onChange={e => setDescription(e.target.value)} rows={4} className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-medium" placeholder="상세 정보를 입력해 주세요." />
           </div>
         </div>
 
         <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100">
           <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">Sharing Mode</label>
           <div className="flex gap-3 mb-6">
-            <button
-              type="button"
-              onClick={() => setMode('GIVEAWAY')}
-              className={`flex-1 py-4 rounded-2xl font-black text-sm transition-all ${
-                mode === 'GIVEAWAY' ? 'bg-lime-500 text-white shadow-lg shadow-lime-500/30' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
-              }`}
-            >
-              Free Giveaway
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('EXCHANGE')}
-              className={`flex-1 py-4 rounded-2xl font-black text-sm transition-all ${
-                mode === 'EXCHANGE' ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/30' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
-              }`}
-            >
-              Exchange
-            </button>
+            <button type="button" onClick={() => setMode('GIVEAWAY')} className={`flex-1 py-4 rounded-2xl font-black text-sm transition-all ${mode === 'GIVEAWAY' ? 'bg-lime-500 text-white shadow-lg shadow-lime-500/30' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>Free Giveaway</button>
+            <button type="button" onClick={() => setMode('EXCHANGE')} className={`flex-1 py-4 rounded-2xl font-black text-sm transition-all ${mode === 'EXCHANGE' ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/30' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>Exchange</button>
           </div>
-
           {mode === 'EXCHANGE' && (
             <div className="animate-in slide-in-from-top-2 duration-300">
               <label className="block text-xs font-black text-purple-400 uppercase tracking-widest mb-2 ml-1">교환 희망 조건</label>
-              <input
-                required
-                value={exchangeWanted}
-                onChange={e => setExchangeWanted(e.target.value)}
-                className="w-full p-4 bg-purple-50 rounded-2xl border-none focus:ring-2 focus:ring-purple-500 outline-none transition-all font-bold text-purple-900"
-                placeholder="예: 중학교 1학년 수학 교과서"
-              />
+              <input required value={exchangeWanted} onChange={e => setExchangeWanted(e.target.value)} className="w-full p-4 bg-purple-50 rounded-2xl border-none focus:ring-2 focus:ring-purple-500 outline-none transition-all font-bold text-purple-900" placeholder="예: 중학교 1학년 수학 교과서" />
             </div>
           )}
         </div>
 
-        <button
-          disabled={loading}
-          className="w-full bg-lime-500 text-white py-5 rounded-[2rem] font-black text-xl shadow-xl shadow-lime-500/30 hover:bg-lime-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-        >
+        <button disabled={loading} className="w-full bg-lime-500 text-white py-5 rounded-[2rem] font-black text-xl shadow-xl shadow-lime-500/30 hover:bg-lime-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
           {loading ? <Loader2 className="animate-spin" /> : isEditMode ? '수정 완료' : '나눔 등록 완료'}
         </button>
       </form>

@@ -2,14 +2,40 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Post, PostCategory } from '../types';
-import { Search, Loader2, Plus, School, ArrowRight, Star, Book, Shirt, PenTool, LayoutGrid, Layers, Heart } from 'lucide-react';
+import { 
+  Search, 
+  Loader2, 
+  Plus, 
+  School, 
+  ArrowRight, 
+  Star, 
+  Book, 
+  Shirt, 
+  LayoutGrid, 
+  Layers, 
+  Heart,
+  Cpu,
+  Palette,
+  Coffee
+} from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
-const CATEGORIES: { id: PostCategory | 'All', label: string, icon: any }[] = [
+export const CATEGORY_MAP: Record<PostCategory, { label: string, icon: any, color: string }> = {
+  Uniform: { label: '교복/의류', icon: Shirt, color: 'bg-blue-50 text-blue-600' },
+  Textbook: { label: '교과서/도서', icon: Book, color: 'bg-amber-50 text-amber-600' },
+  Digital: { label: 'IT/디지털', icon: Cpu, color: 'bg-purple-50 text-purple-600' },
+  ArtSport: { label: '예술/체육', icon: Palette, color: 'bg-rose-50 text-rose-600' },
+  Life: { label: '생활용품', icon: Coffee, color: 'bg-emerald-50 text-emerald-600' },
+  Other: { label: '기타', icon: Layers, color: 'bg-slate-50 text-slate-600' },
+};
+
+const CATEGORY_LIST: { id: PostCategory | 'All', label: string, icon: any }[] = [
   { id: 'All', label: '전체', icon: LayoutGrid },
   { id: 'Uniform', label: '교복/의류', icon: Shirt },
   { id: 'Textbook', label: '교과서/도서', icon: Book },
-  { id: 'Supplies', label: '학용품', icon: PenTool },
+  { id: 'Digital', label: 'IT/디지털', icon: Cpu },
+  { id: 'ArtSport', label: '예술/체육', icon: Palette },
+  { id: 'Life', label: '생활용품', icon: Coffee },
   { id: 'Other', label: '기타', icon: Layers },
 ];
 
@@ -115,8 +141,9 @@ export const HomePage = () => {
         />
       </div>
 
+      {/* Category Quick Menu */}
       <div className="flex gap-4 overflow-x-auto pb-4 mb-8 no-scrollbar -mx-2 px-2">
-        {CATEGORIES.map((cat) => (
+        {CATEGORY_LIST.map((cat) => (
           <button
             key={cat.id}
             onClick={() => setActiveCategory(cat.id)}
@@ -183,6 +210,8 @@ export const HomePage = () => {
           {posts.map((post) => {
             const thumbnail = post.post_images?.sort((a,b) => a.sort_order - b.sort_order)[0]?.storage_path;
             const isWishlisted = wishlistIds.includes(post.id);
+            const categoryInfo = CATEGORY_MAP[post.category];
+
             return (
               <div key={post.id} className="relative">
                 <Link 
@@ -205,6 +234,9 @@ export const HomePage = () => {
                           post.mode === 'GIVEAWAY' ? 'bg-lime-50 text-lime-600' : 'bg-purple-50 text-purple-600'
                         }`}>
                           {post.mode}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${categoryInfo?.color || 'bg-slate-100'}`}>
+                          {categoryInfo?.label}
                         </span>
                         <span className="text-[10px] font-bold text-slate-400 truncate">{post.schools?.name_ja}</span>
                       </div>
