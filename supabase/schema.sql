@@ -94,3 +94,12 @@ CREATE TABLE wishlists (
   created_at timestamptz DEFAULT now(),
   UNIQUE(user_id, post_id)
 );
+
+-- 10. Comments
+CREATE TABLE comments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id uuid REFERENCES posts(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES profiles(id) ON DELETE CASCADE,
+  content text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);

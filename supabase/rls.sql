@@ -64,3 +64,8 @@ CREATE POLICY "Admin update reports" ON reports FOR UPDATE TO authenticated USIN
 CREATE POLICY "Users can view own wishlist" ON wishlists FOR SELECT TO authenticated USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own wishlist" ON wishlists FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can delete own wishlist" ON wishlists FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+-- Comments: Public read, owner manage
+CREATE POLICY "Public read comments" ON comments FOR SELECT USING (true);
+CREATE POLICY "Insert own comments" ON comments FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Delete own comments" ON comments FOR DELETE TO authenticated USING (auth.uid() = user_id);

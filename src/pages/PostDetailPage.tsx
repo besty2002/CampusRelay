@@ -1,8 +1,21 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Post, PostRequest } from '../types';
-import { ArrowLeft, MessageCircle, CheckCircle2, Loader2, User, Star, Edit, Trash2, AlertCircle, Heart } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  MessageCircle, 
+  CheckCircle2, 
+  Loader2, 
+  User, 
+  Star, 
+  Edit, 
+  Trash2, 
+  AlertCircle, 
+  Heart,
+  Send,
+  Trash
+} from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export const PostDetailPage = () => {
@@ -12,7 +25,10 @@ export const PostDetailPage = () => {
   
   const [post, setPost] = useState<Post | null>(null);
   const [requests, setRequests] = useState<PostRequest[]>([]);
+  const [comments, setComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
+  const [submittingComment, setSubmittingComment] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
   
@@ -54,6 +70,17 @@ export const PostDetailPage = () => {
           .eq('post_id', postId);
         if (reqs) setRequests(reqs as any);
       }
+
+      // Fetch Comments
+      const { data: commentsData } = await supabase
+        .from('comments')
+        .select(`
+          *,
+          profiles (display_name)
+        `)
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true });
+      if (commentsData) setComments(commentsData);
     }
     setLoading(false);
   };
@@ -120,6 +147,31 @@ export const PostDetailPage = () => {
     fetchDetail();
   };
 
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return alert('로그인이 필요합니다.');
+    if (!newComment.trim()) return;
+
+    setSubmittingComment(true);
+    const { error } = await supabase.from('comments').insert({
+      post_id: postId,
+      user_id: user.id,
+      content: newComment
+    });
+
+    if (!error) {
+      setNewComment('');
+      fetchDetail();
+    }
+    setSubmittingComment(false);
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!window.confirm('댓글을 삭제할까요?')) return;
+    const { error } = await supabase.from('comments').delete().eq('id', commentId);
+    if (!error) fetchDetail();
+  };
+
   const handleReport = async () => {
     if (!user) return alert('로그인이 필요합니다.');
     if (!reportReason.trim()) return alert('신고 사유를 입력해 주세요.');
@@ -174,7 +226,7 @@ export const PostDetailPage = () => {
   if (!post) return <div className="p-8 text-center font-bold">게시글을 찾을 수 없습니다.</div>;
 
   return (
-    <div className="max-w-2xl mx-auto p-4 pt-12 pb-24 relative">
+    <div className="max-w-2xl mx-auto p-4 pt-12 pb-32 relative">
       <div className="flex justify-between items-center mb-8">
         <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-slate-400 font-bold hover:text-lime-600 transition-colors">
           <ArrowLeft size={20} /> 뒤로가기
@@ -216,7 +268,7 @@ export const PostDetailPage = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-[3rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+      <div className="bg-white rounded-[3rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden mb-8">
         
         {post.post_images && post.post_images.length > 0 && (
           <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar bg-slate-100 h-64 md:h-96">
@@ -264,11 +316,11 @@ export const PostDetailPage = () => {
           )}
 
           <div className="flex items-center gap-4 p-6 bg-slate-50 rounded-[2rem]">
-            <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-sm text-lime-500">
+            <Link to={`/user/${post.user_id}`} className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-sm text-lime-500 hover:scale-105 transition-transform">
               <User size={28} />
-            </div>
+            </Link>
             <div>
-              <p className="font-black text-slate-800 text-lg">{post.profiles.display_name}</p>
+              <Link to={`/user/${post.user_id}`} className="font-black text-slate-800 text-lg hover:text-lime-600 transition-colors">{post.profiles.display_name}</Link>
               <div className="flex items-center gap-3 mt-0.5">
                 <span className="bg-lime-500 text-white px-2 py-0.5 rounded-md text-[10px] font-black uppercase">
                   {post.profiles.completed_count} Given
@@ -308,11 +360,11 @@ export const PostDetailPage = () => {
                   {requests.map(req => (
                     <div key={req.id} className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 flex justify-between items-center">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-sky-50 rounded-full flex items-center justify-center text-sky-500 font-black">
+                        <Link to={`/user/${req.requester_id}`} className="w-10 h-10 bg-sky-50 rounded-full flex items-center justify-center text-sky-500 font-black">
                           {req.profiles.display_name[0]}
-                        </div>
+                        </Link>
                         <div>
-                          <p className="font-bold text-slate-700">{req.profiles.display_name}</p>
+                          <Link to={`/user/${req.requester_id}`} className="font-bold text-slate-700 hover:text-sky-600">{req.profiles.display_name}</Link>
                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter text-sky-600">나눔완료 {req.profiles.completed_count}회</p>
                         </div>
                       </div>
@@ -369,6 +421,72 @@ export const PostDetailPage = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Comments Section */}
+      <div className="bg-white rounded-[3rem] p-8 md:p-12 shadow-xl shadow-slate-200/50 border border-slate-100 mb-8">
+        <h3 className="text-2xl font-black text-slate-800 mb-8 flex items-center gap-3">
+          <MessageCircle className="text-lime-500" />
+          댓글 및 문의
+        </h3>
+
+        {/* Comment List */}
+        <div className="space-y-6 mb-10">
+          {comments.length === 0 ? (
+            <p className="text-center text-slate-400 font-bold py-4 italic">아직 댓글이 없습니다. 첫 질문을 남겨보세요!</p>
+          ) : (
+            comments.map((comment) => (
+              <div key={comment.id} className="flex gap-4 group">
+                <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 shrink-0 border border-slate-100">
+                  <User size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-black text-slate-700 text-sm">{comment.profiles?.display_name}</span>
+                    <span className="text-[10px] font-bold text-slate-300 uppercase">{new Date(comment.created_at).toLocaleDateString()}</span>
+                  </div>
+                  <p className="text-slate-600 text-sm font-medium leading-relaxed bg-slate-50/50 p-4 rounded-2xl rounded-tl-none border border-slate-50">
+                    {comment.content}
+                  </p>
+                  {(user?.id === comment.user_id || isOwner) && (
+                    <button 
+                      onClick={() => handleDeleteComment(comment.id)}
+                      className="mt-2 text-[10px] font-black text-red-400 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 hover:text-red-600"
+                    >
+                      <Trash size={10} /> 삭제하기
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Comment Input */}
+        {user ? (
+          <form onSubmit={handleAddComment} className="relative">
+            <input 
+              type="text"
+              placeholder="궁금한 점을 물어보세요..."
+              className="w-full pl-6 pr-14 py-4 bg-slate-50 rounded-2xl border-none focus:ring-4 focus:ring-lime-500/10 focus:bg-white outline-none font-medium transition-all"
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              disabled={submittingComment}
+            />
+            <button 
+              type="submit"
+              disabled={submittingComment || !newComment.trim()}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-lime-500 text-white rounded-xl shadow-lg shadow-lime-500/30 hover:bg-lime-600 active:scale-90 transition-all disabled:opacity-50"
+            >
+              <Send size={18} />
+            </button>
+          </form>
+        ) : (
+          <div className="p-6 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 text-center">
+            <p className="text-slate-400 font-bold text-sm">댓글을 작성하려면 로그인이 필요합니다.</p>
+            <Link to="/auth" className="text-lime-600 font-black text-xs mt-2 inline-block uppercase tracking-widest">로그인 하러가기 &rarr;</Link>
+          </div>
+        )}
       </div>
 
       {/* Report Modal */}
