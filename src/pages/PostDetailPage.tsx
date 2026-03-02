@@ -1,197 +1,195 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import type { Post } from '../types';
-import { ChevronLeft, Calendar, ShieldCheck, MessageCircle, Loader2, Edit, Trash2 } from 'lucide-react';
+import type { Post, PostRequest } from '../types';
+import { ArrowLeft, MessageCircle, CheckCircle2, Loader2, User } from 'lucide-react';
 
-export const PostDetailPage = ({ session }: { session: any }) => {
-  const { id } = useParams();
+export const PostDetailPage = () => {
+  const { postId } = useParams();
   const navigate = useNavigate();
   const [post, setPost] = useState<Post | null>(null);
+  const [requests, setRequests] = useState<PostRequest[]>([]);
+  const [isOwner, setIsOwner] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [requestSent, setRequestSent] = useState(false);
-
-  const isOwner = session?.user && post && session.user.id === (post as any).giver_id;
+  const [requesting, setRequesting] = useState(false);
 
   useEffect(() => {
-    const fetchPost = async () => {
-      if (!id) return;
+    fetchDetail();
+  }, [postId]);
+
+  const fetchDetail = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUser(user);
+
+    const { data: postData } = await supabase
+      .from('posts')
+      .select('*, profiles(display_name, completed_count)')
+      .eq('id', postId)
+      .single();
+    
+    if (postData) {
+      setPost(postData as any);
+      setIsOwner(user?.id === postData.user_id);
       
-      setLoading(true);
-      try {
-        const { data } = await supabase
-          .from('posts')
-          .select('*')
-          .eq('id', id)
-          .single();
-
-        if (data) {
-          setPost({
-            ...data,
-            pickupMethod: data.pickup_method,
-            giverId: data.giver_id,
-            giverName: data.giver_name,
-            schoolId: data.school_id,
-            createdAt: data.created_at,
-            exchangeFor: data.exchange_for
-          });
-        }
-      } catch (err) {
-        console.error('Error fetching post:', err);
-      } finally {
-        setLoading(false);
+      if (user?.id === postData.user_id) {
+        const { data: reqs } = await supabase
+          .from('post_requests')
+          .select('*, profiles(display_name, completed_count)')
+          .eq('post_id', postId);
+        if (reqs) setRequests(reqs as any);
       }
-    };
-    fetchPost();
-  }, [id]);
-
-  const handleDelete = async () => {
-    if (!window.confirm('この投稿を削除してもよろしいですか？')) return;
-    try {
-      const { error } = await supabase.from('posts').delete().eq('id', id);
-      if (error) throw error;
-      navigate('/');
-    } catch (err) {
-      alert('削除に失敗しました');
     }
+    setLoading(false);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center">
-        <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-        <p className="text-slate-400 font-bold">情報を読み込み中...</p>
-      </div>
-    );
-  }
+  const handleRequest = async () => {
+    if (!currentUser) return alert('로그인이 필요합니다.');
+    setRequesting(true);
+    const { error } = await supabase.from('post_requests').insert({
+      post_id: postId,
+      requester_id: currentUser.id,
+      message: '나눔 신청합니다!'
+    });
+    if (error) alert(error.message);
+    else alert('신청이 완료되었습니다!');
+    setRequesting(false);
+  };
 
-  if (!post) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-24 text-center">
-        <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-          <ChevronLeft className="text-slate-300" size={32} />
-        </div>
-        <h3 className="text-2xl font-black text-slate-800 mb-2">アイテムが見つかりません</h3>
-        <button onClick={() => navigate('/')} className="text-primary font-bold hover:underline">ホームに戻る</button>
-      </div>
-    );
-  }
+  const handleApprove = async (reqId: string) => {
+    await supabase.from('post_requests').update({ status: 'Approved' }).eq('id', reqId);
+    await supabase.from('posts').update({ status: 'Reserved' }).eq('id', postId);
+    fetchDetail();
+  };
+
+  const handleComplete = async () => {
+    await supabase.from('posts').update({ status: 'Given' }).eq('id', postId);
+    fetchDetail();
+  };
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <Loader2 className="animate-spin text-lime-500" />
+    </div>
+  );
+
+  if (!post) return <div className="p-8 text-center font-bold">Post not found.</div>;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 md:py-12">
-      <div className="flex justify-between items-center mb-8">
-        <button 
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1 text-slate-400 hover:text-primary transition-all font-bold group"
-        >
-          <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" /> 一覧に戻る
-        </button>
+    <div className="max-w-2xl mx-auto p-4 pt-12 pb-24">
+      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-400 font-bold mb-8 hover:text-lime-600 transition-colors">
+        <ArrowLeft size={20} /> 뒤로가기
+      </button>
 
-        {isOwner && (
-          <div className="flex gap-2">
-            <button 
-              onClick={() => navigate(`/post/edit/${post.id}`)}
-              className="flex items-center gap-2 bg-slate-100 text-slate-600 px-4 py-2 rounded-xl font-bold hover:bg-slate-200 transition-all text-sm"
-            >
-              <Edit size={16} /> 編集
-            </button>
-            <button 
-              onClick={handleDelete}
-              className="flex items-center gap-2 bg-red-50 text-red-500 px-4 py-2 rounded-xl font-bold hover:bg-red-100 transition-all text-sm"
-            >
-              <Trash2 size={16} /> 削除
-            </button>
+      <div className="bg-white rounded-[3rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+        <div className="p-8 md:p-12">
+          <div className="flex justify-between items-start mb-6">
+            <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest ${
+              post.status === 'Available' ? 'bg-lime-100 text-lime-600' :
+              post.status === 'Reserved' ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'
+            }`}>
+              {post.status}
+            </span>
+            <span className="text-xs font-black text-slate-300 uppercase tracking-tighter">
+              {new Date(post.created_at).toLocaleDateString()}
+            </span>
           </div>
-        )}
-      </div>
 
-      <div className="grid md:grid-cols-2 gap-12 items-start">
-        {/* Images */}
-        <div className="space-y-4 sticky top-24">
-          <div className="aspect-square rounded-[3rem] overflow-hidden card-shadow bg-white border border-slate-50">
-            <img src={post.photos[0]} alt={post.title} className="w-full h-full object-cover" />
+          <h1 className="text-4xl font-black text-slate-800 mb-4 leading-tight">{post.title}</h1>
+          
+          <div className="flex gap-2 mb-8">
+            <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-xs font-bold">{post.category}</span>
+            <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-xs font-bold">{post.condition}</span>
+            {post.mode === 'EXCHANGE' && <span className="bg-purple-100 text-purple-600 px-3 py-1 rounded-lg text-xs font-bold">Exchange</span>}
           </div>
-          {post.photos.length > 1 && (
-            <div className="grid grid-cols-4 gap-4">
-               {post.photos.slice(1).map((photo, i) => (
-                 <div key={i} className="aspect-square rounded-2xl overflow-hidden border border-slate-100 card-shadow cursor-pointer hover:scale-105 transition-transform">
-                    <img src={photo} alt={`${post.title}-${i}`} className="w-full h-full object-cover" />
-                 </div>
-               ))}
+
+          <p className="text-slate-600 text-lg leading-relaxed mb-12 whitespace-pre-wrap font-medium">
+            {post.description}
+          </p>
+
+          {post.mode === 'EXCHANGE' && (
+            <div className="bg-purple-50 p-6 rounded-[2rem] mb-12 border-2 border-purple-100">
+              <h3 className="text-xs font-black text-purple-400 uppercase tracking-widest mb-2">교환 희망 아이템</h3>
+              <p className="text-purple-900 font-black text-xl">{post.exchange_wanted}</p>
             </div>
           )}
+
+          <div className="flex items-center gap-4 p-6 bg-slate-50 rounded-[2rem]">
+            <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-sm text-lime-500">
+              <User size={28} />
+            </div>
+            <div>
+              <p className="font-black text-slate-800 text-lg">{post.profiles.display_name}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter">Trust Score</span>
+                <span className="bg-lime-500 text-white px-2 py-0.5 rounded-md text-[10px] font-black">
+                  {post.profiles.completed_count} Given
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="flex flex-col">
-          <div className="mb-8">
-            <span className="inline-block px-4 py-1.5 bg-primary-light/30 text-primary-dark font-black text-xs uppercase tracking-widest rounded-full mb-4">
-              {post.category}
-            </span>
-            <h1 className="text-4xl font-black text-slate-900 leading-tight mb-4">{post.title}</h1>
-            <div className="flex items-center gap-6 text-sm text-slate-500 font-bold">
-              <span className="flex items-center gap-2"><Calendar size={18} className="text-slate-300"/> {new Date(post.createdAt).toLocaleDateString('ja-JP')}</span>
-              <span className="flex items-center gap-2"><ShieldCheck size={18} className="text-secondary"/> 学내 인증 완료</span>
-            </div>
-          </div>
-
-          <div className="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-50 mb-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12 blur-2xl" />
-            
-            <h2 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
-               <span className="w-1.5 h-6 bg-primary rounded-full" />
-               アイテムの説明
-            </h2>
-            <p className="text-slate-600 leading-relaxed whitespace-pre-wrap font-medium text-lg mb-8">{post.description}</p>
-            
-            <div className="space-y-4 pt-6 border-t border-slate-100">
-               <div className="flex justify-between items-center">
-                 <span className="text-sm font-black text-slate-400 uppercase tracking-widest">商品の状態</span>
-                 <span className="font-black text-slate-700 bg-slate-50 px-4 py-1 rounded-full text-sm">{post.condition}</span>
-               </div>
-               <div className="flex justify-between items-center">
-                 <span className="text-sm font-black text-slate-400 uppercase tracking-widest">受け渡し方法</span>
-                 <span className="font-black text-slate-700 bg-slate-50 px-4 py-1 rounded-full text-sm">{post.pickupMethod}</span>
-               </div>
-               {post.mode === 'EXCHANGE' && (
-                 <div className="mt-6 p-6 bg-secondary-light/20 rounded-3xl border border-secondary-light/30 border-dashed">
-                    <span className="text-xs text-secondary-dark font-black uppercase tracking-widest mb-2 block">交換希望アイテム</span>
-                    <p className="font-black text-slate-800 text-lg">{post.exchangeFor}</p>
-                 </div>
-               )}
-            </div>
-          </div>
-
-          {/* Giver Info */}
-          <div className="flex items-center gap-5 mb-10 p-6 bg-slate-50 rounded-[2rem] border border-slate-100 group cursor-pointer hover:bg-white hover:card-shadow transition-all">
-             <div className="w-16 h-16 rounded-full bg-secondary-light flex items-center justify-center text-secondary-dark font-black text-2xl border-4 border-white shadow-sm overflow-hidden group-hover:scale-110 transition-transform">
-               {post.giverName.charAt(0)}
-             </div>
-             <div>
-               <div className="font-black text-slate-900 text-lg">{post.giverName}</div>
-               <div className="text-xs text-slate-500 font-bold flex items-center gap-2">
-                 <span>譲渡実績 12回</span>
-                 <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                 <span className="text-secondary">4.9 ★</span>
-               </div>
-             </div>
-             <div className="ml-auto">
-                <ChevronLeft size={20} className="text-slate-300 rotate-180" />
-             </div>
-          </div>
-
-          {/* Action */}
-          {!requestSent ? (
+        <div className="p-8 bg-slate-50 border-t border-slate-100">
+          {!isOwner && post.status === 'Available' && (
             <button 
-              onClick={() => setRequestSent(true)}
-              className="w-full bg-primary text-white py-5 rounded-[2rem] font-black text-xl shadow-xl shadow-primary/20 hover:bg-primary-dark hover:shadow-2xl hover:shadow-primary/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3 group"
+              onClick={handleRequest}
+              disabled={requesting}
+              className="w-full bg-lime-500 text-white py-5 rounded-[2rem] font-black text-xl shadow-xl shadow-lime-500/30 hover:bg-lime-600 active:scale-[0.98] transition-all flex items-center justify-center gap-3"
             >
-              <MessageCircle size={24} className="group-hover:rotate-12 transition-transform" />
-              これ欲しい！
+              <MessageCircle size={24} />
+              {requesting ? '신청 중...' : '나눔 신청하기'}
             </button>
-          ) : (
-            <div className="w-full bg-green-50 text-green-600 py-5 rounded-[2rem] font-black text-xl text-center border-2 border-green-100 animate-in zoom-in-95 duration-300">
-              リクエストを送信しました！
+          )}
+
+          {isOwner && post.status === 'Available' && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                <CheckCircle2 className="text-lime-500" size={20} />
+                나눔 신청 목록
+              </h3>
+              {requests.length === 0 ? (
+                <div className="p-8 text-center bg-white rounded-3xl border-2 border-dashed border-slate-200">
+                  <p className="text-slate-400 font-bold">아직 신청자가 없습니다.</p>
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {requests.map(req => (
+                    <div key={req.id} className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-sky-50 rounded-full flex items-center justify-center text-sky-500 font-black">
+                          {req.profiles.display_name[0]}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-700">{req.profiles.display_name}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">나눔완료 {req.profiles.completed_count}회</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => handleApprove(req.id)}
+                        className="bg-slate-800 text-white px-6 py-2.5 rounded-2xl font-black text-sm hover:bg-slate-900 transition-all shadow-lg shadow-slate-800/20"
+                      >
+                        승인
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {isOwner && post.status === 'Reserved' && (
+            <button 
+              onClick={handleComplete}
+              className="w-full bg-slate-800 text-white py-5 rounded-[2rem] font-black text-xl shadow-xl shadow-slate-800/30 hover:bg-black active:scale-[0.98] transition-all"
+            >
+              나눔 완료 처리하기
+            </button>
+          )}
+
+          {post.status === 'Given' && (
+            <div className="w-full bg-white py-5 rounded-[2rem] font-black text-xl text-slate-400 text-center border-2 border-dashed border-slate-200">
+              이미 나눔이 완료된 아이템입니다.
             </div>
           )}
         </div>
