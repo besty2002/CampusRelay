@@ -8,6 +8,7 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { MessagesPage } from './pages/MessagesPage';
 import { ChatRoomPage } from './pages/ChatRoomPage';
 import { LoginPage } from './pages/LoginPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { User as UserIcon, MessageCircle, Home, PlusSquare, Shield, LogOut } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 
@@ -165,7 +166,7 @@ function App() {
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/messages" element={session ? <MessagesPage /> : <Navigate to="/login" replace />} />
           <Route path="/messages/:id" element={session ? <ChatRoomPage /> : <Navigate to="/login" replace />} />
-          <Route path="/profile" element={session ? <div className="p-8 text-center text-slate-400">マイページは準備中です</div> : <Navigate to="/login" replace />} />
+          <Route path="/profile" element={<ProfilePage session={session} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
