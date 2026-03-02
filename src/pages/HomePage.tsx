@@ -1,15 +1,24 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import type { Post } from '../types';
-import { Search, Loader2, Plus, School, ArrowRight, Star } from 'lucide-react';
+import type { Post, PostCategory } from '../types';
+import { Search, Loader2, Plus, School, ArrowRight, Star, Book, Shirt, PenTool, LayoutGrid, Layers } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+
+const CATEGORIES: { id: PostCategory | 'All', label: string, icon: any }[] = [
+  { id: 'All', label: '전체', icon: LayoutGrid },
+  { id: 'Uniform', label: '교복/의류', icon: Shirt },
+  { id: 'Textbook', label: '교과서/도서', icon: Book },
+  { id: 'Supplies', label: '학용품', icon: PenTool },
+  { id: 'Other', label: '기타', icon: Layers },
+];
 
 export const HomePage = () => {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [activeCategory, setActiveCategory] = useState<PostCategory | 'All'>('All');
   const [mySchoolIds, setMySchoolIds] = useState<string[]>([]);
   const [fetchingSchools, setFetchingSchools] = useState(false);
 
@@ -17,9 +26,9 @@ export const HomePage = () => {
     if (user) {
       fetchMySchools();
     } else {
-      fetchPosts([]);
+      fetchPosts([], activeCategory);
     }
-  }, [user, search]);
+  }, [user, search, activeCategory]);
 
   const fetchMySchools = async () => {
     setFetchingSchools(true);
@@ -30,11 +39,11 @@ export const HomePage = () => {
     
     const ids = data?.map(d => d.school_id) || [];
     setMySchoolIds(ids);
-    fetchPosts(ids);
+    fetchPosts(ids, activeCategory);
     setFetchingSchools(false);
   };
 
-  const fetchPosts = async (schoolIds: string[]) => {
+  const fetchPosts = async (schoolIds: string[], category: PostCategory | 'All') => {
     setLoading(true);
     let query = supabase
       .from('posts')
@@ -47,9 +56,12 @@ export const HomePage = () => {
       .eq('status', 'Available')
       .order('created_at', { ascending: false });
 
-    // If user has schools, filter by them to show personalized feed
     if (schoolIds.length > 0) {
       query = query.in('school_id', schoolIds);
+    }
+
+    if (category !== 'All') {
+      query = query.eq('category', category);
     }
 
     if (search) {
@@ -80,6 +92,30 @@ export const HomePage = () => {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+      </div>
+
+      {/* Category Quick Menu */}
+      <div className="flex gap-4 overflow-x-auto pb-4 mb-8 no-scrollbar -mx-2 px-2">
+        {CATEGORIES.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => setActiveCategory(cat.id)}
+            className="flex flex-col items-center gap-2 shrink-0 group"
+          >
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
+              activeCategory === cat.id 
+                ? 'bg-lime-500 text-white shadow-lg shadow-lime-500/30 scale-110' 
+                : 'bg-white text-slate-400 border border-slate-100 hover:border-lime-200 hover:text-lime-500'
+            }`}>
+              <cat.icon size={24} />
+            </div>
+            <span className={`text-[10px] font-black uppercase tracking-tighter ${
+              activeCategory === cat.id ? 'text-lime-600' : 'text-slate-400'
+            }`}>
+              {cat.label}
+            </span>
+          </button>
+        ))}
       </div>
 
       {/* Conditional Banner for Logged in users with no schools */}
@@ -122,7 +158,7 @@ export const HomePage = () => {
             <School size={40} />
           </div>
           <p className="text-slate-400 font-black text-lg">표시할 나눔이 없습니다.</p>
-          <p className="text-slate-300 text-sm mt-1 font-medium">검색어를 바꾸거나 다른 학교를 추가해 보세요!</p>
+          <p className="text-slate-300 text-sm mt-1 font-medium">검색어를 바꾸거나 다른 카테고리를 선택해 보세요!</p>
         </div>
       ) : (
         <div className="grid gap-6">
