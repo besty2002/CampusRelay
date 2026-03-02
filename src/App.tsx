@@ -12,7 +12,10 @@ import { ProfilePage } from './pages/ProfilePage';
 import { User as UserIcon, MessageCircle, Home, PlusSquare, Shield, LogOut } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 
-function Layout({ children, session }: { children: React.ReactNode; session: Session | null }) {
+// 관리자 권한을 가질 이메일 리스트 (사용자 이메일을 추가하시면 해당 계정으로 로그인 시 관리자 메뉴가 활성화됩니다)
+const ADMIN_EMAILS = ['doogiya2002@gmail.com']; 
+
+function Layout({ children, session, isAdmin }: { children: React.ReactNode; session: Session | null; isAdmin: boolean }) {
   const location = useLocation();
   const isAdminPath = location.pathname.startsWith('/admin');
 
@@ -35,7 +38,12 @@ function Layout({ children, session }: { children: React.ReactNode; session: Ses
             <Link to="/" className="text-slate-600 hover:text-primary font-bold">ホーム</Link>
             <Link to="/post/new" className="text-slate-600 hover:text-primary font-bold">譲る</Link>
             <Link to="/messages" className="text-slate-600 hover:text-primary font-bold">メッセージ</Link>
-            <Link to="/admin" className="text-slate-400 hover:text-primary transition-colors"><Shield size={20}/></Link>
+            {isAdmin && (
+              <Link to="/admin" className="text-slate-400 hover:text-primary transition-colors flex items-center gap-1 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
+                <Shield size={16}/>
+                <span className="text-[10px] font-black uppercase tracking-widest">Admin</span>
+              </Link>
+            )}
           </div>
 
           {session ? (
@@ -85,85 +93,60 @@ function Layout({ children, session }: { children: React.ReactNode; session: Ses
 function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    console.log('App Initializing... Base URL:', import.meta.env.BASE_URL);
-    console.log('Current Hash:', window.location.hash ? 'Hash detected' : 'No hash');
-    
-    // 세션 확인 타임아웃 (무한 로딩 방지)
-    const timeoutId = setTimeout(() => {
-      if (loading) {
-        console.warn('Session check timed out. Forcing content render.');
-        setLoading(false);
-      }
-    }, 5000);
-
     const initializeAuth = async () => {
       try {
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        console.log('Initial session fetched:', currentSession ? 'User Logged In' : 'No User');
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
         setSession(currentSession);
+        if (currentSession?.user?.email) {
+          setIsAdmin(ADMIN_EMAILS.includes(currentSession.user.email));
+        }
       } catch (err) {
         console.error('Auth initialization error:', err);
       } finally {
         setLoading(false);
-        clearTimeout(timeoutId);
       }
     };
 
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      console.log('Auth state changed event:', _event);
-      console.log('New session:', newSession ? 'Session Active' : 'No Session');
       setSession(newSession);
+      if (newSession?.user?.email) {
+        setIsAdmin(ADMIN_EMAILS.includes(newSession.user.email));
+      } else {
+        setIsAdmin(false);
+      }
       setLoading(false);
     });
 
     return () => {
       subscription.unsubscribe();
-      clearTimeout(timeoutId);
     };
   }, []);
 
   if (loading) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#fcfdfc',
-        fontFamily: 'sans-serif'
-      }}>
-        <div style={{
-          width: '48px',
-          height: '48px',
-          border: '4px solid rgba(0,0,0,0.1)',
-          borderTopColor: '#4f46e5',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite'
-        }} />
-        <p style={{ marginTop: '16px', fontWeight: 'bold', color: '#4f46e5' }}>読み込み中...</p>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#fcfdfc] font-sans">
+        <div className="w-12 h-12 border-4 border-slate-100 border-t-primary rounded-full animate-spin" />
+        <p className="mt-4 font-black text-primary">読み込み中...</p>
       </div>
     );
   }
 
-  // GitHub Pages 등에서 basename에 트레일링 슬래시가 있으면 라우팅이 꼬이는 경우가 있어 정규화합니다.
   const basename = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
 
   return (
     <BrowserRouter basename={basename}>
-      <Layout session={session}>
+      <Layout session={session} isAdmin={isAdmin}>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={session ? <Navigate to="/" replace /> : <LoginPage />} />
           <Route path="/post/:id" element={<PostDetailPage />} />
           <Route path="/post/new" element={session ? <CreatePostPage session={session} /> : <Navigate to="/login" replace />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin" element={isAdmin ? <AdminDashboard /> : <Navigate to="/" replace />} />
           <Route path="/messages" element={session ? <MessagesPage /> : <Navigate to="/login" replace />} />
           <Route path="/messages/:id" element={session ? <ChatRoomPage /> : <Navigate to="/login" replace />} />
           <Route path="/profile" element={<ProfilePage session={session} />} />
@@ -173,6 +156,5 @@ function App() {
     </BrowserRouter>
   );
 }
-
 
 export default App;
