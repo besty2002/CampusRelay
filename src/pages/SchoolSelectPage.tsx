@@ -18,13 +18,36 @@ export const SchoolSelectPage = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     
-    const { data } = await supabase
+    // 1. 내 학교 목록 가져오기
+    const { data: userSchoolsData } = await supabase
       .from('user_schools')
       .select('school_id, schools(id, name_ja, type)')
       .eq('user_id', user.id);
       
-    if (data) setMySchools(data.map((d: any) => d.schools));
+    if (userSchoolsData) {
+      const schoolsList = userSchoolsData.map((d: any) => d.schools);
+      const schoolIds = schoolsList.map((s: any) => s.id);
+
+      // 2. 각 학교별 'Available' 게시물 개수 가져오기
+      if (schoolIds.length > 0) {
+        const { data: postsData } = await supabase
+          .from('posts')
+          .select('school_id')
+          .in('school_id', schoolIds)
+          .eq('status', 'Available');
+
+        const counts: { [key: string]: number } = {};
+        postsData?.forEach((p: any) => {
+          counts[p.school_id] = (counts[p.school_id] || 0) + 1;
+        });
+        setPostCounts(counts);
+      }
+      
+      setMySchools(schoolsList);
+    }
   };
+
+  const [postCounts, setPostCounts] = useState<{ [key: string]: number }>({});
 
   const handleSearch = async () => {
     if (!search.trim()) return;
@@ -85,10 +108,17 @@ export const SchoolSelectPage = () => {
               <button 
                 key={school.id}
                 onClick={() => navigate(`/feed/${school.id}`)}
-                className="bg-lime-500 text-white p-5 rounded-[2rem] font-black text-left hover:bg-lime-600 transition-all hover:scale-[1.02] shadow-lg shadow-lime-500/20 flex justify-between items-center group"
+                className="bg-lime-500 text-white p-5 rounded-[2rem] font-black text-left hover:bg-lime-600 transition-all hover:scale-[1.02] shadow-lg shadow-lime-500/20 flex justify-between items-center group relative overflow-hidden"
               >
-                <span>{school.name_ja}</span>
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity">&rarr;</span>
+                <div className="flex flex-col">
+                  <span>{school.name_ja}</span>
+                  <span className="text-[10px] font-black text-lime-100 uppercase tracking-widest mt-1">
+                    나눔 중인 아이템 {postCounts[school.id] || 0}개
+                  </span>
+                </div>
+                <span className="bg-white/20 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1">
+                  &rarr;
+                </span>
               </button>
             ))}
           </div>
