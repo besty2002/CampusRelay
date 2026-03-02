@@ -13,7 +13,8 @@ import {
   ShieldCheck,
   Settings,
   Heart,
-  Clock
+  Clock,
+  ArrowLeft
 } from 'lucide-react';
 
 export const ProfilePage = () => {
@@ -21,7 +22,9 @@ export const ProfilePage = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [myPosts, setMyPosts] = useState<Post[]>([]);
+  const [wishlistedPosts, setWishlistedPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<'main' | 'wishlist'>('main');
 
   useEffect(() => {
     if (user) {
@@ -53,6 +56,25 @@ export const ProfilePage = () => {
         .order('created_at', { ascending: false });
 
       if (postsData) setMyPosts(postsData as any[]);
+
+      // Fetch Wishlisted Posts
+      const { data: wishlistData } = await supabase
+        .from('wishlists')
+        .select(`
+          posts (
+            *,
+            post_images (storage_path),
+            schools (name_ja),
+            profiles (display_name, completed_count, avg_rating)
+          )
+        `)
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (wishlistData) {
+        setWishlistedPosts(wishlistData.map((d: any) => d.posts).filter(p => p !== null));
+      }
+
     } catch (err) {
       console.error('Error fetching profile:', err);
     } finally {
@@ -73,6 +95,55 @@ export const ProfilePage = () => {
     );
   }
 
+  if (view === 'wishlist') {
+    return (
+      <div className="max-w-2xl mx-auto p-4 pt-12 pb-32">
+        <button onClick={() => setView('main')} className="flex items-center gap-2 text-slate-400 font-bold mb-8 hover:text-lime-600 transition-colors">
+          <ArrowLeft size={20} /> 프로필로 돌아가기
+        </button>
+        
+        <h2 className="text-3xl font-black text-slate-800 mb-8 px-2">찜한 목록</h2>
+
+        {wishlistedPosts.length === 0 ? (
+          <div className="bg-white p-12 rounded-[2.5rem] border-2 border-dashed border-slate-100 text-center">
+            <Heart className="mx-auto text-slate-200 mb-4" size={48} />
+            <p className="text-slate-400 font-bold">찜한 아이템이 없습니다.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {wishlistedPosts.map((post) => {
+              const thumbnail = post.post_images?.sort((a,b) => a.sort_order - b.sort_order)[0]?.storage_path;
+              return (
+                <Link 
+                  key={post.id} 
+                  to={`/post/${post.id}`}
+                  className="bg-white p-4 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-lg transition-all flex gap-4 items-center group"
+                >
+                  <div className="w-20 h-20 shrink-0 rounded-2xl bg-slate-50 overflow-hidden border border-slate-100">
+                    {thumbnail ? (
+                      <img src={thumbnail} alt={post.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-300"><Package size={24} /></div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-[9px] font-black text-lime-600 uppercase tracking-wider">{post.mode}</span>
+                      <span className="text-[10px] font-bold text-slate-300">{post.schools?.name_ja}</span>
+                    </div>
+                    <h3 className="font-bold text-slate-800 truncate group-hover:text-lime-600 transition-colors">{post.title}</h3>
+                    <p className="text-xs text-slate-400 mt-1">{post.profiles?.display_name}</p>
+                  </div>
+                  <ChevronRight size={20} className="text-slate-200 group-hover:text-lime-500 group-hover:translate-x-1 transition-all" />
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto p-4 pt-12 pb-32">
       {/* Profile Header */}
@@ -85,7 +156,7 @@ export const ProfilePage = () => {
           </div>
           <h1 className="text-3xl font-black text-slate-800 mb-1">{profile?.display_name || '사용자'}</h1>
           <div className="flex items-center gap-2 mb-6">
-            <span className="inline-flex items-center gap-1 px-3 py-1 bg-sky-50 text-sky-600 text-xs font-black rounded-full border border-sky-100">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-sky-50 text-sky-600 text-xs font-black rounded-full border border-sky-100">
               <ShieldCheck size={14} /> {profile?.role === 'user' ? 'Member' : 'Admin'}
             </span>
           </div>
@@ -112,7 +183,7 @@ export const ProfilePage = () => {
 
       {/* Menu Options */}
       <div className="grid gap-3 mb-8">
-        <MenuButton icon={<Heart size={20} />} label="찜한 목록" count={0} />
+        <MenuButton icon={<Heart size={20} />} label="찜한 목록" count={wishlistedPosts.length} onClick={() => setView('wishlist')} />
         <MenuButton icon={<Clock size={20} />} label="거래 내역" />
         <MenuButton icon={<Settings size={20} />} label="설정" />
         <button 
@@ -179,8 +250,11 @@ export const ProfilePage = () => {
   );
 };
 
-const MenuButton = ({ icon, label, count }: { icon: React.ReactNode, label: string, count?: number }) => (
-  <button className="w-full flex items-center justify-between p-6 bg-white rounded-[2rem] shadow-sm border border-slate-100 text-slate-600 font-bold hover:shadow-md hover:border-lime-100 transition-all group">
+const MenuButton = ({ icon, label, count, onClick }: { icon: React.ReactNode, label: string, count?: number, onClick?: () => void }) => (
+  <button 
+    onClick={onClick}
+    className="w-full flex items-center justify-between p-6 bg-white rounded-[2rem] shadow-sm border border-slate-100 text-slate-600 font-bold hover:shadow-md hover:border-lime-100 transition-all group"
+  >
     <div className="flex items-center gap-4 text-slate-400 group-hover:text-lime-500 transition-colors">
       {icon}
       <span className="text-slate-700">{label}</span>

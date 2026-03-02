@@ -85,3 +85,12 @@ CREATE TABLE reports (
   status text DEFAULT 'Pending' CHECK (status IN ('Pending', 'Reviewed')),
   created_at timestamptz DEFAULT now()
 );
+
+-- 9. Wishlists
+CREATE TABLE wishlists (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES profiles(id) ON DELETE CASCADE,
+  post_id uuid REFERENCES posts(id) ON DELETE CASCADE,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, post_id)
+);

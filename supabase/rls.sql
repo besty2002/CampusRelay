@@ -59,3 +59,8 @@ CREATE POLICY "Admin read reports" ON reports FOR SELECT TO authenticated USING 
 CREATE POLICY "Admin update reports" ON reports FOR UPDATE TO authenticated USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('school_admin', 'super_admin'))
 );
+
+-- Wishlists: Auth users manage own
+CREATE POLICY "Users can view own wishlist" ON wishlists FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own wishlist" ON wishlists FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete own wishlist" ON wishlists FOR DELETE TO authenticated USING (auth.uid() = user_id);

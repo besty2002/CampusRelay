@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Post, PostRequest } from '../types';
-import { ArrowLeft, MessageCircle, CheckCircle2, Loader2, User, Star, Edit, Trash2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, MessageCircle, CheckCircle2, Loader2, User, Star, Edit, Trash2, AlertCircle, Heart } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export const PostDetailPage = () => {
@@ -14,6 +14,7 @@ export const PostDetailPage = () => {
   const [requests, setRequests] = useState<PostRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
+  const [isWishlisted, setIsWishlisted] = useState(false);
   
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
@@ -25,6 +26,9 @@ export const PostDetailPage = () => {
 
   useEffect(() => {
     fetchDetail();
+    if (user) {
+      checkWishlist();
+    }
   }, [postId, user]);
 
   const fetchDetail = async () => {
@@ -52,6 +56,28 @@ export const PostDetailPage = () => {
       }
     }
     setLoading(false);
+  };
+
+  const checkWishlist = async () => {
+    const { data } = await supabase
+      .from('wishlists')
+      .select('id')
+      .eq('user_id', user?.id)
+      .eq('post_id', postId)
+      .single();
+    setIsWishlisted(!!data);
+  };
+
+  const toggleWishlist = async () => {
+    if (!user) return alert('로그인이 필요합니다.');
+
+    if (isWishlisted) {
+      const { error } = await supabase.from('wishlists').delete().eq('user_id', user.id).eq('post_id', postId);
+      if (!error) setIsWishlisted(false);
+    } else {
+      const { error } = await supabase.from('wishlists').insert({ user_id: user.id, post_id: postId });
+      if (!error) setIsWishlisted(true);
+    }
   };
 
   const handleDelete = async () => {
@@ -155,6 +181,15 @@ export const PostDetailPage = () => {
         </button>
         
         <div className="flex gap-2">
+          <button 
+            onClick={toggleWishlist}
+            className={`p-2 rounded-xl shadow-sm border transition-all ${
+              isWishlisted ? 'bg-pink-50 border-pink-100 text-pink-500' : 'bg-white border-slate-100 text-slate-400 hover:text-pink-400'
+            }`}
+          >
+            <Heart size={20} fill={isWishlisted ? 'currentColor' : 'none'} />
+          </button>
+
           {isOwner ? (
             <>
               <button 
@@ -339,7 +374,7 @@ export const PostDetailPage = () => {
       {/* Report Modal */}
       {showReportModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-[2.5rem] w-full max-sm p-8 shadow-2xl animate-in zoom-in-95 duration-200">
             <h2 className="text-2xl font-black text-slate-800 mb-2">게시글 신고</h2>
             <p className="text-slate-500 text-sm font-medium mb-6">부적절한 내용이나 허위 정보가 포함되어 있나요? 사유를 알려주세요.</p>
             

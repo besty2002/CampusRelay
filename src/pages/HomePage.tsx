@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Post, PostCategory } from '../types';
-import { Search, Loader2, Plus, School, ArrowRight, Star, Book, Shirt, PenTool, LayoutGrid, Layers } from 'lucide-react';
+import { Search, Loader2, Plus, School, ArrowRight, Star, Book, Shirt, PenTool, LayoutGrid, Layers, Heart } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 const CATEGORIES: { id: PostCategory | 'All', label: string, icon: any }[] = [
@@ -16,6 +16,7 @@ const CATEGORIES: { id: PostCategory | 'All', label: string, icon: any }[] = [
 export const HomePage = () => {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [wishlistIds, setWishlistIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<PostCategory | 'All'>('All');
@@ -25,10 +26,16 @@ export const HomePage = () => {
   useEffect(() => {
     if (user) {
       fetchMySchools();
+      fetchWishlist();
     } else {
       fetchPosts([], activeCategory);
     }
   }, [user, search, activeCategory]);
+
+  const fetchWishlist = async () => {
+    const { data } = await supabase.from('wishlists').select('post_id').eq('user_id', user?.id);
+    if (data) setWishlistIds(data.map(d => d.post_id));
+  };
 
   const fetchMySchools = async () => {
     setFetchingSchools(true);
@@ -73,6 +80,21 @@ export const HomePage = () => {
     setLoading(false);
   };
 
+  const toggleWishlist = async (e: React.MouseEvent, postId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) return alert('로그인이 필요합니다.');
+
+    const isWishlisted = wishlistIds.includes(postId);
+    if (isWishlisted) {
+      const { error } = await supabase.from('wishlists').delete().eq('user_id', user.id).eq('post_id', postId);
+      if (!error) setWishlistIds(prev => prev.filter(id => id !== postId));
+    } else {
+      const { error } = await supabase.from('wishlists').insert({ user_id: user.id, post_id: postId });
+      if (!error) setWishlistIds(prev => [...prev, postId]);
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto p-4 pb-32">
       <header className="pt-8 mb-8 text-center">
@@ -82,7 +104,6 @@ export const HomePage = () => {
         <p className="text-slate-500 font-medium italic">우리 학교 소식과 나눔을 한눈에</p>
       </header>
 
-      {/* Search Bar */}
       <div className="relative mb-8">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
         <input
@@ -94,7 +115,6 @@ export const HomePage = () => {
         />
       </div>
 
-      {/* Category Quick Menu */}
       <div className="flex gap-4 overflow-x-auto pb-4 mb-8 no-scrollbar -mx-2 px-2">
         {CATEGORIES.map((cat) => (
           <button
@@ -118,7 +138,6 @@ export const HomePage = () => {
         ))}
       </div>
 
-      {/* Conditional Banner for Logged in users with no schools */}
       {user && !fetchingSchools && mySchoolIds.length === 0 && (
         <div className="bg-gradient-to-br from-lime-500 to-lime-600 rounded-[2.5rem] p-8 mb-8 text-white shadow-lg shadow-lime-500/30 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-700" />
@@ -135,7 +154,6 @@ export const HomePage = () => {
         </div>
       )}
 
-      {/* Personalized Feed Section */}
       <div className="flex items-center justify-between mb-6 px-2">
         <h2 className="text-2xl font-black text-slate-800">
           {user && mySchoolIds.length > 0 ? '우리 학교 나눔 소식' : '최신 나눔 피드'}
@@ -164,11 +182,12 @@ export const HomePage = () => {
         <div className="grid gap-6">
           {posts.map((post) => {
             const thumbnail = post.post_images?.sort((a,b) => a.sort_order - b.sort_order)[0]?.storage_path;
+            const isWishlisted = wishlistIds.includes(post.id);
             return (
               <Link 
                 key={post.id} 
                 to={`/post/${post.id}`}
-                className="group bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-2xl hover:shadow-slate-200/50 transition-all flex gap-5 active:scale-[0.98]"
+                className="group bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-2xl hover:shadow-slate-200/50 transition-all flex gap-5 active:scale-[0.98] relative"
               >
                 <div className="w-28 h-28 shrink-0 rounded-[1.5rem] bg-slate-50 overflow-hidden border border-slate-50 shadow-inner">
                   {thumbnail ? (
@@ -179,7 +198,7 @@ export const HomePage = () => {
                     </div>
                   )}
                 </div>
-                <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
+                <div className="flex-1 min-w-0 flex flex-col justify-between py-1 text-left">
                   <div>
                     <div className="flex items-center gap-2 mb-1.5">
                       <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
@@ -207,6 +226,16 @@ export const HomePage = () => {
                     </div>
                   </div>
                 </div>
+                
+                {/* Wishlist Button */}
+                <button 
+                  onClick={(e) => toggleWishlist(e, post.id)}
+                  className={`absolute top-4 right-4 p-2 rounded-xl transition-all ${
+                    isWishlisted ? 'bg-pink-50 text-pink-500' : 'bg-slate-50 text-slate-300 hover:text-pink-400'
+                  }`}
+                >
+                  <Heart size={18} fill={isWishlisted ? 'currentColor' : 'none'} />
+                </button>
               </Link>
             );
           })}
