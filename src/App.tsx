@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import { HomePage } from './pages/HomePage';
 import { PostDetailPage } from './pages/PostDetailPage';
@@ -12,7 +12,8 @@ import { User as UserIcon, MessageCircle, Home, PlusSquare, Shield, LogOut } fro
 import type { Session } from '@supabase/supabase-js';
 
 function Layout({ children, session }: { children: React.ReactNode; session: Session | null }) {
-  const isAdminPath = window.location.pathname.startsWith('/admin');
+  const location = useLocation();
+  const isAdminPath = location.pathname.startsWith('/admin');
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -39,7 +40,7 @@ function Layout({ children, session }: { children: React.ReactNode; session: Ses
           {session ? (
             <div className="flex items-center gap-3">
               <Link to="/profile" className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-secondary-light flex items-center justify-center text-secondary-dark font-bold border-2 border-white shadow-sm overflow-hidden">
-                {session.user.email?.[0].toUpperCase()}
+                {(session.user.email?.[0] || session.user.id[0] || '?').toUpperCase()}
               </Link>
               <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-500 transition-colors">
                 <LogOut size={20} />
@@ -86,6 +87,7 @@ function App() {
 
   useEffect(() => {
     console.log('App Initializing... Base URL:', import.meta.env.BASE_URL);
+    console.log('Current Hash:', window.location.hash ? 'Hash detected' : 'No hash');
     
     // 세션 확인 타임아웃 (무한 로딩 방지)
     const timeoutId = setTimeout(() => {
@@ -99,7 +101,7 @@ function App() {
       try {
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         if (error) throw error;
-        console.log('Session fetched:', currentSession ? 'User Logged In' : 'No User');
+        console.log('Initial session fetched:', currentSession ? 'User Logged In' : 'No User');
         setSession(currentSession);
       } catch (err) {
         console.error('Auth initialization error:', err);
@@ -112,7 +114,8 @@ function App() {
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      console.log('Auth state changed:', _event, newSession ? 'Session Active' : 'No Session');
+      console.log('Auth state changed event:', _event);
+      console.log('New session:', newSession ? 'Session Active' : 'No Session');
       setSession(newSession);
       setLoading(false);
     });
@@ -142,14 +145,17 @@ function App() {
           borderRadius: '50%',
           animation: 'spin 1s linear infinite'
         }} />
-        <p style={{ marginTop: '16px', fontWeight: 'bold', color: '#4f46e5' }}>읽어오는 중...</p>
+        <p style={{ marginTop: '16px', fontWeight: 'bold', color: '#4f46e5' }}>読み込み中...</p>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
+  // GitHub Pages 등에서 basename에 트레일링 슬래시가 있으면 라우팅이 꼬이는 경우가 있어 정규화합니다.
+  const basename = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+
   return (
-    <BrowserRouter basename={import.meta.env.BASE_URL}>
+    <BrowserRouter basename={basename}>
       <Layout session={session}>
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -160,12 +166,12 @@ function App() {
           <Route path="/messages" element={session ? <MessagesPage /> : <Navigate to="/login" replace />} />
           <Route path="/messages/:id" element={session ? <ChatRoomPage /> : <Navigate to="/login" replace />} />
           <Route path="/profile" element={session ? <div className="p-8 text-center text-slate-400">マイページは準備中です</div> : <Navigate to="/login" replace />} />
-          {/* 404 fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
     </BrowserRouter>
   );
 }
+
 
 export default App;

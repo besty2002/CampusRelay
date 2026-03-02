@@ -44,13 +44,14 @@ export const LoginPage = () => {
     setLoading(true);
     setError(null);
     try {
-      // 명시적으로 redirectTo를 지정하지 않으면 Supabase 대시보드의 'Site URL'로 돌아갑니다.
-      // 대시보드 설정이 정확하다면 이 방식이 가장 안전합니다.
+      // GitHub Pages 등에서는 리다이렉트 경로를 명시적으로 지정하는 것이 안전합니다.
+      const redirectTo = window.location.origin + import.meta.env.BASE_URL;
+      console.log('Redirecting to:', redirectTo);
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          // 필요하다면 아래 주석을 해제하여 수동으로 주소를 강제할 수 있습니다.
-          // redirectTo: window.location.origin + import.meta.env.BASE_URL,
+          redirectTo,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
