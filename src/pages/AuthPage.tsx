@@ -35,9 +35,13 @@ export const AuthPage = () => {
   };
 
   const handleGoogleLogin = async () => {
+    // GitHub Pages base path를 포함한 정확한 리다이렉트 URL 설정
+    const redirectTo = window.location.origin + import.meta.env.BASE_URL;
+    console.log('Redirecting to:', redirectTo);
+    
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin }
+      options: { redirectTo }
     });
   };
 
