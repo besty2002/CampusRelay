@@ -89,7 +89,7 @@ export const AdminDashboard = () => {
   );
 };
 
-const SidebarLink = ({ icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) => (
+const SidebarLink = ({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) => (
   <button 
     onClick={onClick}
     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
@@ -101,7 +101,7 @@ const SidebarLink = ({ icon, label, active, onClick }: { icon: any, label: strin
   </button>
 );
 
-const StatsCard = ({ label, value, delta, icon }: { label: string, value: string, delta: string, icon: any }) => (
+const StatsCard = ({ label, value, delta, icon }: { label: string, value: string, delta: string, icon: React.ReactNode }) => (
   <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
     <div className="flex justify-between items-start mb-4">
        <div className="p-2 bg-slate-50 rounded-xl">{icon}</div>

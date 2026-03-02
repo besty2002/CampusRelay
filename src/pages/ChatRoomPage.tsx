@@ -12,17 +12,16 @@ export const ChatRoomPage = () => {
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const fetchThread = async () => {
-    if (id) {
-      const data = await mockApi.getThreadById(id);
-      if (data) {
-        setThread(data);
-        setMessages(data.messages);
-      }
-    }
-  };
-
   useEffect(() => {
+    const fetchThread = async () => {
+      if (id) {
+        const data = await mockApi.getThreadById(id);
+        if (data) {
+          setThread(data);
+          setMessages(data.messages);
+        }
+      }
+    };
     fetchThread();
   }, [id]);
 

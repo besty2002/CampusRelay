@@ -60,7 +60,7 @@ const getStoredThreads = (): ChatThread[] => {
 };
 
 export const mockApi = {
-  getPosts: async (schoolId: string, _scope: 'SCHOOL' | 'REGION' = 'SCHOOL'): Promise<Post[]> => {
+  getPosts: async (schoolId: string): Promise<Post[]> => {
     await new Promise(r => setTimeout(r, 400));
     return MOCK_POSTS.filter(p => p.schoolId === schoolId);
   },
