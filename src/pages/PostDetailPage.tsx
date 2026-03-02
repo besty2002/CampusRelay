@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Post, PostRequest } from '../types';
-import { ArrowLeft, MessageCircle, CheckCircle2, Loader2, User, Star, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, MessageCircle, CheckCircle2, Loader2, User, Star, Edit, Trash2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export const PostDetailPage = () => {
@@ -17,6 +17,9 @@ export const PostDetailPage = () => {
   
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
+  
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
 
   const isOwner = user?.id === post?.user_id;
 
@@ -53,7 +56,6 @@ export const PostDetailPage = () => {
 
   const handleDelete = async () => {
     if (!window.confirm('정말 이 게시글을 삭제하시겠습니까?')) return;
-    
     try {
       const { error } = await supabase.from('posts').delete().eq('id', postId);
       if (error) throw error;
@@ -92,6 +94,24 @@ export const PostDetailPage = () => {
     fetchDetail();
   };
 
+  const handleReport = async () => {
+    if (!user) return alert('로그인이 필요합니다.');
+    if (!reportReason.trim()) return alert('신고 사유를 입력해 주세요.');
+
+    const { error } = await supabase.from('reports').insert({
+      post_id: postId,
+      reporter_id: user.id,
+      reason: reportReason,
+      status: 'Pending'
+    });
+
+    if (error) alert(error.message);
+    else {
+      alert('신고가 접수되었습니다.');
+      setShowReportModal(false);
+    }
+  };
+
   const handleSubmitReview = async () => {
     if (!user || !post) return;
     try {
@@ -128,28 +148,37 @@ export const PostDetailPage = () => {
   if (!post) return <div className="p-8 text-center font-bold">게시글을 찾을 수 없습니다.</div>;
 
   return (
-    <div className="max-w-2xl mx-auto p-4 pt-12 pb-24">
+    <div className="max-w-2xl mx-auto p-4 pt-12 pb-24 relative">
       <div className="flex justify-between items-center mb-8">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-400 font-bold hover:text-lime-600 transition-colors">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-slate-400 font-bold hover:text-lime-600 transition-colors">
           <ArrowLeft size={20} /> 뒤로가기
         </button>
         
-        {isOwner && (
-          <div className="flex gap-2">
+        <div className="flex gap-2">
+          {isOwner ? (
+            <>
+              <button 
+                onClick={() => navigate(`/post/edit/${post.id}`)}
+                className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-400 hover:text-lime-600 transition-all"
+              >
+                <Edit size={20} />
+              </button>
+              <button 
+                onClick={handleDelete}
+                className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-400 hover:text-red-500 transition-all"
+              >
+                <Trash2 size={20} />
+              </button>
+            </>
+          ) : (
             <button 
-              onClick={() => navigate(`/post/edit/${post.id}`)}
-              className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-400 hover:text-lime-600 transition-all"
+              onClick={() => setShowReportModal(true)}
+              className="flex items-center gap-1 px-3 py-1.5 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-400 hover:text-red-500 transition-all text-xs font-bold"
             >
-              <Edit size={20} />
+              <AlertCircle size={14} /> 신고
             </button>
-            <button 
-              onClick={handleDelete}
-              className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-400 hover:text-red-500 transition-all"
-            >
-              <Trash2 size={20} />
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-[3rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
@@ -159,7 +188,7 @@ export const PostDetailPage = () => {
             {post.post_images.sort((a,b) => a.sort_order - b.sort_order).map((img, i) => (
               <div key={img.id} className="min-w-full snap-center relative">
                 <img src={img.storage_path} alt="Post image" className="w-full h-full object-cover" />
-                <div className="absolute bottom-4 right-4 bg-black/50 text-white px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md">
+                <div className="absolute bottom-4 right-4 bg-black/50 text-white px-3 py-1 rounded-full text-[10px] font-black backdrop-blur-md">
                   {i + 1} / {post.post_images!.length}
                 </div>
               </div>
@@ -169,13 +198,13 @@ export const PostDetailPage = () => {
 
         <div className="p-8 md:p-12">
           <div className="flex justify-between items-start mb-6">
-            <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest ${
+            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
               post.status === 'Available' ? 'bg-lime-100 text-lime-600' :
               post.status === 'Reserved' ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'
             }`}>
               {post.status}
             </span>
-            <span className="text-xs font-black text-slate-300 uppercase tracking-tighter">
+            <span className="text-[10px] font-black text-slate-300 uppercase tracking-tighter">
               {new Date(post.created_at).toLocaleDateString()}
             </span>
           </div>
@@ -183,9 +212,9 @@ export const PostDetailPage = () => {
           <h1 className="text-4xl font-black text-slate-800 mb-4 leading-tight">{post.title}</h1>
           
           <div className="flex gap-2 mb-8">
-            <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-xs font-bold">{post.category}</span>
-            <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-lg text-xs font-bold">{post.condition}</span>
-            {post.mode === 'EXCHANGE' && <span className="bg-purple-100 text-purple-600 px-3 py-1 rounded-lg text-xs font-bold">Exchange</span>}
+            <span className="bg-slate-50 text-slate-500 px-3 py-1 rounded-lg text-[10px] font-black uppercase">{post.category}</span>
+            <span className="bg-slate-50 text-slate-500 px-3 py-1 rounded-lg text-[10px] font-black uppercase">{post.condition}</span>
+            {post.mode === 'EXCHANGE' && <span className="bg-purple-50 text-purple-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase">Exchange</span>}
           </div>
 
           <p className="text-slate-600 text-lg leading-relaxed mb-12 whitespace-pre-wrap font-medium">
@@ -206,11 +235,11 @@ export const PostDetailPage = () => {
             <div>
               <p className="font-black text-slate-800 text-lg">{post.profiles.display_name}</p>
               <div className="flex items-center gap-3 mt-0.5">
-                <span className="bg-lime-500 text-white px-2 py-0.5 rounded-md text-[10px] font-black">
+                <span className="bg-lime-500 text-white px-2 py-0.5 rounded-md text-[10px] font-black uppercase">
                   {post.profiles.completed_count} Given
                 </span>
-                <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                  <Star size={12} className="text-amber-400" /> {post.profiles.avg_rating} ({post.profiles.rating_count})
+                <span className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase">
+                  <Star size={12} className="fill-amber-400 text-amber-400" /> {post.profiles.avg_rating} ({post.profiles.rating_count})
                 </span>
               </div>
             </div>
@@ -249,7 +278,7 @@ export const PostDetailPage = () => {
                         </div>
                         <div>
                           <p className="font-bold text-slate-700">{req.profiles.display_name}</p>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">나눔완료 {req.profiles.completed_count}회</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter text-sky-600">나눔완료 {req.profiles.completed_count}회</p>
                         </div>
                       </div>
                       <button 
@@ -280,23 +309,25 @@ export const PostDetailPage = () => {
                 이미 나눔이 완료된 아이템입니다.
               </div>
               
-              {user && <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
-                <h3 className="font-bold text-slate-800 mb-4">상대방에게 리뷰 남기기</h3>
-                <div className="flex gap-2 mb-4">
+              {user && <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-amber-400/5 rounded-full -mr-12 -mt-12 blur-2xl" />
+                <h3 className="font-black text-slate-800 mb-6 text-xl tracking-tight relative">상대방에게 리뷰 남기기</h3>
+                <div className="flex gap-2 mb-6">
                   {[1,2,3,4,5].map(star => (
-                    <button key={star} onClick={() => setReviewRating(star)}>
-                      <Star size={24} className={star <= reviewRating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'} />
+                    <button key={star} onClick={() => setReviewRating(star)} className="transition-transform active:scale-90">
+                      <Star size={32} className={star <= reviewRating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'} />
                     </button>
                   ))}
                 </div>
                 <textarea 
-                  className="w-full p-4 bg-slate-50 rounded-xl mb-4 border-none focus:ring-2 focus:ring-lime-500 outline-none" 
+                  className="w-full p-5 bg-slate-50 rounded-2xl mb-6 border-none focus:ring-4 focus:ring-lime-500/10 focus:bg-white outline-none font-medium transition-all" 
                   placeholder="거래는 어떠셨나요? (최대 300자)"
+                  rows={3}
                   maxLength={300}
                   value={reviewComment}
                   onChange={(e) => setReviewComment(e.target.value)}
                 />
-                <button onClick={handleSubmitReview} className="bg-lime-500 text-white px-6 py-2 rounded-xl font-bold">
+                <button onClick={handleSubmitReview} className="w-full bg-lime-500 text-white py-4 rounded-2xl font-black shadow-lg shadow-lime-500/20 hover:bg-lime-600 active:scale-95 transition-all">
                   리뷰 등록
                 </button>
               </div>}
@@ -304,6 +335,38 @@ export const PostDetailPage = () => {
           )}
         </div>
       </div>
+
+      {/* Report Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <h2 className="text-2xl font-black text-slate-800 mb-2">게시글 신고</h2>
+            <p className="text-slate-500 text-sm font-medium mb-6">부적절한 내용이나 허위 정보가 포함되어 있나요? 사유를 알려주세요.</p>
+            
+            <textarea 
+              className="w-full p-4 bg-slate-50 rounded-2xl mb-6 border-none focus:ring-2 focus:ring-red-500 outline-none font-medium h-32" 
+              placeholder="신고 사유를 입력해 주세요..."
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+            />
+            
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setShowReportModal(false)}
+                className="flex-1 bg-slate-100 text-slate-600 py-4 rounded-2xl font-bold hover:bg-slate-200 transition-all"
+              >
+                취소
+              </button>
+              <button 
+                onClick={handleReport}
+                className="flex-1 bg-red-500 text-white py-4 rounded-2xl font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+              >
+                신고 접수
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

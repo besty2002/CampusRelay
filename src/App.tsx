@@ -6,8 +6,11 @@ import { CreatePostPage } from './pages/CreatePostPage';
 import { PostDetailPage } from './pages/PostDetailPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { HomePage } from './pages/HomePage';
+import { AdminDashboard } from './pages/AdminDashboard';
 import { useAuth } from './hooks/useAuth';
-import { Loader2, Home, Search, PlusSquare, User } from 'lucide-react';
+import { Loader2, Home, Search, PlusSquare, User, ShieldCheck } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { supabase } from './lib/supabase';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -22,7 +25,22 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
+  const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
   
+  useEffect(() => {
+    if (user) {
+      checkAdmin();
+    }
+  }, [user]);
+
+  const checkAdmin = async () => {
+    const { data } = await supabase.from('profiles').select('role').eq('id', user?.id).single();
+    if (data?.role === 'school_admin' || data?.role === 'super_admin') {
+      setIsAdmin(true);
+    }
+  };
+
   const isAuthPage = location.pathname === '/auth';
   if (isAuthPage) return <>{children}</>;
 
@@ -38,12 +56,15 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           <NavLink to="/" icon={<Home size={24} />} label="홈" active={location.pathname === '/'} />
           <NavLink to="/schools" icon={<Search size={24} />} label="학교" active={location.pathname === '/schools'} />
           <Link 
-            to="/schools" 
+            to="/post/new" 
             className="w-12 h-12 bg-lime-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-lime-500/30 active:scale-90 transition-all -mt-8 border-4 border-white"
           >
             <PlusSquare size={24} />
           </Link>
           <NavLink to="/me" icon={<User size={24} />} label="프로필" active={location.pathname === '/me'} />
+          {isAdmin && (
+            <NavLink to="/admin" icon={<ShieldCheck size={24} />} label="관리" active={location.pathname === '/admin'} />
+          )}
         </div>
       </nav>
     </div>
@@ -99,6 +120,12 @@ function App() {
           <Route path="/me" element={
             <ProtectedRoute>
               <ProfilePage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/admin" element={
+            <ProtectedRoute>
+              <AdminDashboard />
             </ProtectedRoute>
           } />
 
