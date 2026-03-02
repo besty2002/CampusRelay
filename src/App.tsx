@@ -85,6 +85,12 @@ function App() {
               <CreatePostPage />
             </ProtectedRoute>
           } />
+
+          <Route path="/post/edit/:postId" element={
+            <ProtectedRoute>
+              <CreatePostPage />
+            </ProtectedRoute>
+          } />
           
           <Route path="/post/:postId" element={
             <PostDetailPage />

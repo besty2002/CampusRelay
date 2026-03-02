@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Post, PostRequest } from '../types';
-import { ArrowLeft, MessageCircle, CheckCircle2, Loader2, User, Star } from 'lucide-react';
+import { ArrowLeft, MessageCircle, CheckCircle2, Loader2, User, Star, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export const PostDetailPage = () => {
@@ -27,13 +27,12 @@ export const PostDetailPage = () => {
   const fetchDetail = async () => {
     if (!postId) return;
     
-    // Fetch post details with images and user profile
     const { data: postData } = await supabase
       .from('posts')
       .select(`
         *,
         profiles (display_name, completed_count, avg_rating, rating_count),
-        post_images (storage_path)
+        post_images (id, storage_path, sort_order)
       `)
       .eq('id', postId)
       .single();
@@ -50,6 +49,19 @@ export const PostDetailPage = () => {
       }
     }
     setLoading(false);
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('정말 이 게시글을 삭제하시겠습니까?')) return;
+    
+    try {
+      const { error } = await supabase.from('posts').delete().eq('id', postId);
+      if (error) throw error;
+      alert('삭제되었습니다.');
+      navigate('/');
+    } catch (err: any) {
+      alert(err.message);
+    }
   };
 
   const handleRequest = async () => {
@@ -83,7 +95,6 @@ export const PostDetailPage = () => {
   const handleSubmitReview = async () => {
     if (!user || !post) return;
     try {
-      // Find the approved requester
       const { data: reqData } = await supabase.from('post_requests').select('requester_id').eq('post_id', post.id).eq('status', 'Approved').single();
       if (!reqData) return alert('승인된 사용자를 찾을 수 없습니다.');
       
@@ -118,13 +129,31 @@ export const PostDetailPage = () => {
 
   return (
     <div className="max-w-2xl mx-auto p-4 pt-12 pb-24">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-400 font-bold mb-8 hover:text-lime-600 transition-colors">
-        <ArrowLeft size={20} /> 뒤로가기
-      </button>
+      <div className="flex justify-between items-center mb-8">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-400 font-bold hover:text-lime-600 transition-colors">
+          <ArrowLeft size={20} /> 뒤로가기
+        </button>
+        
+        {isOwner && (
+          <div className="flex gap-2">
+            <button 
+              onClick={() => navigate(`/post/edit/${post.id}`)}
+              className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-400 hover:text-lime-600 transition-all"
+            >
+              <Edit size={20} />
+            </button>
+            <button 
+              onClick={handleDelete}
+              className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-400 hover:text-red-500 transition-all"
+            >
+              <Trash2 size={20} />
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="bg-white rounded-[3rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
         
-        {/* Images Slider / Grid */}
         {post.post_images && post.post_images.length > 0 && (
           <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar bg-slate-100 h-64 md:h-96">
             {post.post_images.sort((a,b) => a.sort_order - b.sort_order).map((img, i) => (
