@@ -14,7 +14,8 @@ import {
   Settings,
   Heart,
   Clock,
-  ArrowLeft
+  ArrowLeft,
+  Bell
 } from 'lucide-react';
 
 export const ProfilePage = () => {
@@ -85,6 +86,20 @@ export const ProfilePage = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/auth');
+  };
+
+  const requestNotificationPermission = async () => {
+    if (!('Notification' in window)) {
+      alert('このブラウザは通知をサポートしていません。');
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      alert('通知が有効になりました！');
+    } else {
+      alert('通知が拒否されました。設定から変更してください。');
+    }
   };
 
   if (loading) {
@@ -184,6 +199,7 @@ export const ProfilePage = () => {
       {/* Menu Options */}
       <div className="grid gap-3 mb-8">
         <MenuButton icon={<Heart size={20} />} label="お気に入り" count={wishlistedPosts.length} onClick={() => setView('wishlist')} />
+        <MenuButton icon={<Bell size={20} />} label="通知を有効にする" onClick={requestNotificationPermission} />
         <MenuButton icon={<Clock size={20} />} label="取引履歴" />
         <MenuButton icon={<Settings size={20} />} label="設定" />
         <button 
