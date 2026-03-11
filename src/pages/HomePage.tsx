@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import type { Post, PostCategory } from '../types';
+import type { Post, PostCategory, PostCondition } from '../types';
 import { 
   Search, 
   Loader2, 
@@ -16,7 +16,9 @@ import {
   Heart,
   Cpu,
   Palette,
-  Coffee
+  Coffee,
+  Filter,
+  X
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -39,6 +41,13 @@ const CATEGORY_LIST: { id: PostCategory | 'All', label: string, icon: any }[] = 
   { id: 'Other', label: 'その他', icon: Layers },
 ];
 
+const CONDITION_LIST: { id: PostCondition | 'All', label: string }[] = [
+  { id: 'All', label: 'すべて' },
+  { id: 'Like New', label: '未使用に近い' },
+  { id: 'Good', label: '目立った傷なし' },
+  { id: 'Used', label: '使用感あり' },
+];
+
 export const HomePage = () => {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
@@ -46,17 +55,20 @@ export const HomePage = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<PostCategory | 'All'>('All');
+  const [activeCondition, setActiveCondition] = useState<PostCondition | 'All'>('All');
+  const [sizeFilter, setSizeFilter] = useState('');
   const [mySchoolIds, setMySchoolIds] = useState<string[]>([]);
   const [fetchingSchools, setFetchingSchools] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchMySchools();
       fetchWishlist();
     } else {
-      fetchPosts([], activeCategory);
+      fetchPosts([], activeCategory, activeCondition, sizeFilter);
     }
-  }, [user, search, activeCategory]);
+  }, [user, search, activeCategory, activeCondition, sizeFilter]);
 
   const fetchWishlist = async () => {
     const { data } = await supabase.from('wishlists').select('post_id').eq('user_id', user?.id);
@@ -72,11 +84,11 @@ export const HomePage = () => {
     
     const ids = data?.map(d => d.school_id) || [];
     setMySchoolIds(ids);
-    fetchPosts(ids, activeCategory);
+    fetchPosts(ids, activeCategory, activeCondition, sizeFilter);
     setFetchingSchools(false);
   };
 
-  const fetchPosts = async (schoolIds: string[], category: PostCategory | 'All') => {
+  const fetchPosts = async (schoolIds: string[], category: PostCategory | 'All', condition: PostCondition | 'All', size: string) => {
     setLoading(true);
     let query = supabase
       .from('posts')
@@ -95,6 +107,14 @@ export const HomePage = () => {
 
     if (category !== 'All') {
       query = query.eq('category', category);
+    }
+
+    if (condition !== 'All') {
+      query = query.eq('condition', condition);
+    }
+
+    if (size.trim()) {
+      query = query.ilike('item_size', `%${size}%`);
     }
 
     if (search) {
@@ -121,6 +141,11 @@ export const HomePage = () => {
     }
   };
 
+  const clearFilters = () => {
+    setActiveCondition('All');
+    setSizeFilter('');
+  };
+
   return (
     <div className="max-w-2xl mx-auto p-4 pb-32">
       <header className="pt-8 mb-8 text-center">
@@ -130,16 +155,72 @@ export const HomePage = () => {
         <p className="text-slate-500 font-medium italic">学校のニュースと出品をひと目で</p>
       </header>
 
-      <div className="relative mb-8">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-        <input
-          type="text"
-          placeholder="アイテムや学校名を検索"
-          className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl shadow-sm border border-slate-100 font-bold focus:ring-4 focus:ring-lime-500/10 focus:border-lime-500 outline-none transition-all"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      <div className="flex gap-2 mb-8">
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+          <input
+            type="text"
+            placeholder="アイテムや学校名を検索"
+            className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl shadow-sm border border-slate-100 font-bold focus:ring-4 focus:ring-lime-500/10 focus:border-lime-500 outline-none transition-all"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <button 
+          onClick={() => setShowFilters(!showFilters)}
+          className={`px-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold ${
+            showFilters || activeCondition !== 'All' || sizeFilter 
+              ? 'bg-slate-800 text-white border-slate-800 shadow-lg shadow-slate-800/20' 
+              : 'bg-white text-slate-400 border-slate-100'
+          }`}
+        >
+          <Filter size={20} />
+          <span className="hidden sm:inline">フィルタ</span>
+        </button>
       </div>
+
+      {/* Advanced Filters Panel */}
+      {showFilters && (
+        <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border border-slate-100 mb-8 animate-in slide-in-from-top-2 duration-300">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="font-black text-slate-800">詳細検索</h3>
+            <button onClick={clearFilters} className="text-xs font-black text-slate-400 hover:text-red-500 flex items-center gap-1">
+              <X size={14} /> フィルタ解除
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">状態</label>
+              <div className="flex flex-wrap gap-2">
+                {CONDITION_LIST.map(cond => (
+                  <button
+                    key={cond.id}
+                    onClick={() => setActiveCondition(cond.id)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      activeCondition === cond.id 
+                        ? 'bg-lime-500 text-white shadow-md shadow-lime-500/20' 
+                        : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                    }`}
+                  >
+                    {cond.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">サイズ (例: 140, M, LL)</label>
+              <input 
+                type="text"
+                value={sizeFilter}
+                onChange={(e) => setSizeFilter(e.target.value)}
+                placeholder="サイズを入力..."
+                className="w-full p-3 bg-slate-50 rounded-xl border-none focus:ring-2 focus:ring-lime-500 outline-none font-bold text-sm transition-all"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Category Quick Menu */}
       <div className="flex gap-4 overflow-x-auto pb-4 mb-8 no-scrollbar -mx-2 px-2">
@@ -195,7 +276,7 @@ export const HomePage = () => {
       {loading || fetchingSchools ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
           <Loader2 className="animate-spin text-lime-500" size={40} />
-          <p className="text-slate-400 font-bold">フィードを準備中...</p>
+          <p className="text-slate-400 font-bold">フィードを準備중...</p>
         </div>
       ) : posts.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-100 p-8">
@@ -229,7 +310,7 @@ export const HomePage = () => {
                   </div>
                   <div className="flex-1 min-w-0 flex flex-col justify-between py-1 text-left">
                     <div>
-                      <div className="flex items-center gap-2 mb-1.5">
+                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
                         <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
                           post.mode === 'GIVEAWAY' ? 'bg-lime-50 text-lime-600' : 'bg-purple-50 text-purple-600'
                         }`}>
@@ -238,6 +319,11 @@ export const HomePage = () => {
                         <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${categoryInfo?.color || 'bg-slate-100'}`}>
                           {categoryInfo?.label}
                         </span>
+                        {post.item_size && (
+                          <span className="px-2 py-0.5 bg-slate-800 text-white rounded-md text-[9px] font-black uppercase tracking-wider">
+                            Size: {post.item_size}
+                          </span>
+                        )}
                         <span className="text-[10px] font-bold text-slate-400 truncate">{post.schools?.name_ja}</span>
                       </div>
                       <h2 className="text-xl font-black text-slate-800 truncate group-hover:text-lime-600 transition-colors mb-1">

@@ -24,6 +24,7 @@ export const CreatePostPage = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [exchangeWanted, setExchangeWanted] = useState('');
+  const [itemSize, setItemSize] = useState('');
   const [targetSchoolId, setTargetSchoolId] = useState<string | null>(schoolIdFromQuery);
 
   // Image states
@@ -62,6 +63,7 @@ export const CreatePostPage = () => {
         setCondition(data.condition);
         setMode(data.mode);
         setExchangeWanted(data.exchange_wanted || '');
+        setItemSize(data.item_size || '');
         setTargetSchoolId(data.school_id);
         
         const sortedImages = (data.post_images || []).sort((a: any, b: any) => a.sort_order - b.sort_order);
@@ -115,6 +117,7 @@ export const CreatePostPage = () => {
         mode,
         category,
         condition,
+        item_size: (category === 'Uniform') ? itemSize : null,
         title,
         description,
         exchange_wanted: mode === 'EXCHANGE' ? exchangeWanted : null,
@@ -229,11 +232,18 @@ export const CreatePostPage = () => {
               <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Condition</label>
               <select value={condition} onChange={e => setCondition(e.target.value as any)} className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-bold appearance-none">
                 <option value="Like New">未使用に近い</option>
-                <option value="Good">目立った傷や汚れなし</option>
-                <option value="Used">やや傷や汚れあり</option>
+                <option value="Good">目立った傷なし</option>
+                <option value="Used">使用感あり</option>
               </select>
             </div>
           </div>
+
+          {category === 'Uniform' && (
+            <div className="animate-in fade-in slide-in-from-top-1 duration-300">
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Size (例: 140, M, LL)</label>
+              <input value={itemSize} onChange={e => setItemSize(e.target.value)} className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-bold" placeholder="サイズを入力..." />
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Description</label>

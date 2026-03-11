@@ -42,6 +42,7 @@ export interface Post {
   description: string;
   category: PostCategory;
   condition: PostCondition;
+  item_size?: string;
   status: PostStatus;
   created_at: string;
   profiles: Profile;
