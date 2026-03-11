@@ -43,28 +43,28 @@ export const FeedPage = () => {
     <div className="max-w-4xl mx-auto p-4 pb-32">
       <header className="pt-8 mb-8">
         <Link to="/schools" className="flex items-center gap-2 text-slate-400 font-bold text-sm mb-4 hover:text-lime-600 transition-colors">
-          <ArrowLeft size={16} /> 학교 선택으로 돌아가기
+          <ArrowLeft size={16} /> 学校選択に戻る
         </Link>
         <div className="flex justify-between items-end">
           <div>
             <h1 className="text-3xl font-black text-slate-800 tracking-tight">{schoolName}</h1>
-            <p className="text-slate-500 font-medium mt-1 italic">우리 학교 실시간 나눔 피드</p>
+            <p className="text-slate-500 font-medium mt-1 italic">学校のリアルタイム出品フィード</p>
           </div>
           <Link 
             to={`/post/new?schoolId=${schoolId}`}
             className="bg-lime-500 text-white px-6 py-3 rounded-2xl font-black shadow-lg shadow-lime-500/30 hover:bg-lime-600 active:scale-95 transition-all flex items-center gap-2"
           >
             <Plus size={20} />
-            나눔하기
+            出品する
           </Link>
         </div>
       </header>
 
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2 no-scrollbar">
         {[
-          { id: 'Available', label: '나눔 중' },
-          { id: 'Reserved', label: '예약됨' },
-          { id: 'Given', label: '완료된 나눔' }
+          { id: 'Available', label: '受付中' },
+          { id: 'Reserved', label: '予約済み' },
+          { id: 'Given', label: '譲渡済み' }
         ].map(status => (
           <button
             key={status.id}
@@ -83,14 +83,14 @@ export const FeedPage = () => {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-24">
           <Loader2 className="animate-spin text-lime-500 mb-4" size={40} />
-          <p className="text-slate-400 font-bold">아이템을 불러오는 중...</p>
+          <p className="text-slate-400 font-bold">アイテムを読み込み中...</p>
         </div>
       ) : posts.length === 0 ? (
         <div className="text-center py-24 bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
           <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
             <Package className="text-slate-200" size={40} />
           </div>
-          <p className="text-slate-400 font-bold text-lg">아직 등록된 아이템이 없습니다.</p>
+          <p className="text-slate-400 font-bold text-lg">まだ出品されたアイテムがありません。</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">

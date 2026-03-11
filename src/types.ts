@@ -60,3 +60,32 @@ export interface PostRequest {
   profiles: Profile;
   posts?: Post;
 }
+
+export interface ChatRoom {
+  id: string;
+  post_id: string;
+  seller_id: string;
+  buyer_id: string;
+  created_at: string;
+  posts: {
+    title: string;
+    post_images: { storage_path: string }[];
+  };
+  seller: Profile;
+  buyer: Profile;
+  last_message?: {
+    text: string;
+    created_at: string;
+  };
+}
+
+export interface ChatMessage {
+  id: string;
+  room_id: string;
+  sender_id: string;
+  text: string;
+  created_at: string;
+  profiles: {
+    display_name: string;
+  };
+}

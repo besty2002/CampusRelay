@@ -10,8 +10,10 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { UserPublicProfilePage } from './pages/UserPublicProfilePage';
 import { ActivityDashboardPage } from './pages/ActivityDashboardPage';
+import { ChatListPage } from './pages/ChatListPage';
+import { ChatRoomPage } from './pages/ChatRoomPage';
 import { useAuth } from './hooks/useAuth';
-import { Loader2, Home, PlusSquare, User, ShieldCheck, Bell, Activity } from 'lucide-react';
+import { Loader2, Home, PlusSquare, User, ShieldCheck, Bell, Activity, MessageCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
@@ -56,8 +58,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 w-full bg-white/80 backdrop-blur-lg border-t border-slate-100 px-2 py-3 z-50">
         <div className="max-w-md mx-auto flex justify-between items-center gap-1">
-          <NavLink to="/" icon={<Home size={20} />} label="홈" active={location.pathname === '/'} />
-          <NavLink to="/notifications" icon={<Bell size={20} />} label="알림" active={location.pathname === '/notifications'} />
+          <NavLink to="/" icon={<Home size={20} />} label="ホーム" active={location.pathname === '/'} />
+          <NavLink to="/notifications" icon={<Bell size={20} />} label="通知" active={location.pathname === '/notifications'} />
           
           <Link 
             to="/post/new" 
@@ -66,11 +68,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             <PlusSquare size={24} />
           </Link>
           
-          <NavLink to="/activity" icon={<Activity size={20} />} label="내활동" active={location.pathname === '/activity'} />
-          <NavLink to="/me" icon={<User size={20} />} label="프로필" active={location.pathname === '/me'} />
+          <NavLink to="/messages" icon={<MessageCircle size={20} />} label="トーク" active={location.pathname === '/messages'} />
+          <NavLink to="/me" icon={<User size={20} />} label="プロフィール" active={location.pathname === '/me'} />
           
           {isAdmin && (
-            <NavLink to="/admin" icon={<ShieldCheck size={20} />} label="관리" active={location.pathname === '/admin'} />
+            <NavLink to="/admin" icon={<ShieldCheck size={20} />} label="管理" active={location.pathname === '/admin'} />
           )}
         </div>
       </nav>
@@ -103,6 +105,8 @@ function App() {
           <Route path="/user/:userId" element={<ProtectedRoute><UserPublicProfilePage /></ProtectedRoute>} />
           <Route path="/activity" element={<ProtectedRoute><ActivityDashboardPage /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+          <Route path="/messages" element={<ProtectedRoute><ChatListPage /></ProtectedRoute>} />
+          <Route path="/chat/:roomId" element={<ProtectedRoute><ChatRoomPage /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

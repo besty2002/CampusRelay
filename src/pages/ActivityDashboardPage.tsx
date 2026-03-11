@@ -69,7 +69,7 @@ export const ActivityDashboardPage = () => {
     <div className="max-w-2xl mx-auto p-6 pt-12 pb-32">
       <header className="mb-10">
         <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-2">My Activity</h1>
-        <p className="text-slate-500 font-medium ml-1">나눔 신청 및 진행 현황을 관리하세요.</p>
+        <p className="text-slate-500 font-medium ml-1">お譲りの申請や進行状況を管理しましょう。</p>
       </header>
 
       {/* Tabs */}
@@ -80,7 +80,7 @@ export const ActivityDashboardPage = () => {
             activeTab === 'giving' ? 'bg-white text-lime-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
           }`}
         >
-          <ArrowUpRight size={18} /> 나눔 중 (줄 물건)
+          <ArrowUpRight size={18} /> 出品中 (譲る)
         </button>
         <button
           onClick={() => setActiveTab('receiving')}
@@ -88,7 +88,7 @@ export const ActivityDashboardPage = () => {
             activeTab === 'receiving' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
           }`}
         >
-          <ArrowDownLeft size={18} /> 신청 내역 (받을 물건)
+          <ArrowDownLeft size={18} /> 申請履歴 (受け取る)
         </button>
       </div>
 
@@ -100,7 +100,7 @@ export const ActivityDashboardPage = () => {
         <div className="space-y-4">
           {activeTab === 'giving' ? (
             givingItems.length === 0 ? (
-              <EmptyState message="아직 등록한 나눔 아이템이 없습니다." />
+              <EmptyState message="まだ出品したアイテムがありません。" />
             ) : (
               givingItems.map(item => (
                 <Link 
@@ -133,7 +133,7 @@ export const ActivityDashboardPage = () => {
                       </div>
                       <div className="flex items-center justify-between mt-2">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                          {item.post_requests?.length || 0} 신청자 대기 중
+                          {item.post_requests?.length || 0} 人の申請者が待機中
                         </p>
                         <ChevronRight size={16} className="text-slate-300" />
                       </div>
@@ -144,7 +144,7 @@ export const ActivityDashboardPage = () => {
             )
           ) : (
             receivingRequests.length === 0 ? (
-              <EmptyState message="아직 신청한 나눔 아이템이 없습니다." />
+              <EmptyState message="まだ申請したアイテムがありません。" />
             ) : (
               receivingRequests.map(req => (
                 <Link 
@@ -195,6 +195,6 @@ const EmptyState = ({ message }: { message: string }) => (
   <div className="bg-white p-12 rounded-[3rem] border-2 border-dashed border-slate-100 text-center">
     <Package className="mx-auto text-slate-200 mb-4" size={48} />
     <p className="text-slate-400 font-bold">{message}</p>
-    <Link to="/" className="text-lime-600 font-black text-sm mt-2 inline-block">나눔 둘러보기 &rarr;</Link>
+    <Link to="/" className="text-lime-600 font-black text-sm mt-2 inline-block">アイテムを探す &rarr;</Link>
   </div>
 );

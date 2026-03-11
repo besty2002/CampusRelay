@@ -21,22 +21,22 @@ import {
 import { useAuth } from '../hooks/useAuth';
 
 export const CATEGORY_MAP: Record<PostCategory, { label: string, icon: any, color: string }> = {
-  Uniform: { label: '교복/의류', icon: Shirt, color: 'bg-blue-50 text-blue-600' },
-  Textbook: { label: '교과서/도서', icon: Book, color: 'bg-amber-50 text-amber-600' },
-  Digital: { label: 'IT/디지털', icon: Cpu, color: 'bg-purple-50 text-purple-600' },
-  ArtSport: { label: '예술/체육', icon: Palette, color: 'bg-rose-50 text-rose-600' },
-  Life: { label: '생활용품', icon: Coffee, color: 'bg-emerald-50 text-emerald-600' },
-  Other: { label: '기타', icon: Layers, color: 'bg-slate-50 text-slate-600' },
+  Uniform: { label: '制服・衣類', icon: Shirt, color: 'bg-blue-50 text-blue-600' },
+  Textbook: { label: '教科書・書籍', icon: Book, color: 'bg-amber-50 text-amber-600' },
+  Digital: { label: 'IT・デジタル', icon: Cpu, color: 'bg-purple-50 text-purple-600' },
+  ArtSport: { label: '芸術・体育', icon: Palette, color: 'bg-rose-50 text-rose-600' },
+  Life: { label: '生活用品', icon: Coffee, color: 'bg-emerald-50 text-emerald-600' },
+  Other: { label: 'その他', icon: Layers, color: 'bg-slate-50 text-slate-600' },
 };
 
 const CATEGORY_LIST: { id: PostCategory | 'All', label: string, icon: any }[] = [
-  { id: 'All', label: '전체', icon: LayoutGrid },
-  { id: 'Uniform', label: '교복/의류', icon: Shirt },
-  { id: 'Textbook', label: '교과서/도서', icon: Book },
-  { id: 'Digital', label: 'IT/디지털', icon: Cpu },
-  { id: 'ArtSport', label: '예술/체육', icon: Palette },
-  { id: 'Life', label: '생활용품', icon: Coffee },
-  { id: 'Other', label: '기타', icon: Layers },
+  { id: 'All', label: 'すべて', icon: LayoutGrid },
+  { id: 'Uniform', label: '制服・衣類', icon: Shirt },
+  { id: 'Textbook', label: '教科書・書籍', icon: Book },
+  { id: 'Digital', label: 'IT・デジタル', icon: Cpu },
+  { id: 'ArtSport', label: '芸術・体育', icon: Palette },
+  { id: 'Life', label: '生活用品', icon: Coffee },
+  { id: 'Other', label: 'その他', icon: Layers },
 ];
 
 export const HomePage = () => {
@@ -109,7 +109,7 @@ export const HomePage = () => {
   const toggleWishlist = async (e: React.MouseEvent, postId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!user) return alert('로그인이 필요합니다.');
+    if (!user) return alert('ログインが必要です。');
 
     const isWishlisted = wishlistIds.includes(postId);
     if (isWishlisted) {
@@ -127,14 +127,14 @@ export const HomePage = () => {
         <h1 className="text-4xl font-black text-slate-800 tracking-tight mb-2">
           Campus<span className="text-lime-500">Relay</span>
         </h1>
-        <p className="text-slate-500 font-medium italic">우리 학교 소식과 나눔을 한눈에</p>
+        <p className="text-slate-500 font-medium italic">学校のニュースと出品をひと目で</p>
       </header>
 
       <div className="relative mb-8">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
         <input
           type="text"
-          placeholder="아이템이나 학교 이름을 검색해보세요"
+          placeholder="アイテムや学校名を検索"
           className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl shadow-sm border border-slate-100 font-bold focus:ring-4 focus:ring-lime-500/10 focus:border-lime-500 outline-none transition-all"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -169,13 +169,13 @@ export const HomePage = () => {
         <div className="bg-gradient-to-br from-lime-500 to-lime-600 rounded-[2.5rem] p-8 mb-8 text-white shadow-lg shadow-lime-500/30 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-700" />
           <div className="relative z-10">
-            <h3 className="text-xl font-black mb-2">등록된 학교가 없습니다!</h3>
-            <p className="text-lime-50 font-medium mb-6 opacity-90">우리 학교를 추가하고 따끈따끈한 나눔 소식을 받아보세요.</p>
+            <h3 className="text-xl font-black mb-2">登録された学校がありません！</h3>
+            <p className="text-lime-50 font-medium mb-6 opacity-90">学校を追加して、最新の出品情報をチェックしましょう。</p>
             <Link 
               to="/schools" 
               className="inline-flex items-center gap-2 bg-white text-lime-600 px-6 py-3 rounded-xl font-black text-sm hover:shadow-xl active:scale-95 transition-all"
             >
-              학교 추가하러 가기 <ArrowRight size={18} />
+              学校を追加する <ArrowRight size={18} />
             </Link>
           </div>
         </div>
@@ -183,11 +183,11 @@ export const HomePage = () => {
 
       <div className="flex items-center justify-between mb-6 px-2">
         <h2 className="text-2xl font-black text-slate-800">
-          {user && mySchoolIds.length > 0 ? '우리 학교 나눔 소식' : '최신 나눔 피드'}
+          {user && mySchoolIds.length > 0 ? '学校の出品情報' : '最新の出品フィード'}
         </h2>
         {user && mySchoolIds.length > 0 && (
           <Link to="/schools" className="text-sm font-bold text-lime-600 flex items-center gap-1 hover:underline">
-            <Plus size={16} /> 학교 추가
+            <Plus size={16} /> 学校追加
           </Link>
         )}
       </div>
@@ -195,15 +195,15 @@ export const HomePage = () => {
       {loading || fetchingSchools ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
           <Loader2 className="animate-spin text-lime-500" size={40} />
-          <p className="text-slate-400 font-bold">맞춤형 피드 준비 중...</p>
+          <p className="text-slate-400 font-bold">フィードを準備中...</p>
         </div>
       ) : posts.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-100 p-8">
           <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-200">
             <School size={40} />
           </div>
-          <p className="text-slate-400 font-black text-lg">표시할 나눔이 없습니다.</p>
-          <p className="text-slate-300 text-sm mt-1 font-medium">검색어를 바꾸거나 다른 카테고리를 선택해 보세요!</p>
+          <p className="text-slate-400 font-black text-lg">表示するアイテムがありません。</p>
+          <p className="text-slate-300 text-sm mt-1 font-medium">検索ワードを変えるか、別のカテゴリーを選択してみてください！</p>
         </div>
       ) : (
         <div className="grid gap-6">

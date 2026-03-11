@@ -79,12 +79,12 @@ export const UserPublicProfilePage = () => {
     </div>
   );
 
-  if (!profile) return <div className="p-8 text-center font-bold">사용자를 찾을 수 없습니다.</div>;
+  if (!profile) return <div className="p-8 text-center font-bold">ユーザーが見つかりません。</div>;
 
   return (
     <div className="max-w-2xl mx-auto p-4 pt-12 pb-32">
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-400 font-bold mb-8 hover:text-lime-600 transition-colors">
-        <ArrowLeft size={20} /> 뒤로가기
+        <ArrowLeft size={20} /> 戻る
       </button>
 
       {/* Profile Header */}
@@ -102,11 +102,11 @@ export const UserPublicProfilePage = () => {
 
         <div className="grid grid-cols-2 gap-4 w-full pt-6 border-t border-slate-50">
           <div className="text-center">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">나눔 완료</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">お譲り完了</p>
             <p className="text-2xl font-black text-slate-800">{profile.completed_count}</p>
           </div>
           <div className="text-center border-l border-slate-50">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">평균 평점</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">平均評価</p>
             <div className="flex items-center justify-center gap-1">
               <Star size={18} className="fill-amber-400 text-amber-400" />
               <p className="text-2xl font-black text-slate-800">{profile.avg_rating}</p>
@@ -119,10 +119,10 @@ export const UserPublicProfilePage = () => {
       <div className="mb-12">
         <h2 className="text-xl font-black text-slate-800 mb-6 px-2 flex items-center gap-2">
           <Package className="text-lime-500" size={20} />
-          진행 중인 나눔 ({posts.length})
+          進行中のアイテム ({posts.length})
         </h2>
         {posts.length === 0 ? (
-          <p className="text-slate-400 font-bold px-2">현재 나눔 중인 아이템이 없습니다.</p>
+          <p className="text-slate-400 font-bold px-2">現在出品中のアイテムはありません。</p>
         ) : (
           <div className="grid gap-4">
             {posts.map((post) => (
@@ -153,10 +153,10 @@ export const UserPublicProfilePage = () => {
       <div>
         <h2 className="text-xl font-black text-slate-800 mb-6 px-2 flex items-center gap-2">
           <MessageSquare className="text-sky-500" size={20} />
-          최근 받은 리뷰
+          最近のレビュー
         </h2>
         {reviews.length === 0 ? (
-          <p className="text-slate-400 font-bold px-2">아직 작성된 리뷰가 없습니다.</p>
+          <p className="text-slate-400 font-bold px-2">まだレビューがありません。</p>
         ) : (
           <div className="space-y-4">
             {reviews.map((review) => (

@@ -49,7 +49,7 @@ export const AdminDashboard = () => {
     
     if (data) {
       if (data.role === 'user') {
-        alert('관리자 권한이 없습니다.');
+        alert('管理者権限がありません。');
         navigate('/');
         return;
       }
@@ -89,7 +89,7 @@ export const AdminDashboard = () => {
         .eq('id', reportId);
       if (reportError) throw reportError;
 
-      alert(action === 'hide' ? '게시글이 숨김 처리되었습니다.' : '신고가 기각되었습니다.');
+      alert(action === 'hide' ? '投稿が非表示にされました。' : '通報が棄却されました。');
       fetchReports();
     } catch (err: any) {
       alert(err.message);
@@ -111,21 +111,21 @@ export const AdminDashboard = () => {
           </div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">Admin Dashboard</h1>
         </div>
-        <p className="text-slate-500 font-medium ml-1">학교 관리자 모드: 신고된 게시물을 검토합니다.</p>
+        <p className="text-slate-500 font-medium ml-1">学校管理者モード：通報された投稿を確認します。</p>
       </header>
 
       <section>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
             <AlertTriangle className="text-amber-500" size={20} />
-            신고된 게시글 ({reports.length})
+            通報された投稿 ({reports.length})
           </h2>
         </div>
 
         {reports.length === 0 ? (
           <div className="bg-white p-12 rounded-[2.5rem] border-2 border-dashed border-slate-100 text-center">
             <CheckCircle className="mx-auto text-lime-500 mb-4" size={48} />
-            <p className="text-slate-400 font-bold">현재 처리할 신고가 없습니다.</p>
+            <p className="text-slate-400 font-bold">現在処理が必要な通報はありません。</p>
           </div>
         ) : (
           <div className="grid gap-4">
@@ -140,7 +140,7 @@ export const AdminDashboard = () => {
                     to={`/post/${report.post_id}`}
                     className="flex items-center gap-1 text-xs font-black text-sky-600 hover:underline"
                   >
-                    게시글 보기 <ExternalLink size={14} />
+                    投稿を見る <ExternalLink size={14} />
                   </Link>
                 </div>
 
@@ -155,13 +155,13 @@ export const AdminDashboard = () => {
                     onClick={() => handleResolveReport(report.id, report.post_id, 'hide')}
                     className="flex-1 flex items-center justify-center gap-2 bg-red-500 text-white py-3 rounded-2xl font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
                   >
-                    <EyeOff size={18} /> 게시글 숨기기
+                    <EyeOff size={18} /> 投稿を非表示にする
                   </button>
                   <button 
                     onClick={() => handleResolveReport(report.id, report.post_id, 'ignore')}
                     className="flex-1 flex items-center justify-center gap-2 bg-slate-800 text-white py-3 rounded-2xl font-bold hover:bg-black transition-all shadow-lg shadow-slate-800/20"
                   >
-                    <XCircle size={18} /> 신고 기각
+                    <XCircle size={18} /> 通報を棄却
                   </button>
                 </div>
               </div>

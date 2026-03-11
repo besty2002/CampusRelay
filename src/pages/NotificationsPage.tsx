@@ -72,8 +72,8 @@ export const NotificationsPage = () => {
         formatted.push({
           id: req.id,
           type: 'request',
-          title: '새로운 나눔 신청!',
-          message: `${req.profiles.display_name}님이 '${req.posts.title}' 아이템을 신청했습니다.`,
+          title: '新しいお譲り申請！',
+          message: `${req.profiles.display_name}さんが「${req.posts.title}」のアイテムを申請しました。`,
           target_url: `/post/${req.posts.id}`,
           is_read: false,
           created_at: req.created_at
@@ -85,8 +85,8 @@ export const NotificationsPage = () => {
         formatted.push({
           id: `approve-${req.id}`,
           type: 'approval',
-          title: '나눔 신청 승인됨!',
-          message: `'${req.posts.title}' 아이템 나눔이 승인되었습니다! 지금 확인해보세요.`,
+          title: 'お譲り申請が承認されました！',
+          message: `「${req.posts.title}」のアイテムのお譲りが承認されました！今すぐ確認しましょう。`,
           target_url: `/post/${req.posts.id}`,
           is_read: false,
           created_at: req.created_at
@@ -119,13 +119,13 @@ export const NotificationsPage = () => {
           </div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">Notifications</h1>
         </div>
-        <p className="text-slate-500 font-medium ml-1">거래와 관련된 중요한 소식을 확인하세요.</p>
+        <p className="text-slate-500 font-medium ml-1">取引に関する重要なお知らせを確認しましょう。</p>
       </header>
 
       {notifications.length === 0 ? (
         <div className="bg-white p-12 rounded-[2.5rem] border-2 border-dashed border-slate-100 text-center">
           <Bell className="mx-auto text-slate-200 mb-4" size={48} />
-          <p className="text-slate-400 font-bold">아직 도착한 알림이 없습니다.</p>
+          <p className="text-slate-400 font-bold">まだ通知がありません。</p>
         </div>
       ) : (
         <div className="grid gap-3">
@@ -154,7 +154,7 @@ export const NotificationsPage = () => {
                   {noti.message}
                 </p>
                 <div className="flex items-center gap-1 text-[10px] font-black text-lime-600 uppercase tracking-widest">
-                  상세보기 <ChevronRight size={12} />
+                  詳細を見る <ChevronRight size={12} />
                 </div>
               </div>
             </button>
@@ -170,9 +170,9 @@ export const NotificationsPage = () => {
             <Package size={32} className="text-lime-400" />
           </div>
           <div>
-            <h4 className="font-black text-lg mb-1">매너 나눔 팁!</h4>
+            <h4 className="font-black text-lg mb-1">マナーチップ！</h4>
             <p className="text-slate-400 text-sm font-medium leading-relaxed">
-              나눔이 완료되면 '완료' 처리를 잊지 마세요. 신뢰도가 올라가고 상대방에게 리뷰를 남길 수 있습니다.
+              お譲りが完了したら「完了」にすることをお忘れなく。信頼度が上がり、相手にレビューを残すことができます。
             </p>
           </div>
         </div>

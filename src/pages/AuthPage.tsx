@@ -24,7 +24,7 @@ export const AuthPage = () => {
           options: { data: { display_name: displayName } }
         });
         if (error) throw error;
-        alert('회원가입 성공! 이메일을 확인하거나 로그인해주세요.');
+        alert('会員登録に成功しました！メールを確認するか、ログインしてください。');
       }
       navigate('/schools');
     } catch (err: any) {
@@ -35,7 +35,7 @@ export const AuthPage = () => {
   };
 
   const handleGoogleLogin = async () => {
-    // GitHub Pages base path를 포함한 정확한 리다이렉트 URL 설정
+    // GitHub Pagesのベースパスを含めた正確なリダイレクトURL設定
     const redirectTo = window.location.origin + import.meta.env.BASE_URL;
     console.log('Redirecting to:', redirectTo);
     
@@ -61,7 +61,7 @@ export const AuthPage = () => {
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all"
-                placeholder="홍길동"
+                placeholder="山田太郎"
               />
             </div>
           )}

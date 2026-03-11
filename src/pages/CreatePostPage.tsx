@@ -51,7 +51,7 @@ export const CreatePostPage = () => {
       if (error) throw error;
       if (data) {
         if (data.user_id !== user?.id && user) {
-          alert('권한이 없습니다.');
+          alert('権限がありません。');
           navigate('/');
           return;
         }
@@ -79,7 +79,7 @@ export const CreatePostPage = () => {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length + previews.length > 5) {
-      alert('이미지는 최대 5장까지 가능합니다.');
+      alert('画像は最大5枚までです。');
       return;
     }
     setImages(prev => [...prev, ...files]);
@@ -102,9 +102,9 @@ export const CreatePostPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!targetSchoolId) return alert('학교 정보가 없습니다.');
-    if (!user) return alert('로그인이 필요합니다.');
-    if (previews.length === 0) return alert('최소 1장의 이미지가 필요합니다.');
+    if (!targetSchoolId) return alert('学校情報がありません。');
+    if (!user) return alert('ログインが必要です。');
+    if (previews.length === 0) return alert('最低1枚の画像が必要です。');
 
     setLoading(true);
     try {
@@ -180,11 +180,11 @@ export const CreatePostPage = () => {
   return (
     <div className="max-w-xl mx-auto p-6 pt-12 pb-32">
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-400 font-bold mb-6 hover:text-lime-600 transition-colors">
-        <ArrowLeft size={20} /> 취소하고 돌아가기
+        <ArrowLeft size={20} /> キャンセルして戻る
       </button>
 
       <h1 className="text-3xl font-black text-slate-800 mb-8">
-        {isEditMode ? '나눔 수정하기' : '나눔 등록하기'}
+        {isEditMode ? '投稿を編集する' : 'アイテムを出品する'}
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -207,7 +207,7 @@ export const CreatePostPage = () => {
 
           <div>
             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Title</label>
-            <input required value={title} onChange={e => setTitle(e.target.value)} className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-bold" placeholder="예: 弘道小学校 체육복 상의" />
+            <input required value={title} onChange={e => setTitle(e.target.value)} className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-bold" placeholder="例：弘道小学校の体操服（上）" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -217,27 +217,27 @@ export const CreatePostPage = () => {
                 value={category} onChange={e => setCategory(e.target.value as any)}
                 className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-bold appearance-none"
               >
-                <option value="Uniform">교복/의류</option>
-                <option value="Textbook">교과서/도서</option>
-                <option value="Digital">IT/디지털</option>
-                <option value="ArtSport">예술/체육</option>
-                <option value="Life">생활용품</option>
-                <option value="Other">기타</option>
+                <option value="Uniform">制服・衣類</option>
+                <option value="Textbook">教科書・書籍</option>
+                <option value="Digital">IT・デジタル</option>
+                <option value="ArtSport">芸術・体育</option>
+                <option value="Life">生活用品</option>
+                <option value="Other">その他</option>
               </select>
             </div>
             <div>
               <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Condition</label>
               <select value={condition} onChange={e => setCondition(e.target.value as any)} className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-bold appearance-none">
-                <option value="Like New">거의 새것</option>
-                <option value="Good">상태 좋음</option>
-                <option value="Used">사용감 있음</option>
+                <option value="Like New">未使用に近い</option>
+                <option value="Good">目立った傷や汚れなし</option>
+                <option value="Used">やや傷や汚れあり</option>
               </select>
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Description</label>
-            <textarea required value={description} onChange={e => setDescription(e.target.value)} rows={4} className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-medium" placeholder="상세 정보를 입력해 주세요." />
+            <textarea required value={description} onChange={e => setDescription(e.target.value)} rows={4} className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-medium" placeholder="詳細を入力してください。" />
           </div>
         </div>
 
@@ -249,14 +249,14 @@ export const CreatePostPage = () => {
           </div>
           {mode === 'EXCHANGE' && (
             <div className="animate-in slide-in-from-top-2 duration-300">
-              <label className="block text-xs font-black text-purple-400 uppercase tracking-widest mb-2 ml-1">교환 희망 조건</label>
-              <input required value={exchangeWanted} onChange={e => setExchangeWanted(e.target.value)} className="w-full p-4 bg-purple-50 rounded-2xl border-none focus:ring-2 focus:ring-purple-500 outline-none transition-all font-bold text-purple-900" placeholder="예: 중학교 1학년 수학 교과서" />
+              <label className="block text-xs font-black text-purple-400 uppercase tracking-widest mb-2 ml-1">交換希望アイテム</label>
+              <input required value={exchangeWanted} onChange={e => setExchangeWanted(e.target.value)} className="w-full p-4 bg-purple-50 rounded-2xl border-none focus:ring-2 focus:ring-purple-500 outline-none transition-all font-bold text-purple-900" placeholder="例：中学校1年生の数学の教科書" />
             </div>
           )}
         </div>
 
         <button disabled={loading} className="w-full bg-lime-500 text-white py-5 rounded-[2rem] font-black text-xl shadow-xl shadow-lime-500/30 hover:bg-lime-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-          {loading ? <Loader2 className="animate-spin" /> : isEditMode ? '수정 완료' : '나눔 등록 완료'}
+          {loading ? <Loader2 className="animate-spin" /> : isEditMode ? '修正完了' : '出品完了'}
         </button>
       </form>
     </div>

@@ -1,6 +1,6 @@
 export type ItemStatus = '受付中' | '予約済み' | '譲渡済み';
 export type ItemCategory = '制服' | '教科書' | '学用品' | 'その他';
-export type ItemCondition = '未使用に近い' | '目立った傷なし' | '사용감 있음' | '使用感あり';
+export type ItemCondition = '未使用に近い' | '目立った傷なし' | 'やや傷や汚れあり' | '使用感あり';
 export type VisibilityScope = 'SCHOOL' | 'REGION';
 export type SharingMode = 'GIVEAWAY' | 'EXCHANGE';
 export type UserStatus = 'PENDING' | 'VERIFIED' | 'BANNED';
