@@ -13,7 +13,7 @@ import { ActivityDashboardPage } from './pages/ActivityDashboardPage';
 import { ChatListPage } from './pages/ChatListPage';
 import { ChatRoomPage } from './pages/ChatRoomPage';
 import { useAuth } from './hooks/useAuth';
-import { Loader2, Home, PlusSquare, User, ShieldCheck, Bell, Activity, MessageCircle } from 'lucide-react';
+import { Loader2, Home, PlusSquare, User, ShieldCheck, Bell, MessageCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 

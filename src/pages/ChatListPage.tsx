@@ -18,7 +18,7 @@ export const ChatListPage = () => {
 
   const fetchRooms = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('chat_rooms')
       .select(`
         *,

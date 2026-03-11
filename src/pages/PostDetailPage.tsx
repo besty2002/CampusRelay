@@ -370,14 +370,23 @@ export const PostDetailPage = () => {
 
         <div className="p-8 bg-slate-50 border-t border-slate-100">
           {!isOwner && post.status === 'Available' && (
-            <button 
-              onClick={handleRequest}
-              disabled={requesting}
-              className="w-full bg-lime-500 text-white py-5 rounded-[2rem] font-black text-xl shadow-xl shadow-lime-500/30 hover:bg-lime-600 active:scale-[0.98] transition-all flex items-center justify-center gap-3"
-            >
-              <MessageCircle size={24} />
-              {requesting ? '申請中...' : 'お譲りを申請する'}
-            </button>
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={handleStartChat}
+                className="w-full bg-sky-500 text-white py-5 rounded-[2rem] font-black text-xl shadow-xl shadow-sky-500/30 hover:bg-sky-600 active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+              >
+                <MessageCircle size={24} />
+                チャットで問い合わせ
+              </button>
+              <button 
+                onClick={handleRequest}
+                disabled={requesting}
+                className="w-full bg-lime-500 text-white py-5 rounded-[2rem] font-black text-xl shadow-xl shadow-lime-500/30 hover:bg-lime-600 active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+              >
+                <CheckCircle2 size={24} />
+                {requesting ? '申請中...' : 'お譲리를 申請する'}
+              </button>
+            </div>
           )}
 
           {isOwner && post.status === 'Available' && (
