@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Post } from '../types';
-import { Plus, Loader2, ArrowLeft, Package, Star, Search, Filter, ArrowUpDown } from 'lucide-react';
+import { Plus, Loader2, ArrowLeft, Package, Star, Search, Filter, Clock } from 'lucide-react';
 import { CATEGORY_MAP } from './HomePage';
 
 export const FeedPage = () => {
@@ -14,8 +14,8 @@ export const FeedPage = () => {
   // --- Search & Filter States ---
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'RESERVED' | 'COMPLETED'>('AVAILABLE');
-  const [sortBy, setSortBy] = useState<'newest' | 'price_asc' | 'price_desc'>('newest');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'Available' | 'Reserved' | 'Given'>('Available');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const [showFilters, setShowFilters] = useState(false);
 
   // Debounce search query
@@ -52,9 +52,8 @@ export const FeedPage = () => {
 
     // Apply Status Filter
     if (statusFilter !== 'ALL') {
-      // Legacy data fallback: if filtering by AVAILABLE, also include null/empty status for backward compatibility
-      if (statusFilter === 'AVAILABLE') {
-        query = query.or(`status.eq.AVAILABLE,status.is.null`);
+      if (statusFilter === 'Available') {
+        query = query.or(`status.eq.Available,status.is.null`);
       } else {
         query = query.eq('status', statusFilter);
       }
@@ -68,10 +67,8 @@ export const FeedPage = () => {
     // Apply Sorting
     if (sortBy === 'newest') {
       query = query.order('created_at', { ascending: false });
-    } else if (sortBy === 'price_asc') {
-      query = query.order('price', { ascending: true });
-    } else if (sortBy === 'price_desc') {
-      query = query.order('price', { ascending: false });
+    } else if (sortBy === 'oldest') {
+      query = query.order('created_at', { ascending: true });
     }
 
     const { data } = await query;
@@ -134,9 +131,9 @@ export const FeedPage = () => {
               <div className="flex flex-wrap gap-2">
                 {[
                   { id: 'ALL', label: 'すべて' },
-                  { id: 'AVAILABLE', label: '受付中' },
-                  { id: 'RESERVED', label: '予約済み' },
-                  { id: 'COMPLETED', label: '取引完了' }
+                  { id: 'Available', label: '受付中' },
+                  { id: 'Reserved', label: '予約済み' },
+                  { id: 'Given', label: '譲渡済み' }
                 ].map(status => (
                   <button
                     key={status.id}
@@ -157,9 +154,8 @@ export const FeedPage = () => {
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">並び替え</label>
               <div className="flex flex-wrap gap-2">
                 {[
-                  { id: 'newest', label: '新着順', icon: null },
-                  { id: 'price_asc', label: '価格が安い順', icon: <ArrowUpDown size={14} /> },
-                  { id: 'price_desc', label: '価格が高い順', icon: <ArrowUpDown size={14} /> }
+                  { id: 'newest', label: '新着順', icon: <Clock size={14} /> },
+                  { id: 'oldest', label: '古い順', icon: <Clock size={14} /> }
                 ].map(sort => (
                   <button
                     key={sort.id}
@@ -199,7 +195,7 @@ export const FeedPage = () => {
           {posts.map(post => {
             const thumbnail = post.post_images?.sort((a,b) => a.sort_order - b.sort_order)[0]?.storage_path;
             const categoryInfo = CATEGORY_MAP[post.category];
-            const isCompleted = post.status === 'COMPLETED';
+            const isCompleted = post.status === 'Given';
             
             return (
               <Link 
@@ -223,14 +219,14 @@ export const FeedPage = () => {
                     }`}>
                       {post.mode}
                     </span>
-                    {post.status === 'RESERVED' && (
+                    {post.status === 'Reserved' && (
                       <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-500/90 text-white backdrop-blur-md shadow-sm">
                         予約済み
                       </span>
                     )}
-                    {post.status === 'COMPLETED' && (
+                    {post.status === 'Given' && (
                       <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-slate-800/90 text-white backdrop-blur-md shadow-sm">
-                        取引完了
+                        譲渡済み
                       </span>
                     )}
                   </div>
@@ -244,10 +240,7 @@ export const FeedPage = () => {
                     <span className="text-[10px] font-bold text-slate-300">{new Date(post.created_at).toLocaleDateString()}</span>
                   </div>
                   
-                  <h2 className="text-xl font-black text-slate-800 mb-1 group-hover:text-lime-600 transition-colors line-clamp-1">{post.title}</h2>
-                  <p className="text-lg font-black text-slate-800 mb-3">
-                    {post.price === 0 ? '無料' : `¥${post.price.toLocaleString()}`}
-                  </p>
+                  <h2 className="text-xl font-black text-slate-800 mb-3 group-hover:text-lime-600 transition-colors line-clamp-1">{post.title}</h2>
                   <p className="text-slate-500 text-sm mb-6 line-clamp-2 font-medium flex-1">{post.description}</p>
                   
                   <div className="flex items-center justify-between pt-4 border-t border-slate-50">
