@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Link } from 'react-router-dom';
-import { MessageCircle, Loader2, Package, Search } from 'lucide-react';
+import { MessageCircle, Loader2, Search } from 'lucide-react';
 import type { ChatRoom } from '../types';
 
 // ─── Helpers ─────────────────────────────────────────────
