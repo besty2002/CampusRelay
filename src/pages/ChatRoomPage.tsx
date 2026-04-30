@@ -566,5 +566,6 @@ export const ChatRoomPage = () => {
         </form>
       </footer>
     </div>
+    </div>
   );
 };
