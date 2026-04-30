@@ -50,7 +50,7 @@ serve(async (req) => {
       const { data: keywords } = await supabaseClient.from('keyword_alerts').select('*');
       if (keywords) {
         const matchedUserIds = new Set<string>();
-        keywords.forEach(k => {
+        keywords.forEach((k: { keyword: any; user_id: string; }) => {
           if ((post.title && post.title.includes(k.keyword)) || (post.description && post.description.includes(k.keyword))) {
             if (k.user_id !== post.user_id) { // 작성자 본인에게는 알림 제외
               matchedUserIds.add(k.user_id);

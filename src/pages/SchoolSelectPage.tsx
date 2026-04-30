@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { School } from '../types';
+import { Trash2 } from 'lucide-react';
 
 export const SchoolSelectPage = () => {
   const navigate = useNavigate();
@@ -92,6 +93,39 @@ export const SchoolSelectPage = () => {
     }
   };
 
+  const removeSchool = async (schoolId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('この学校をリストから削除しますか？')) return;
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Check for active posts and ask for cascade hide
+    const activeCount = postCounts[schoolId] || 0;
+    if (activeCount > 0) {
+      if (confirm(`この学校に出品中のアイテムが ${activeCount}個 あります。\nこれらをすべて「非公開(Hidden)」にしますか？\n(キャンセルを押すと学校の登録解除のみ行います)`)) {
+        await supabase
+          .from('posts')
+          .update({ status: 'Hidden' })
+          .eq('user_id', user.id)
+          .eq('school_id', schoolId)
+          .eq('status', 'Available');
+      }
+    }
+
+    const { error } = await supabase
+      .from('user_schools')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('school_id', schoolId);
+
+    if (error) {
+      alert('削除に失敗しました: ' + error.message);
+    } else {
+      fetchMySchools();
+    }
+  };
+
   return (
     <div className="max-w-md mx-auto p-6 pt-12">
       <h1 className="text-3xl font-black text-slate-800 mb-2">My Schools</h1>
@@ -106,24 +140,33 @@ export const SchoolSelectPage = () => {
         ) : (
           <div className="flex flex-col gap-3">
             {mySchools.map(school => (
-              <button 
-                key={school.id}
-                onClick={() => navigate(`/feed/${school.id}`)}
-                className="bg-lime-500 text-white p-5 rounded-[2rem] font-black text-left hover:bg-lime-600 transition-all hover:scale-[1.02] shadow-lg shadow-lime-500/20 flex justify-between items-center group relative overflow-hidden"
-              >
-                <div className="flex flex-col">
-                  <span className="text-lg">{school.name_ja}</span>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-lime-200 animate-pulse"></span>
-                    <span className="text-[11px] font-black text-white/90 uppercase tracking-widest">
-                      出品中のアイテム {postCounts[school.id] || 0}個
-                    </span>
+              <div key={school.id} className="relative group">
+                <button 
+                  onClick={() => navigate(`/feed/${school.id}`)}
+                  className="w-full bg-lime-500 text-white p-5 rounded-[2rem] font-black text-left hover:bg-lime-600 transition-all hover:scale-[1.02] shadow-lg shadow-lime-500/20 flex justify-between items-center overflow-hidden"
+                >
+                  <div className="flex flex-col pr-12">
+                    <span className="text-lg">{school.name_ja}</span>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-lime-200 animate-pulse"></span>
+                      <span className="text-[11px] font-black text-white/90 uppercase tracking-widest">
+                        出品中のアイテム {postCounts[school.id] || 0}個
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <span className="bg-white/20 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1">
-                  &rarr;
-                </span>
-              </button>
+                  <span className="bg-white/20 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1">
+                    &rarr;
+                  </span>
+                </button>
+                {/* Delete Button */}
+                <button
+                  onClick={(e) => removeSchool(school.id, e)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 hover:bg-red-500/90 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                  title="削除"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
             ))}
           </div>
         )}
@@ -148,20 +191,29 @@ export const SchoolSelectPage = () => {
         </div>
         
         <div className="flex flex-col gap-2">
-          {schools.map(school => (
-            <div key={school.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 transition-all">
-              <div className="flex flex-col">
-                <span className="font-bold text-slate-700">{school.name_ja}</span>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{school.type}</span>
+          {schools.map(school => {
+            const isAlreadyAdded = mySchools.some(s => s.id === school.id);
+            return (
+              <div key={school.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 transition-all">
+                <div className="flex flex-col">
+                  <span className="font-bold text-slate-700">{school.name_ja}</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{school.type}</span>
+                </div>
+                {isAlreadyAdded ? (
+                  <span className="text-xs text-slate-400 font-black bg-slate-200 px-4 py-2 rounded-xl">
+                    追加済み
+                  </span>
+                ) : (
+                  <button 
+                    onClick={() => addSchool(school)} 
+                    className="text-xs text-sky-600 font-black bg-sky-50 px-4 py-2 rounded-xl hover:bg-sky-100 transition-all"
+                  >
+                    追加
+                  </button>
+                )}
               </div>
-              <button 
-                onClick={() => addSchool(school)} 
-                className="text-xs text-sky-600 font-black bg-sky-50 px-4 py-2 rounded-xl hover:bg-sky-100 transition-all"
-              >
-                追加
-              </button>
-            </div>
-          ))}
+            );
+          })}
           {schools.length === 0 && search && !loading && (
             <p className="text-center text-slate-400 text-sm py-4">検索結果がありません。</p>
           )}
