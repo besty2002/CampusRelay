@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import type { Post, Profile } from '../types';
+import { MannerTempGauge } from '../components/MannerTempGauge';
+import { VerifiedBadge } from '../components/VerifiedBadge';
 import { 
   User, 
   Package, 
@@ -156,27 +158,35 @@ export const ProfilePage = () => {
           <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-4 border-4 border-white shadow-lg text-lime-500">
             <User size={48} />
           </div>
-          <h1 className="text-3xl font-black text-slate-800 mb-1">{profile?.display_name || 'ユーザー'}</h1>
-          <div className="flex items-center gap-2 mb-6">
+          <div className="flex items-center gap-1.5 mb-1">
+            <h1 className="text-3xl font-black text-slate-800">{profile?.display_name || 'ユーザー'}</h1>
+            <VerifiedBadge verified={profile?.email_verified || false} domain={profile?.verified_school_domain} size="lg" />
+          </div>
+          <div className="flex items-center gap-2 mb-4">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-sky-50 text-sky-600 text-xs font-black rounded-full border border-sky-100">
               <ShieldCheck size={14} /> {profile?.role === 'user' ? 'Member' : 'Admin'}
             </span>
           </div>
 
+          {/* Manner Temperature Gauge */}
+          <div className="w-full mb-6">
+            <MannerTempGauge temp={profile?.manner_temp ?? 36.5} size="md" />
+          </div>
+
           <div className="grid grid-cols-3 gap-4 w-full pt-6 border-t border-slate-50">
             <div className="text-center">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Completed</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">お譲り完了</p>
               <p className="text-xl font-black text-slate-800">{profile?.completed_count || 0}</p>
             </div>
             <div className="text-center border-x border-slate-50">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Rating</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">評価</p>
               <div className="flex items-center justify-center gap-1">
                 <Star size={16} className="fill-amber-400 text-amber-400" />
                 <p className="text-xl font-black text-slate-800">{profile?.avg_rating || 0}</p>
               </div>
             </div>
             <div className="text-center">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Reviews</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">レビュー</p>
               <p className="text-xl font-black text-slate-800">{profile?.rating_count || 0}</p>
             </div>
           </div>
@@ -185,8 +195,9 @@ export const ProfilePage = () => {
 
       {/* Menu Options */}
       <div className="grid gap-3 mb-8">
-        <MenuButton icon={<Heart size={20} />} label="お気に入り" count={wishlistedPosts.length} onClick={() => setView('wishlist')} />
+        <MenuButton icon={<Heart size={20} />} label="お気に入り" onClick={() => setView('wishlist')} />
         <MenuButton icon={<Bell size={20} />} label="通知・キーワード設定" onClick={() => navigate('/settings/notifications')} />
+        <MenuButton icon={<ShieldCheck size={20} />} label="学校認証" onClick={() => navigate('/verify')} />
         <MenuButton icon={<Clock size={20} />} label="取引履歴" />
         <MenuButton icon={<Settings size={20} />} label="設定" />
         <button 

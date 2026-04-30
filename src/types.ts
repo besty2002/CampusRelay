@@ -17,6 +17,9 @@ export interface Profile {
   completed_count: number;
   avg_rating: number;
   rating_count: number;
+  manner_temp: number;
+  email_verified: boolean;
+  verified_school_domain?: string;
 }
 
 export interface School {
@@ -93,3 +96,30 @@ export interface ChatMessage {
     display_name: string;
   };
 }
+
+export interface Review {
+  id: string;
+  post_id: string;
+  from_user_id: string;
+  to_user_id: string;
+  rating: number;
+  comment: string;
+  manner_tags: string[];
+  created_at: string;
+  from_profiles?: { display_name: string };
+}
+
+export const MANNER_TAGS_POSITIVE = [
+  '時間を守る',
+  '丁寧な対応',
+  '返信が早い',
+  '商品が綺麗',
+  '説明通り',
+  'また取引したい',
+] as const;
+
+export const MANNER_TAGS_NEGATIVE = [
+  '時間に遅れた',
+  '返信が遅い',
+  '説明と違った',
+] as const;

@@ -80,9 +80,27 @@ Stores additional user information.
 ## Planned Steps
 1. **Supabase SQL Execution:**
    - Run `supabase/chat_realtime_upgrade.sql` in Supabase Dashboard
+   - Run `supabase/trust_system.sql` in Supabase Dashboard (manner_temp, email_verified, manner_tags)
 2. **Integration:**
    - Update `LoginPage.tsx` to collect additional user data during signup.
    - Replace `mockApi.ts` with real Supabase calls.
 3. **Features:**
    - Profile management page.
    - Push notifications for new messages.
+
+### Trust & Manner Evaluation System ✅
+1. **Manner Temperature (マナー温度):**
+   - 36.5°C starting temp, 0~99°C range
+   - DB trigger `update_manner_temp()` adjusts temp on review insert
+   - `MannerTempGauge` component with gradient bar, emoji, color coding
+   - Displayed on ProfilePage, UserPublicProfilePage, PostDetailPage
+2. **Verified Badge (学校認証バッジ):**
+   - `email_verified` + `verified_school_domain` fields on profiles
+   - `VerifiedBadge` component with hover tooltip
+   - Displayed on ProfilePage, UserPublicProfilePage, PostDetailPage
+3. **Enhanced Review System:**
+   - `ReviewModal` component with star rating, manner keyword tags, comment
+   - Manner tags: 時間を守る, 丁寧な対応, 返信が早い, 商品が綺麗, 説明通り, また取引したい
+   - Negative tags: 時間に遅れた, 返信が遅い, 説明と違った
+   - Tags displayed in review cards on UserPublicProfilePage
+   - `manner_tags text[]` column on reviews table

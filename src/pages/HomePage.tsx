@@ -21,6 +21,8 @@ import {
   X
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { VerifiedBadge } from '../components/VerifiedBadge';
+import { MannerTempGauge } from '../components/MannerTempGauge';
 
 export const CATEGORY_MAP: Record<PostCategory, { label: string, icon: any, color: string }> = {
   Uniform: { label: '制服・衣類', icon: Shirt, color: 'bg-blue-50 text-blue-600' },
@@ -94,7 +96,7 @@ export const HomePage = () => {
       .from('posts')
       .select(`
         *,
-        profiles (display_name, completed_count, avg_rating),
+        profiles (*),
         schools (name_ja),
         post_images (storage_path)
       `)
@@ -341,10 +343,14 @@ export const HomePage = () => {
                           {post.profiles.display_name[0]}
                         </div>
                         <span className="text-xs font-bold">{post.profiles.display_name}</span>
+                        <VerifiedBadge verified={(post.profiles as any).email_verified} size="sm" showTooltip={false} />
                       </Link>
-                      <div className="flex items-center gap-1 text-[10px] font-black text-slate-400">
-                        <Star size={12} className="fill-amber-400 text-amber-400" /> 
-                        <span className="text-slate-700">{post.profiles.avg_rating}</span>
+                      <div className="flex items-center gap-2">
+                        <MannerTempGauge temp={(post.profiles as any).manner_temp ?? 36.5} size="sm" />
+                        <div className="flex items-center gap-1 text-[10px] font-black text-slate-400">
+                          <Star size={12} className="fill-amber-400 text-amber-400" /> 
+                          <span className="text-slate-700">{post.profiles.avg_rating}</span>
+                        </div>
                       </div>
                     </div>
                   </div>

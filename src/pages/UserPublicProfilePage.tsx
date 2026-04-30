@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Post, Profile } from '../types';
+import { MannerTempGauge } from '../components/MannerTempGauge';
+import { VerifiedBadge } from '../components/VerifiedBadge';
 import { 
   User, 
   Star, 
@@ -93,11 +95,19 @@ export const UserPublicProfilePage = () => {
         <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-lg text-lime-500">
           <User size={48} />
         </div>
-        <h1 className="text-3xl font-black text-slate-800 mb-1">{profile.display_name}</h1>
-        <div className="flex items-center justify-center gap-2 mb-6">
+        <div className="flex items-center justify-center gap-1.5 mb-1">
+          <h1 className="text-3xl font-black text-slate-800">{profile.display_name}</h1>
+          <VerifiedBadge verified={profile.email_verified} domain={profile.verified_school_domain} size="lg" />
+        </div>
+        <div className="flex items-center justify-center gap-2 mb-4">
           <span className="inline-flex items-center gap-1 px-3 py-1 bg-sky-50 text-sky-600 text-xs font-black rounded-full border border-sky-100">
             <ShieldCheck size={14} /> Member
           </span>
+        </div>
+
+        {/* Manner Temperature Gauge */}
+        <div className="w-full mb-6">
+          <MannerTempGauge temp={profile.manner_temp ?? 36.5} size="md" />
         </div>
 
         <div className="grid grid-cols-2 gap-4 w-full pt-6 border-t border-slate-50">
@@ -171,6 +181,16 @@ export const UserPublicProfilePage = () => {
                     {new Date(review.created_at).toLocaleDateString()}
                   </span>
                 </div>
+                {/* Manner Tags */}
+                {review.manner_tags && review.manner_tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {review.manner_tags.map((tag: string, i: number) => (
+                      <span key={i} className="px-2 py-0.5 bg-lime-50 text-lime-600 text-[10px] font-bold rounded-full border border-lime-100">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <p className="text-slate-600 text-sm font-medium mb-3">"{review.comment}"</p>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
                   - {review.from_profiles?.display_name}

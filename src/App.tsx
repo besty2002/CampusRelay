@@ -13,6 +13,7 @@ import { UserPublicProfilePage } from './pages/UserPublicProfilePage';
 import { ActivityDashboardPage } from './pages/ActivityDashboardPage';
 import { ChatListPage } from './pages/ChatListPage';
 import { ChatRoomPage } from './pages/ChatRoomPage';
+import { SchoolVerificationPage } from './pages/SchoolVerificationPage';
 import { useAuth } from './hooks/useAuth';
 import { Loader2, Home, PlusSquare, User, ShieldCheck, Bell, MessageCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -110,6 +111,7 @@ function App() {
           <Route path="/activity" element={<ProtectedRoute><ActivityDashboardPage /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
           <Route path="/settings/notifications" element={<ProtectedRoute><NotificationSettingsPage /></ProtectedRoute>} />
+          <Route path="/verify" element={<ProtectedRoute><SchoolVerificationPage /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute><ChatListPage /></ProtectedRoute>} />
           <Route path="/chat/:roomId" element={<ProtectedRoute><ChatRoomPage /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />

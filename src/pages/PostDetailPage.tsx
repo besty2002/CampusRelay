@@ -17,6 +17,9 @@ import {
   Trash
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { ReviewModal } from '../components/ReviewModal';
+import { VerifiedBadge } from '../components/VerifiedBadge';
+import { MannerTempGauge } from '../components/MannerTempGauge';
 
 export const PostDetailPage = () => {
   const { postId } = useParams();
@@ -32,11 +35,10 @@ export const PostDetailPage = () => {
   const [requesting, setRequesting] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
   
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState('');
-  
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewTargetUserId, setReviewTargetUserId] = useState('');
 
   const isOwner = user?.id === post?.user_id;
 
@@ -54,7 +56,7 @@ export const PostDetailPage = () => {
       .from('posts')
       .select(`
         *,
-        profiles (display_name, completed_count, avg_rating, rating_count),
+        profiles (*),
         post_images (id, storage_path, sort_order)
       `)
       .eq('id', postId)
@@ -190,32 +192,6 @@ export const PostDetailPage = () => {
     }
   };
 
-  const handleSubmitReview = async () => {
-    if (!user || !post) return;
-    try {
-      const { data: reqData } = await supabase.from('post_requests').select('requester_id').eq('post_id', post.id).eq('status', 'Approved').single();
-      if (!reqData) return alert('承認されたユーザーが見つかりません。');
-      
-      const toUserId = isOwner ? reqData.requester_id : post.user_id;
-
-      const { error } = await supabase.from('reviews').insert({
-        post_id: post.id,
-        from_user_id: user.id,
-        to_user_id: toUserId,
-        rating: reviewRating,
-        comment: reviewComment
-      });
-
-      if (error) {
-        if (error.code === '23505') alert('既にレビューを作成済みです。');
-        else alert(error.message);
-      } else {
-        alert('レビューが登録されました！');
-      }
-    } catch(err) {
-      console.error(err);
-    }
-  };
 
   const handleStartChat = async () => {
     if (!user) return alert('ログインが必要です。');
@@ -354,8 +330,11 @@ export const PostDetailPage = () => {
             <Link to={`/user/${post.user_id}`} className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-sm text-lime-500 hover:scale-105 transition-transform">
               <User size={28} />
             </Link>
-            <div>
-              <Link to={`/user/${post.user_id}`} className="font-black text-slate-800 text-lg hover:text-lime-600 transition-colors">{post.profiles.display_name}</Link>
+            <div className="flex-1">
+              <div className="flex items-center gap-1.5">
+                <Link to={`/user/${post.user_id}`} className="font-black text-slate-800 text-lg hover:text-lime-600 transition-colors">{post.profiles.display_name}</Link>
+                <VerifiedBadge verified={(post.profiles as any).email_verified} domain={(post.profiles as any).verified_school_domain} />
+              </div>
               <div className="flex items-center gap-3 mt-0.5">
                 <span className="bg-lime-500 text-white px-2 py-0.5 rounded-md text-[10px] font-black uppercase">
                   {post.profiles.completed_count} Given
@@ -363,6 +342,10 @@ export const PostDetailPage = () => {
                 <span className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase">
                   <Star size={12} className="fill-amber-400 text-amber-400" /> {post.profiles.avg_rating} ({post.profiles.rating_count})
                 </span>
+              </div>
+              {/* Mini manner temp */}
+              <div className="mt-1">
+                <MannerTempGauge temp={(post.profiles as any).manner_temp ?? 36.5} size="sm" />
               </div>
             </div>
           </div>
@@ -440,28 +423,19 @@ export const PostDetailPage = () => {
                 既にお譲りが完了したアイテムです。
               </div>
               
-              {user && <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-amber-400/5 rounded-full -mr-12 -mt-12 blur-2xl" />
-                <h3 className="font-black text-slate-800 mb-6 text-xl tracking-tight relative">相手にレビューを送る</h3>
-                <div className="flex gap-2 mb-6">
-                  {[1,2,3,4,5].map(star => (
-                    <button key={star} onClick={() => setReviewRating(star)} className="transition-transform active:scale-90">
-                      <Star size={32} className={star <= reviewRating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'} />
-                    </button>
-                  ))}
-                </div>
-                <textarea 
-                  className="w-full p-5 bg-slate-50 rounded-2xl mb-6 border-none focus:ring-4 focus:ring-lime-500/10 focus:bg-white outline-none font-medium transition-all" 
-                  placeholder="取引はいかがでしたか？（最大300文字）"
-                  rows={3}
-                  maxLength={300}
-                  value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
-                />
-                <button onClick={handleSubmitReview} className="w-full bg-lime-500 text-white py-4 rounded-2xl font-black shadow-lg shadow-lime-500/20 hover:bg-lime-600 active:scale-95 transition-all">
-                  レビューを登録
-                </button>
-              </div>}
+              {user && <button
+                onClick={async () => {
+                  const { data: reqData } = await supabase.from('post_requests').select('requester_id').eq('post_id', post.id).eq('status', 'Approved').single();
+                  if (!reqData) { alert('承認されたユーザーが見つかりません。'); return; }
+                  const toUserId = isOwner ? reqData.requester_id : post.user_id;
+                  setReviewTargetUserId(toUserId);
+                  setShowReviewModal(true);
+                }}
+                className="w-full bg-amber-500 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-amber-500/20 hover:bg-amber-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              >
+                <Star size={20} />
+                相手にレビューを送る
+              </button>}
             </div>
           )}
         </div>
@@ -563,6 +537,17 @@ export const PostDetailPage = () => {
             </div>
           </div>
         </div>
+      )}
+      {/* Review Modal */}
+      {showReviewModal && user && (
+        <ReviewModal
+          isOpen={showReviewModal}
+          onClose={() => setShowReviewModal(false)}
+          postId={post.id}
+          fromUserId={user.id}
+          toUserId={reviewTargetUserId}
+          toUserName={isOwner ? '受け取り者' : post.profiles.display_name}
+        />
       )}
     </div>
   );
