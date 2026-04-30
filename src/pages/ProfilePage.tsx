@@ -88,19 +88,6 @@ export const ProfilePage = () => {
     navigate('/auth');
   };
 
-  const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) {
-      alert('このブラウザは通知をサポートしていません。');
-      return;
-    }
-
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      alert('通知が有効になりました！');
-    } else {
-      alert('通知が拒否されました。設定から変更してください。');
-    }
-  };
 
   if (loading) {
     return (
