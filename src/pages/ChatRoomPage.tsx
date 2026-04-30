@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { ArrowLeft, Send, Loader2, Package, Plus, Menu, Phone, ChevronDown, WifiOff, Image as ImageIcon, ChevronDown as ChevronDownIcon } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Package, Menu, Phone, ChevronDown, WifiOff, Image as ImageIcon, ChevronDown as ChevronDownIcon } from 'lucide-react';
 import type { ChatMessage, ChatRoom, PostStatus } from '../types';
 
 // ─── Helpers ───────────────────────────────────────────────
