@@ -393,7 +393,8 @@ export const ChatRoomPage = () => {
   const otherInitial = otherParty?.display_name?.[0] || '?';
 
   return (
-    <div className="flex flex-col h-screen max-w-2xl mx-auto" style={{ background: 'linear-gradient(180deg, #8ECBAF 0%, #7BBBA0 100%)' }}>
+    <div className="fixed inset-0 w-full flex justify-center bg-[#8ECBAF] z-[100]">
+      <div className="flex flex-col h-[100dvh] w-full max-w-2xl relative overflow-hidden shadow-2xl" style={{ background: 'linear-gradient(180deg, #8ECBAF 0%, #7BBBA0 100%)' }}>
 
       {/* ═══ LINE-style Header ═══ */}
       <header className="bg-[#06C755] text-white px-4 py-3 flex items-center gap-3 shrink-0 shadow-md z-20">
