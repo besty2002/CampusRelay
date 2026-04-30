@@ -11,8 +11,8 @@ clientsClaim();
 precacheAndRoute(self.__WB_MANIFEST);
 
 // 푸시 알림 수신 이벤트
-self.addEventListener('push', (event) => {
-  let data = {};
+self.addEventListener('push', (event: PushEvent) => {
+  let data: any = {};
   if (event.data) {
     try {
       data = event.data.json();
@@ -35,12 +35,12 @@ self.addEventListener('push', (event) => {
 });
 
 // 알림 클릭 이벤트 (클릭 시 해당 URL로 이동)
-self.addEventListener('notificationclick', (event) => {
+self.addEventListener('notificationclick', (event: NotificationEvent) => {
   event.notification.close();
   
   if (event.notification.data && event.notification.data.url) {
     event.waitUntil(
-      clients.openWindow(event.notification.data.url)
+      self.clients.openWindow(event.notification.data.url)
     );
   }
 });
