@@ -47,7 +47,10 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   };
 
   const isAuthPage = location.pathname === '/auth';
-  if (isAuthPage) return <>{children}</>;
+  const isChatRoom = location.pathname.startsWith('/chat/');
+  
+  // Auth page and chat room: no layout wrapper
+  if (isAuthPage || isChatRoom) return <>{children}</>;
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">

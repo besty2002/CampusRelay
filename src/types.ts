@@ -68,16 +68,16 @@ export interface ChatRoom {
   seller_id: string;
   buyer_id: string;
   created_at: string;
+  last_message_text?: string;
+  last_message_at?: string;
+  unread_count_seller?: number;
+  unread_count_buyer?: number;
   posts: {
     title: string;
     post_images: { storage_path: string }[];
   };
   seller: Profile;
   buyer: Profile;
-  last_message?: {
-    text: string;
-    created_at: string;
-  };
 }
 
 export interface ChatMessage {
@@ -85,6 +85,7 @@ export interface ChatMessage {
   room_id: string;
   sender_id: string;
   text: string;
+  is_read: boolean;
   created_at: string;
   profiles: {
     display_name: string;

@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import type { PostMode, PostCategory, PostCondition } from '../types';
-import { ArrowLeft, Loader2, Camera, X } from 'lucide-react';
+import type { PostMode, PostCategory, PostCondition, School } from '../types';
+import { ArrowLeft, Loader2, Camera, X, MapPin, School as SchoolIcon, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export const CreatePostPage = () => {
@@ -27,11 +27,56 @@ export const CreatePostPage = () => {
   const [itemSize, setItemSize] = useState('');
   const [targetSchoolId, setTargetSchoolId] = useState<string | null>(schoolIdFromQuery);
 
+  // School selection states
+  const [mySchools, setMySchools] = useState<School[]>([]);
+  const [schoolsLoading, setSchoolsLoading] = useState(false);
+  const [selectedSchoolName, setSelectedSchoolName] = useState<string | null>(null);
+
   // Image states
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [existingImages, setExistingPhotos] = useState<{id: string, storage_path: string}[]>([]);
 
+  // ─── Fetch user's registered schools ──────────────────────
+  useEffect(() => {
+    if (user && !isEditMode) {
+      fetchMySchools();
+    }
+  }, [user, isEditMode]);
+
+  const fetchMySchools = async () => {
+    if (!user) return;
+    setSchoolsLoading(true);
+
+    const { data } = await supabase
+      .from('user_schools')
+      .select('school_id, schools(id, name_ja, type)')
+      .eq('user_id', user.id);
+
+    if (data) {
+      const schools = data.map((d: any) => d.schools as School);
+      setMySchools(schools);
+
+      // schoolId가 쿼리에서 넘어온 경우: 해당 학교 이름 설정
+      if (schoolIdFromQuery) {
+        const matched = schools.find(s => s.id === schoolIdFromQuery);
+        if (matched) setSelectedSchoolName(matched.name_ja);
+      }
+      // schoolId가 없고, 등록 학교가 1개면 자동 선택
+      else if (schools.length === 1) {
+        setTargetSchoolId(schools[0].id);
+        setSelectedSchoolName(schools[0].name_ja);
+      }
+    }
+    setSchoolsLoading(false);
+  };
+
+  const handleSelectSchool = (school: School) => {
+    setTargetSchoolId(school.id);
+    setSelectedSchoolName(school.name_ja);
+  };
+
+  // ─── Edit mode: fetch existing post ───────────────────────
   useEffect(() => {
     if (isEditMode) {
       fetchPostData();
@@ -44,7 +89,8 @@ export const CreatePostPage = () => {
         .from('posts')
         .select(`
           *,
-          post_images (id, storage_path, sort_order)
+          post_images (id, storage_path, sort_order),
+          schools (id, name_ja, type)
         `)
         .eq('id', postId)
         .single();
@@ -65,6 +111,9 @@ export const CreatePostPage = () => {
         setExchangeWanted(data.exchange_wanted || '');
         setItemSize(data.item_size || '');
         setTargetSchoolId(data.school_id);
+        if (data.schools) {
+          setSelectedSchoolName((data.schools as any).name_ja);
+        }
         
         const sortedImages = (data.post_images || []).sort((a: any, b: any) => a.sort_order - b.sort_order);
         setExistingPhotos(sortedImages);
@@ -104,7 +153,7 @@ export const CreatePostPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!targetSchoolId) return alert('学校情報がありません。');
+    if (!targetSchoolId) return alert('出品先の学校を選択してください。');
     if (!user) return alert('ログインが必要です。');
     if (previews.length === 0) return alert('最低1枚の画像が必要です。');
 
@@ -180,6 +229,16 @@ export const CreatePostPage = () => {
     </div>
   );
 
+  // ─── School type label helper ─────────────────────────────
+  const schoolTypeLabel = (type: string) => {
+    switch (type) {
+      case 'elementary': return '小学校';
+      case 'middle': return '中学校';
+      case 'high': return '高校';
+      default: return type;
+    }
+  };
+
   return (
     <div className="max-w-xl mx-auto p-6 pt-12 pb-32">
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-400 font-bold mb-6 hover:text-lime-600 transition-colors">
@@ -191,6 +250,105 @@ export const CreatePostPage = () => {
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+
+        {/* ═══ School Selection Card ═══ */}
+        {!isEditMode && (
+          <div className="bg-white p-6 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100">
+            <label className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">
+              <MapPin size={14} />
+              出品先の学校
+            </label>
+
+            {schoolsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="animate-spin text-lime-500" size={24} />
+              </div>
+            ) : mySchools.length === 0 ? (
+              /* ─── No schools registered ─── */
+              <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-amber-100 rounded-xl shrink-0">
+                    <AlertTriangle size={20} className="text-amber-500" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-amber-800 text-sm mb-1">学校が登録されていません</p>
+                    <p className="text-amber-600 text-xs mb-3">出品するには、まず学校を追加してください。</p>
+                    <Link 
+                      to="/schools" 
+                      className="inline-flex items-center gap-1.5 bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-black hover:bg-amber-600 transition-all shadow-md shadow-amber-500/20 active:scale-95"
+                    >
+                      <SchoolIcon size={14} />
+                      My Schools で学校を追加 →
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* ─── School chips ─── */
+              <div className="flex flex-wrap gap-2.5">
+                {mySchools.map((school) => {
+                  const isSelected = targetSchoolId === school.id;
+                  return (
+                    <button
+                      key={school.id}
+                      type="button"
+                      onClick={() => handleSelectSchool(school)}
+                      className={`
+                        group relative flex items-center gap-2.5 px-5 py-3.5 rounded-2xl font-bold text-sm
+                        transition-all duration-200 active:scale-95
+                        ${isSelected
+                          ? 'bg-lime-500 text-white shadow-lg shadow-lime-500/30 ring-2 ring-lime-500 ring-offset-2'
+                          : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:shadow-md border border-slate-100'
+                        }
+                      `}
+                    >
+                      <div className={`
+                        w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors
+                        ${isSelected ? 'bg-white/20' : 'bg-white shadow-sm'}
+                      `}>
+                        {isSelected ? (
+                          <CheckCircle2 size={18} className="text-white" />
+                        ) : (
+                          <SchoolIcon size={16} className="text-slate-400 group-hover:text-lime-500 transition-colors" />
+                        )}
+                      </div>
+                      <div className="text-left min-w-0">
+                        <p className="truncate leading-tight">{school.name_ja}</p>
+                        <p className={`text-[10px] font-black uppercase tracking-widest ${isSelected ? 'text-white/70' : 'text-slate-400'}`}>
+                          {schoolTypeLabel(school.type)}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Selected school indicator */}
+            {targetSchoolId && selectedSchoolName && !schoolsLoading && (
+              <div className="mt-4 flex items-center gap-2 px-4 py-2 bg-lime-50 rounded-xl border border-lime-100">
+                <CheckCircle2 size={14} className="text-lime-600 shrink-0" />
+                <p className="text-xs font-bold text-lime-700">
+                  <span className="text-lime-500">出品先:</span> {selectedSchoolName}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Edit mode: show current school (read-only) */}
+        {isEditMode && selectedSchoolName && (
+          <div className="bg-white px-6 py-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3">
+            <div className="p-2 bg-lime-50 rounded-xl">
+              <SchoolIcon size={16} className="text-lime-600" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">出品先</p>
+              <p className="font-bold text-slate-700 text-sm">{selectedSchoolName}</p>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 space-y-6">
           <div>
             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Images (Max 5)</label>
@@ -265,7 +423,14 @@ export const CreatePostPage = () => {
           )}
         </div>
 
-        <button disabled={loading} className="w-full bg-lime-500 text-white py-5 rounded-[2rem] font-black text-xl shadow-xl shadow-lime-500/30 hover:bg-lime-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+        <button 
+          disabled={loading || (!targetSchoolId && !isEditMode)} 
+          className={`w-full py-5 rounded-[2rem] font-black text-xl shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${
+            !targetSchoolId && !isEditMode
+              ? 'bg-slate-300 text-slate-500 shadow-slate-200/30 cursor-not-allowed'
+              : 'bg-lime-500 text-white shadow-lime-500/30 hover:bg-lime-600'
+          }`}
+        >
           {loading ? <Loader2 className="animate-spin" /> : isEditMode ? '修正完了' : '出品完了'}
         </button>
       </form>
