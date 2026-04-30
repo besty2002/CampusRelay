@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabase';
 import type { Post, PostCategory, PostCondition } from '../types';
 import { 
   Search, 
-  Loader2, 
   Plus, 
   School, 
   ArrowRight, 
@@ -23,6 +22,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { MannerTempGauge } from '../components/MannerTempGauge';
+import { PostCardSkeleton } from '../components/skeletons/PostCardSkeleton';
 
 export const CATEGORY_MAP: Record<PostCategory, { label: string, icon: any, color: string }> = {
   Uniform: { label: '制服・衣類', icon: Shirt, color: 'bg-blue-50 text-blue-600' },
@@ -276,9 +276,8 @@ export const HomePage = () => {
       </div>
 
       {loading || fetchingSchools ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-4">
-          <Loader2 className="animate-spin text-lime-500" size={40} />
-          <p className="text-slate-400 font-bold">フィードを準備중...</p>
+        <div className="grid gap-6">
+          {[1, 2, 3, 4].map(n => <PostCardSkeleton key={n} />)}
         </div>
       ) : posts.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-100 p-8">

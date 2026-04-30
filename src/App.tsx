@@ -14,6 +14,7 @@ import { ActivityDashboardPage } from './pages/ActivityDashboardPage';
 import { ChatListPage } from './pages/ChatListPage';
 import { ChatRoomPage } from './pages/ChatRoomPage';
 import { SchoolVerificationPage } from './pages/SchoolVerificationPage';
+import { OfflineBanner } from './components/OfflineBanner';
 import { useAuth } from './hooks/useAuth';
 import { Loader2, Home, PlusSquare, User, ShieldCheck, Bell, MessageCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -52,10 +53,16 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const isChatRoom = location.pathname.startsWith('/chat/');
   
   // Auth page and chat room: no layout wrapper
-  if (isAuthPage || isChatRoom) return <>{children}</>;
+  if (isAuthPage || isChatRoom) return (
+    <>
+      <OfflineBanner />
+      {children}
+    </>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
+      <OfflineBanner />
       <div className="max-w-4xl mx-auto">
         {children}
       </div>

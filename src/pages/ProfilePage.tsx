@@ -5,13 +5,13 @@ import { useAuth } from '../hooks/useAuth';
 import type { Post, Profile } from '../types';
 import { MannerTempGauge } from '../components/MannerTempGauge';
 import { VerifiedBadge } from '../components/VerifiedBadge';
+import { ProfileSkeleton } from '../components/skeletons/ProfileSkeleton';
 import { 
   User, 
   Package, 
   Star, 
   LogOut, 
   ChevronRight, 
-  Loader2, 
   ShieldCheck,
   Settings,
   Heart,
@@ -93,8 +93,10 @@ export const ProfilePage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="animate-spin text-lime-500" size={32} />
+      <div className="max-w-2xl mx-auto p-4 pt-12 pb-32">
+        <div className="bg-white rounded-[3rem] p-8 shadow-xl shadow-slate-200/50 border border-slate-100 mb-8 relative overflow-hidden">
+          <ProfileSkeleton />
+        </div>
       </div>
     );
   }

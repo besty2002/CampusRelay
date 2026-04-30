@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Link } from 'react-router-dom';
-import { MessageCircle, Loader2, Search } from 'lucide-react';
+import { MessageCircle, Search } from 'lucide-react';
 import type { ChatRoom } from '../types';
+import { ChatListSkeleton } from '../components/skeletons/ChatListSkeleton';
 
 // ─── Helpers ─────────────────────────────────────────────
 const formatRelativeTime = (dateStr: string | undefined) => {
@@ -115,8 +116,17 @@ export const ChatListPage = () => {
   });
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
-      <Loader2 className="animate-spin text-[#06C755]" size={32} />
+    <div className="max-w-2xl mx-auto bg-white min-h-screen pb-32">
+      <header className="bg-white sticky top-0 z-10 border-b border-slate-100">
+        <div className="px-5 pt-10 pb-3">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-2xl font-black text-slate-800 tracking-tight">トーク</h1>
+          </div>
+        </div>
+      </header>
+      <div className="divide-y divide-slate-50 px-4 py-2 space-y-4 mt-4">
+        {[1, 2, 3, 4, 5].map(n => <ChatListSkeleton key={n} />)}
+      </div>
     </div>
   );
 

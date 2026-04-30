@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { ArrowLeft, Send, Loader2, Package, Menu, Phone, ChevronDown, WifiOff, Image as ImageIcon, ChevronDown as ChevronDownIcon } from 'lucide-react';
 import type { ChatMessage, ChatRoom, PostStatus } from '../types';
+import { MessageSkeleton } from '../components/skeletons/MessageSkeleton';
 
 // ─── Helpers ───────────────────────────────────────────────
 const formatTime = (dateStr: string) =>
@@ -466,10 +467,18 @@ export const ChatRoomPage = () => {
 
   // ─── Loading State ────────────────────────────────────────
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(180deg, #8ECBAF 0%, #7BBBA0 100%)' }}>
-      <div className="flex flex-col items-center gap-3">
-        <Loader2 className="animate-spin text-white" size={32} />
-        <p className="text-white/80 text-sm font-medium">読み込み中...</p>
+    <div className="fixed inset-0 w-full flex justify-center bg-[#8ECBAF] z-[100]">
+      <div className="flex flex-col h-[100dvh] w-full max-w-2xl relative overflow-hidden shadow-2xl bg-[#8ECBAF]">
+        <header className="bg-[#06C755] text-white px-4 py-3 flex items-center gap-3 shrink-0 shadow-md z-20">
+          <div className="p-1.5"><ArrowLeft size={22} className="opacity-50" /></div>
+          <div className="flex-1 text-center"><div className="h-5 w-24 bg-white/20 rounded mx-auto animate-pulse"></div></div>
+          <div className="w-10"></div>
+        </header>
+        <div className="flex-1 overflow-hidden p-4 space-y-4 pt-12 opacity-50">
+          <MessageSkeleton isOwn={false} />
+          <MessageSkeleton isOwn={true} />
+          <MessageSkeleton isOwn={false} />
+        </div>
       </div>
     </div>
   );
