@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { ArrowLeft, Send, Loader2, Package, Plus, Menu, Phone, ChevronDown, WifiOff } from 'lucide-react';
-import type { ChatMessage, ChatRoom } from '../types';
+import { ArrowLeft, Send, Loader2, Package, Plus, Menu, Phone, ChevronDown, WifiOff, Image as ImageIcon, ChevronDown as ChevronDownIcon } from 'lucide-react';
+import type { ChatMessage, ChatRoom, PostStatus } from '../types';
 
 // ─── Helpers ───────────────────────────────────────────────
 const formatTime = (dateStr: string) =>
@@ -59,6 +59,10 @@ export const ChatRoomPage = () => {
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastMessageTimeRef = useRef<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
 
   // ─── Fetch Room & Messages ────────────────────────────────
   const fetchRoomAndMessages = useCallback(async () => {
@@ -322,6 +326,89 @@ export const ChatRoomPage = () => {
     }
   };
 
+  // ─── Image Upload ─────────────────────────────────────────
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user || !roomId) return;
+    
+    setUploadingImage(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${roomId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-images')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('chat-images')
+        .getPublicUrl(filePath);
+
+      // 낙관적 UI
+      const optimisticId = `optimistic-img-${Date.now()}`;
+      const optimisticMsg: ChatMessage = {
+        id: optimisticId,
+        room_id: roomId,
+        sender_id: user.id,
+        text: '',
+        image_url: publicUrlData.publicUrl,
+        is_read: false,
+        created_at: new Date().toISOString(),
+        profiles: { display_name: '' }
+      };
+      setMessages(prev => [...prev, optimisticMsg]);
+
+      // DB 저장
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .insert({
+          room_id: roomId,
+          sender_id: user.id,
+          text: '',
+          image_url: publicUrlData.publicUrl
+        })
+        .select('*, profiles:profiles!chat_messages_sender_id_fkey (display_name)')
+        .single();
+
+      if (error) throw error;
+      
+      if (data) {
+        lastMessageTimeRef.current = data.created_at;
+        setMessages(prev =>
+          prev.map(m => m.id === optimisticId ? (data as any) : m)
+            .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
+        );
+      }
+    } catch (err: any) {
+      alert('이미지 업로드 실패: ' + err.message);
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // ─── Status Change ────────────────────────────────────────
+  const handleStatusChange = async (newStatus: PostStatus) => {
+    if (!room || !roomId) return;
+    setShowStatusMenu(false);
+    
+    // 낙관적 업데이트
+    setRoom(prev => prev ? { ...prev, posts: { ...prev.posts, status: newStatus } } : null);
+    
+    const { error } = await supabase
+      .from('posts')
+      .update({ status: newStatus })
+      .eq('id', room.post_id);
+      
+    if (error) {
+      alert('상태 변경 실패: ' + error.message);
+      setRoom(prev => prev ? { ...prev, posts: { ...prev.posts, status: room.posts.status } } : null);
+    }
+  };
+
   // ─── Send message (낙관적 업데이트) ───────────────────────
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -422,25 +509,44 @@ export const ChatRoomPage = () => {
         </button>
       </header>
 
-      {/* ═══ Item Card (collapsible) ═══ */}
-      <Link
-        to={`/post/${room?.post_id}`}
-        className="mx-3 mt-2 mb-1 flex items-center gap-3 p-2.5 bg-white/90 backdrop-blur-md rounded-xl shadow-sm hover:bg-white transition-all group z-10"
-      >
-        <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden shrink-0">
-          {thumbnail ? (
-            <img src={thumbnail} className="w-full h-full object-cover" alt="" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-300"><Package size={16} /></div>
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold text-slate-700 truncate group-hover:text-[#06C755] transition-colors">
-            {room?.posts?.title}
-          </p>
-          <p className="text-[10px] font-bold text-[#06C755]">アイテムを見る →</p>
-        </div>
-      </Link>
+      {/* ═══ Item Card & Status Controller ═══ */}
+      <div className="mx-3 mt-2 mb-1 flex items-center gap-3 p-2.5 bg-white/90 backdrop-blur-md rounded-xl shadow-sm z-10 relative">
+        <Link to={`/post/${room?.post_id}`} className="flex-1 flex items-center gap-3 min-w-0 group cursor-pointer">
+          <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden shrink-0">
+            {thumbnail ? (
+              <img src={thumbnail} className="w-full h-full object-cover" alt="" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-300"><Package size={16} /></div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-slate-700 truncate group-hover:text-[#06C755] transition-colors">
+              {room?.posts?.title}
+            </p>
+            <p className="text-[10px] font-bold text-[#06C755]">アイテムを見る →</p>
+          </div>
+        </Link>
+        
+        {/* Status Dropdown (Seller Only) */}
+        {isSeller && (
+          <div className="relative shrink-0">
+            <button 
+              onClick={() => setShowStatusMenu(!showStatusMenu)}
+              className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-black text-slate-600 flex items-center gap-1 transition-colors"
+            >
+              {room?.posts?.status === 'Available' ? '受付中' : room?.posts?.status === 'Reserved' ? '予約済み' : '譲渡済み'}
+              <ChevronDownIcon size={12} />
+            </button>
+            {showStatusMenu && (
+              <div className="absolute top-full right-0 mt-1 w-28 bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden py-1 z-50 animate-in slide-in-from-top-1 fade-in duration-100">
+                <button onClick={() => handleStatusChange('Available')} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">受付中</button>
+                <button onClick={() => handleStatusChange('Reserved')} className="w-full text-left px-3 py-2 text-xs font-bold text-amber-600 hover:bg-amber-50">予約済み</button>
+                <button onClick={() => handleStatusChange('Given')} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-400 hover:bg-slate-50">譲渡済み</button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ═══ Messages Area ═══ */}
       <div
@@ -495,13 +601,22 @@ export const ChatRoomPage = () => {
                   <div className={`flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                     {/* Bubble */}
                     <div
-                      className={`px-4 py-2.5 shadow-sm relative ${
+                      className={`shadow-sm relative flex flex-col ${
                         isMe
                           ? `bg-[#06C755] text-white ${isFirstInGroup ? 'rounded-2xl rounded-tr-sm' : 'rounded-2xl'}`
                           : `bg-white text-slate-800 ${isFirstInGroup ? 'rounded-2xl rounded-tl-sm' : 'rounded-2xl'}`
                       } ${msg.id.startsWith('optimistic-') ? 'opacity-70' : ''}`}
                     >
-                      <p className="text-[14px] leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
+                      {msg.image_url && (
+                        <div className="p-1 cursor-pointer" onClick={() => window.open(msg.image_url, '_blank')}>
+                          <img src={msg.image_url} alt="첨부 이미지" className="max-w-[200px] max-h-[250px] sm:max-w-[240px] rounded-xl object-cover" />
+                        </div>
+                      )}
+                      {msg.text && (
+                        <p className={`text-[14px] leading-relaxed whitespace-pre-wrap break-words ${msg.image_url ? 'px-3 pb-2 pt-1' : 'px-4 py-2.5'}`}>
+                          {msg.text}
+                        </p>
+                      )}
                     </div>
 
                     {/* Time + Read status (only on last in group) */}
@@ -539,11 +654,20 @@ export const ChatRoomPage = () => {
       {/* ═══ LINE-style Input Bar ═══ */}
       <footer className="bg-[#F7F8FA] border-t border-slate-200 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] shrink-0">
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            ref={fileInputRef}
+            onChange={handleImageUpload}
+          />
           <button 
             type="button"
+            onClick={() => fileInputRef.current?.click()}
             className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-300 active:scale-90 transition-all shrink-0"
+            disabled={uploadingImage}
           >
-            <Plus size={20} />
+            {uploadingImage ? <Loader2 size={18} className="animate-spin" /> : <ImageIcon size={20} />}
           </button>
 
           <div className="flex-1 relative">
@@ -558,7 +682,7 @@ export const ChatRoomPage = () => {
 
           <button
             type="submit"
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() && !uploadingImage}
             className="w-9 h-9 rounded-full bg-[#06C755] flex items-center justify-center text-white shadow-md shadow-[#06C755]/30 hover:bg-[#05B54D] active:scale-90 transition-all disabled:opacity-30 disabled:shadow-none shrink-0"
           >
             <Send size={16} />

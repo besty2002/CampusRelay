@@ -74,6 +74,7 @@ export interface ChatRoom {
   unread_count_buyer?: number;
   posts: {
     title: string;
+    status: PostStatus;
     post_images: { storage_path: string }[];
   };
   seller: Profile;
@@ -85,6 +86,7 @@ export interface ChatMessage {
   room_id: string;
   sender_id: string;
   text: string;
+  image_url?: string;
   is_read: boolean;
   created_at: string;
   profiles: {
