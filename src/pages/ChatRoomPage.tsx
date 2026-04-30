@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { ArrowLeft, Send, Loader2, Package, Plus, Menu, Phone, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Package, Plus, Menu, Phone, ChevronDown, WifiOff } from 'lucide-react';
 import type { ChatMessage, ChatRoom } from '../types';
 
 // ─── Helpers ───────────────────────────────────────────────
@@ -52,10 +52,13 @@ export const ChatRoomPage = () => {
   const [loading, setLoading] = useState(true);
   const [isPartnerTyping, setIsPartnerTyping] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastMessageTimeRef = useRef<string | null>(null);
 
   // ─── Fetch Room & Messages ────────────────────────────────
   const fetchRoomAndMessages = useCallback(async () => {
@@ -87,37 +90,96 @@ export const ChatRoomPage = () => {
       .eq('room_id', roomId)
       .order('created_at', { ascending: true });
 
-    if (messagesData) setMessages(messagesData as any[]);
+    if (messagesData && messagesData.length > 0) {
+      setMessages(messagesData as any[]);
+      lastMessageTimeRef.current = messagesData[messagesData.length - 1].created_at;
+    }
     setLoading(false);
   }, [roomId]);
 
-  // ─── Mark messages as read ────────────────────────────────
+  // ─── Fetch only NEW messages (for polling fallback) ───────
+  const fetchNewMessages = useCallback(async () => {
+    if (!roomId) return;
+    
+    const query = supabase
+      .from('chat_messages')
+      .select(`
+        *,
+        profiles:profiles!chat_messages_sender_id_fkey (display_name)
+      `)
+      .eq('room_id', roomId)
+      .order('created_at', { ascending: true });
+
+    // 마지막 메시지 이후의 것만 가져옴
+    if (lastMessageTimeRef.current) {
+      query.gt('created_at', lastMessageTimeRef.current);
+    }
+
+    const { data } = await query;
+    
+    if (data && data.length > 0) {
+      setMessages(prev => {
+        const existingIds = new Set(prev.map(m => m.id));
+        const newMsgs = (data as any[]).filter(m => !existingIds.has(m.id));
+        if (newMsgs.length === 0) return prev;
+        return [...prev, ...newMsgs];
+      });
+      lastMessageTimeRef.current = data[data.length - 1].created_at;
+    }
+  }, [roomId]);
+
+  // ─── Start/Stop Polling ───────────────────────────────────
+  const startPolling = useCallback(() => {
+    if (pollingRef.current) return;
+    console.log('[Chat] Starting fallback polling (3s interval)');
+    pollingRef.current = setInterval(() => {
+      fetchNewMessages();
+    }, 3000);
+  }, [fetchNewMessages]);
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) {
+      console.log('[Chat] Stopping polling');
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
+
+  // ─── Mark messages as read (defensive) ────────────────────
   const markMessagesAsRead = useCallback(async () => {
     if (!user || !roomId || !room) return;
 
-    // Mark all unread messages from other user as read
-    await supabase
-      .from('chat_messages')
-      .update({ is_read: true })
-      .eq('room_id', roomId)
-      .neq('sender_id', user.id)
-      .eq('is_read', false);
+    try {
+      // Mark all unread messages from other user as read
+      await supabase
+        .from('chat_messages')
+        .update({ is_read: true })
+        .eq('room_id', roomId)
+        .neq('sender_id', user.id)
+        .eq('is_read', false);
 
-    // Reset unread count for current user
-    const isSeller = user.id === room.seller_id;
-    await supabase
-      .from('chat_rooms')
-      .update(isSeller ? { unread_count_seller: 0 } : { unread_count_buyer: 0 })
-      .eq('id', roomId);
+      // Reset unread count for current user
+      const isSeller = user.id === room.seller_id;
+      await supabase
+        .from('chat_rooms')
+        .update(isSeller ? { unread_count_seller: 0 } : { unread_count_buyer: 0 })
+        .eq('id', roomId);
+    } catch (err) {
+      // is_read 컬럼이 없어도 에러 무시
+      console.warn('[Chat] markMessagesAsRead failed (is_read column may not exist):', err);
+    }
   }, [user, roomId, room]);
 
-  // ─── Realtime Subscription (FIXED) ────────────────────────
+  // ─── Realtime Subscription + Polling Fallback ─────────────
   useEffect(() => {
     if (!user || !roomId) return;
 
     fetchRoomAndMessages();
 
-    // 1) Messages subscription
+    // ★ 항상 polling도 시작 (Realtime 성공하면 멈춤)
+    startPolling();
+
+    // 1) Messages subscription with status logging
     const messageChannel = supabase
       .channel(`room-messages:${roomId}`)
       .on('postgres_changes', {
@@ -126,32 +188,49 @@ export const ChatRoomPage = () => {
         table: 'chat_messages',
         filter: `room_id=eq.${roomId}`
       }, async (payload) => {
+        console.log('[Realtime] INSERT received:', payload.new.id);
+
+        // ★ 먼저 payload에서 바로 메시지 추가 (빠른 반영)
+        const newMsg = payload.new as any;
+        setMessages(prev => {
+          if (prev.some(m => m.id === newMsg.id)) return prev;
+          // payload에 profiles 정보가 없으므로 임시 추가
+          const msgWithProfile = {
+            ...newMsg,
+            is_read: newMsg.is_read ?? false,
+            profiles: { display_name: '' } // 임시
+          };
+          lastMessageTimeRef.current = newMsg.created_at;
+          return [...prev, msgWithProfile];
+        });
+
+        // 그 다음 full data를 가져와서 업데이트
         const { data } = await supabase
           .from('chat_messages')
           .select(`
             *,
             profiles:profiles!chat_messages_sender_id_fkey (display_name)
           `)
-          .eq('id', payload.new.id)
+          .eq('id', newMsg.id)
           .single();
 
         if (data) {
-          // ★ 중복 메시지 방지
-          setMessages(prev => {
-            if (prev.some(m => m.id === data.id)) return prev;
-            return [...prev, data as any];
-          });
+          setMessages(prev =>
+            prev.map(m => m.id === data.id ? (data as any) : m)
+          );
 
-          // 상대방 메시지면 자동으로 읽음 처리
+          // 상대방 메시지면 읽음 처리 (에러 무시)
           if (data.sender_id !== user.id) {
-            await supabase
+            supabase
               .from('chat_messages')
               .update({ is_read: true })
-              .eq('id', data.id);
+              .eq('id', data.id)
+              .then(({ error }) => {
+                if (error) console.warn('[Chat] is_read update skipped:', error.message);
+              });
           }
         }
       })
-      // ★ UPDATE 이벤트도 구독 (읽음 상태 변경 감지)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -159,10 +238,28 @@ export const ChatRoomPage = () => {
         filter: `room_id=eq.${roomId}`
       }, (payload) => {
         setMessages(prev =>
-          prev.map(m => m.id === payload.new.id ? { ...m, is_read: (payload.new as any).is_read } : m)
+          prev.map(m => m.id === payload.new.id 
+            ? { ...m, is_read: (payload.new as any).is_read ?? m.is_read } 
+            : m
+          )
         );
       })
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log(`[Realtime] Message channel status: ${status}`, err || '');
+        if (status === 'SUBSCRIBED') {
+          console.log('[Realtime] ✅ Successfully subscribed to messages');
+          setRealtimeConnected(true);
+          // Realtime 성공하면 polling 중지
+          stopPolling();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[Realtime] ❌ Subscription failed, keeping polling active');
+          setRealtimeConnected(false);
+          startPolling();
+        } else if (status === 'CLOSED') {
+          setRealtimeConnected(false);
+          startPolling();
+        }
+      });
 
     // 2) Presence channel (타이핑 인디케이터)
     const presenceChannel = supabase.channel(`presence:${roomId}`);
@@ -182,13 +279,14 @@ export const ChatRoomPage = () => {
         }
       });
 
-    // ★ Cleanup — 컴포넌트 언마운트 시 채널 정리
+    // ★ Cleanup
     return () => {
       supabase.removeChannel(messageChannel);
       supabase.removeChannel(presenceChannel);
       presenceChannelRef.current = null;
+      stopPolling();
     };
-  }, [user, roomId, fetchRoomAndMessages]);
+  }, [user, roomId, fetchRoomAndMessages, startPolling, stopPolling, fetchNewMessages]);
 
   // ─── Mark as read when room loads ─────────────────────────
   useEffect(() => {
@@ -224,7 +322,7 @@ export const ChatRoomPage = () => {
     }
   };
 
-  // ─── Send message ─────────────────────────────────────────
+  // ─── Send message (낙관적 업데이트) ───────────────────────
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !user || !roomId) return;
@@ -237,17 +335,45 @@ export const ChatRoomPage = () => {
       presenceChannelRef.current.track({ user_id: user.id, is_typing: false });
     }
 
-    const { error } = await supabase
+    // ★ 낙관적 업데이트: INSERT 전에 UI에 먼저 표시
+    const optimisticId = `optimistic-${Date.now()}`;
+    const optimisticMsg: ChatMessage = {
+      id: optimisticId,
+      room_id: roomId,
+      sender_id: user.id,
+      text: messageText,
+      is_read: false,
+      created_at: new Date().toISOString(),
+      profiles: { display_name: '' }
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
+
+    const { data, error } = await supabase
       .from('chat_messages')
       .insert({
         room_id: roomId,
         sender_id: user.id,
         text: messageText
-      });
+      })
+      .select(`
+        *,
+        profiles:profiles!chat_messages_sender_id_fkey (display_name)
+      `)
+      .single();
 
     if (error) {
+      // 실패 시 낙관적 메시지 제거 + 입력 복원
+      setMessages(prev => prev.filter(m => m.id !== optimisticId));
+      setNewMessage(messageText);
       alert(error.message);
-      setNewMessage(messageText); // Restore on error
+    } else if (data) {
+      // 성공 시 낙관적 메시지를 실제 데이터로 교체
+      lastMessageTimeRef.current = data.created_at;
+      setMessages(prev =>
+        prev.map(m => m.id === optimisticId ? (data as any) : m)
+          // Realtime이 먼저 도착한 경우 중복 제거
+          .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
+      );
     }
   };
 
@@ -279,6 +405,13 @@ export const ChatRoomPage = () => {
         </button>
         <div className="flex-1 min-w-0 text-center">
           <h2 className="font-bold text-base truncate">{otherParty?.display_name}</h2>
+          {/* Connection status indicator */}
+          {!realtimeConnected && (
+            <div className="flex items-center justify-center gap-1 mt-0.5">
+              <WifiOff size={10} className="text-white/60" />
+              <span className="text-[9px] text-white/60 font-medium">自動更新中</span>
+            </div>
+          )}
         </div>
         <button className="p-1.5 hover:bg-white/10 rounded-full transition-colors">
           <Phone size={20} />
@@ -365,7 +498,7 @@ export const ChatRoomPage = () => {
                         isMe
                           ? `bg-[#06C755] text-white ${isFirstInGroup ? 'rounded-2xl rounded-tr-sm' : 'rounded-2xl'}`
                           : `bg-white text-slate-800 ${isFirstInGroup ? 'rounded-2xl rounded-tl-sm' : 'rounded-2xl'}`
-                      }`}
+                      } ${msg.id.startsWith('optimistic-') ? 'opacity-70' : ''}`}
                     >
                       <p className="text-[14px] leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
                     </div>
