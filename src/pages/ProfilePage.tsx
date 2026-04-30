@@ -199,7 +199,7 @@ export const ProfilePage = () => {
       {/* Menu Options */}
       <div className="grid gap-3 mb-8">
         <MenuButton icon={<Heart size={20} />} label="お気に入り" count={wishlistedPosts.length} onClick={() => setView('wishlist')} />
-        <MenuButton icon={<Bell size={20} />} label="通知を有効にする" onClick={requestNotificationPermission} />
+        <MenuButton icon={<Bell size={20} />} label="通知・キーワード設定" onClick={() => navigate('/settings/notifications')} />
         <MenuButton icon={<Clock size={20} />} label="取引履歴" />
         <MenuButton icon={<Settings size={20} />} label="設定" />
         <button 

@@ -8,6 +8,7 @@ import { ProfilePage } from './pages/ProfilePage';
 import { HomePage } from './pages/HomePage';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { NotificationsPage } from './pages/NotificationsPage';
+import { NotificationSettingsPage } from './pages/NotificationSettingsPage';
 import { UserPublicProfilePage } from './pages/UserPublicProfilePage';
 import { ActivityDashboardPage } from './pages/ActivityDashboardPage';
 import { ChatListPage } from './pages/ChatListPage';
@@ -108,6 +109,7 @@ function App() {
           <Route path="/user/:userId" element={<ProtectedRoute><UserPublicProfilePage /></ProtectedRoute>} />
           <Route path="/activity" element={<ProtectedRoute><ActivityDashboardPage /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+          <Route path="/settings/notifications" element={<ProtectedRoute><NotificationSettingsPage /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute><ChatListPage /></ProtectedRoute>} />
           <Route path="/chat/:roomId" element={<ProtectedRoute><ChatRoomPage /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
