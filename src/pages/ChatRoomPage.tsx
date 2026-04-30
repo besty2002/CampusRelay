@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { ArrowLeft, Send, Loader2, Package, Menu, Phone, ChevronDown, WifiOff, Image as ImageIcon, ChevronDown as ChevronDownIcon } from 'lucide-react';
 import type { ChatMessage, ChatRoom, PostStatus } from '../types';
 import { MessageSkeleton } from '../components/skeletons/MessageSkeleton';
+import imageCompression from 'browser-image-compression';
 
 // ─── Helpers ───────────────────────────────────────────────
 const formatTime = (dateStr: string) =>
@@ -329,11 +330,25 @@ export const ChatRoomPage = () => {
 
   // ─── Image Upload ─────────────────────────────────────────
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    let file = e.target.files?.[0];
     if (!file || !user || !roomId) return;
     
     setUploadingImage(true);
     try {
+      // 1. 브라우저 단 이미지 압축 적용 (1MB 이하로)
+      if (file.type.startsWith('image/')) {
+        try {
+          const options = {
+            maxSizeMB: 1,
+            maxWidthOrHeight: 1280,
+            useWebWorker: true,
+          };
+          file = await imageCompression(file, options);
+        } catch (compError) {
+          console.error('채팅 이미지 압축 실패:', compError);
+        }
+      }
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${roomId}/${fileName}`;

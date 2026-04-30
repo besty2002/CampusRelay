@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import type { PostMode, PostCategory, PostCondition, School } from '../types';
 import { ArrowLeft, Loader2, Camera, X, MapPin, School as SchoolIcon, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import imageCompression from 'browser-image-compression';
 
 export const CreatePostPage = () => {
   const navigate = useNavigate();
@@ -127,15 +128,39 @@ export const CreatePostPage = () => {
     }
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length + previews.length > 5) {
       alert('画像は最大5枚までです。');
       return;
     }
-    setImages(prev => [...prev, ...files]);
-    const newPreviews = files.map(file => URL.createObjectURL(file));
-    setPreviews(prev => [...prev, ...newPreviews]);
+    
+    setLoading(true);
+    try {
+      const options = {
+        maxSizeMB: 1, // 최대 1MB로 압축
+        maxWidthOrHeight: 1280, // 가로/세로 최대 1280px
+        useWebWorker: true,
+      };
+
+      const compressedFiles = await Promise.all(
+        files.map(async (file) => {
+          if (!file.type.startsWith('image/')) return file;
+          try {
+            return await imageCompression(file, options);
+          } catch (error) {
+            console.error('Image compression failed:', error);
+            return file; // 압축 실패 시 원본 사용
+          }
+        })
+      );
+
+      setImages(prev => [...prev, ...compressedFiles]);
+      const newPreviews = compressedFiles.map(file => URL.createObjectURL(file));
+      setPreviews(prev => [...prev, ...newPreviews]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const removeImage = async (index: number) => {
