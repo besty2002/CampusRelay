@@ -81,17 +81,71 @@ export const NotificationSettingsPage = () => {
   };
 
   const togglePushNotification = async () => {
-    // 💡 Phase 2(Service Worker)에서 실제 브라우저 권한 요청 및 구독 로직으로 대체될 예정입니다.
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert('이 브라우저는 푸시 알림을 지원하지 않습니다.');
+      return;
+    }
+
     if (pushEnabled) {
       const confirmOff = window.confirm('정말 푸시 알림을 끄시겠습니까?');
       if (confirmOff) {
-        // 모든 구독 삭제 (실제 구현 시 해당 기기의 endpoint만 삭제)
-        await supabase.from('push_subscriptions').delete().eq('user_id', user?.id);
-        setPushEnabled(false);
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          const subscription = await registration.pushManager.getSubscription();
+          if (subscription) {
+            await subscription.unsubscribe();
+            // DB에서 해당 endpoint 정보 삭제
+            await supabase
+              .from('push_subscriptions')
+              .delete()
+              .eq('endpoint', subscription.endpoint);
+          }
+          setPushEnabled(false);
+        } catch (e: any) {
+          alert('구독 해제 실패: ' + e.message);
+        }
       }
     } else {
-      alert('푸시 알림 권한 획득 기능은 다음 Phase에서 구현됩니다! (Service Worker 적용 필요)');
-      // 임시로 DB에 mock 데이터를 넣는 로직은 생략. Phase 2에서 제대로 구현.
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          alert('알림 권한이 차단되어 있습니다. 브라우저 설정에서 알림을 허용해주세요.');
+          return;
+        }
+
+        const registration = await navigator.serviceWorker.ready;
+        
+        // VAPID 공개키 동적 임포트
+        const { PUBLIC_VAPID_KEY, urlB64ToUint8Array } = await import('../lib/vapid');
+        
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlB64ToUint8Array(PUBLIC_VAPID_KEY)
+        });
+
+        // 구독 정보를 DB에 저장
+        const subJSON = subscription.toJSON();
+        
+        const { error } = await supabase
+          .from('push_subscriptions')
+          .insert({
+            user_id: user?.id,
+            endpoint: subJSON.endpoint,
+            p256dh: subJSON.keys?.p256dh,
+            auth: subJSON.keys?.auth
+          });
+
+        if (error) {
+          // 중복 에러 무시 (이미 등록된 기기)
+          if (error.code !== '23505') throw error;
+        }
+
+        setPushEnabled(true);
+        alert('알림이 성공적으로 설정되었습니다!');
+      } catch (e: any) {
+        console.error(e);
+        alert('알림 설정 실패: ' + e.message);
+      }
     }
   };
 
