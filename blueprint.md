@@ -146,3 +146,12 @@ Stores additional user information.
    - Supabase Storage `avatars` 버킷 사용
    - `UserPublicProfilePage`에도 아바타 표시 적용
    - ⚠️ `supabase/avatar_system.sql` 실행 + Storage 'avatars' 버킷 생성 필요
+
+### Transaction Scheduling (2026-05-04) ✅
+1. **채팅 내 거래 약속(약속 캘린더) 연동:**
+   - `chat_messages` 테이블에 `appointment_data` (JSONB) 컬럼 추가 (`chat_appointments.sql` 작성)
+   - 입력창(footer)에 📅 캘린더 아이콘 버튼 추가
+   - `AppointmentModal.tsx` 생성: 날짜, 시간, 약속 장소 입력 (최소 날짜를 오늘로 제한)
+   - 채팅 메시지 내 약속 카드 UI 렌더링 (`proposed`, `accepted`, `canceled` 상태별 표시)
+   - 상대방이 받은 약속 제안에 대해 `承諾する(승낙)`, `断る(거절)` 상호작용 액션 추가
+   - 낙관적 업데이트(Optimistic UI) 완벽 지원
