@@ -13,6 +13,7 @@ export type PostStatus = 'Available' | 'Reserved' | 'Given' | 'Hidden';
 export interface Profile {
   id: string;
   display_name: string;
+  avatar_url?: string;
   role: 'user' | 'school_admin' | 'super_admin';
   completed_count: number;
   avg_rating: number;

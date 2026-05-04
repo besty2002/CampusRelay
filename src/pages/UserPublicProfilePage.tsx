@@ -5,7 +5,6 @@ import type { Post, Profile } from '../types';
 import { MannerTempGauge } from '../components/MannerTempGauge';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { 
-  User, 
   Star, 
   ArrowLeft, 
   Loader2, 
@@ -14,6 +13,7 @@ import {
   ChevronRight,
   MessageSquare
 } from 'lucide-react';
+import { UserAvatar } from '../components/UserAvatar';
 
 export const UserPublicProfilePage = () => {
   const { userId } = useParams();
@@ -92,9 +92,12 @@ export const UserPublicProfilePage = () => {
       {/* Profile Header */}
       <div className="bg-white rounded-[3rem] p-8 shadow-xl shadow-slate-200/50 border border-slate-100 mb-8 relative overflow-hidden text-center">
         <div className="absolute top-0 left-0 w-full h-2 bg-lime-500" />
-        <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-lg text-lime-500">
-          <User size={48} />
-        </div>
+        <UserAvatar
+          avatarUrl={profile.avatar_url}
+          displayName={profile.display_name}
+          size="xl"
+          className="border-4 !border-white shadow-lg mx-auto mb-4"
+        />
         <div className="flex items-center justify-center gap-1.5 mb-1">
           <h1 className="text-3xl font-black text-slate-800">{profile.display_name}</h1>
           <VerifiedBadge verified={profile.email_verified} domain={profile.verified_school_domain} size="lg" />

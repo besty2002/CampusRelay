@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -6,8 +6,9 @@ import type { Post, Profile } from '../types';
 import { MannerTempGauge } from '../components/MannerTempGauge';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { ProfileSkeleton } from '../components/skeletons/ProfileSkeleton';
+import { UserAvatar } from '../components/UserAvatar';
+import imageCompression from 'browser-image-compression';
 import { 
-  User, 
   Package, 
   Star, 
   LogOut, 
@@ -17,7 +18,9 @@ import {
   Heart,
   Clock,
   ArrowLeft,
-  Bell
+  Bell,
+  Camera,
+  Loader2
 } from 'lucide-react';
 
 export const ProfilePage = () => {
@@ -28,6 +31,8 @@ export const ProfilePage = () => {
   const [wishlistedPosts, setWishlistedPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'main' | 'wishlist'>('main');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -90,6 +95,54 @@ export const ProfilePage = () => {
     navigate('/auth');
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setUploadingAvatar(true);
+    try {
+      // Compress image
+      const compressed = await imageCompression(file, {
+        maxSizeMB: 0.3,
+        maxWidthOrHeight: 400,
+        useWebWorker: true,
+      });
+
+      const fileExt = compressed.name.split('.').pop() || 'jpg';
+      const fileName = `${user.id}/avatar.${fileExt}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, compressed, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+      // Update profile
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: avatarUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      setProfile(prev => prev ? { ...prev, avatar_url: avatarUrl } : null);
+      alert('プロフィール画像を更新しました！');
+    } catch (err: any) {
+      console.error('Avatar upload error:', err);
+      alert('画像のアップロードに失敗しました: ' + err.message);
+    } finally {
+      setUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    }
+  };
 
   if (loading) {
     return (
@@ -157,8 +210,35 @@ export const ProfilePage = () => {
         <div className="absolute top-0 right-0 w-32 h-32 bg-lime-500/5 rounded-full -mr-16 -mt-16 blur-3xl" />
         
         <div className="flex flex-col items-center text-center relative">
-          <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-4 border-4 border-white shadow-lg text-lime-500">
-            <User size={48} />
+          {/* Avatar with Upload */}
+          <div 
+            className="relative group cursor-pointer mb-4"
+            onClick={() => avatarInputRef.current?.click()}
+          >
+            <UserAvatar
+              avatarUrl={profile?.avatar_url}
+              displayName={profile?.display_name || ''}
+              size="xl"
+              className="border-4 !border-white shadow-lg"
+            />
+            <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
+              {uploadingAvatar ? (
+                <Loader2 size={24} className="text-white animate-spin" />
+              ) : (
+                <Camera size={24} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              )}
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-lime-500 rounded-full flex items-center justify-center text-white shadow-lg border-2 border-white">
+              <Camera size={14} />
+            </div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarUpload}
+              className="hidden"
+              disabled={uploadingAvatar}
+            />
           </div>
           <div className="flex items-center gap-1.5 mb-1">
             <h1 className="text-3xl font-black text-slate-800">{profile?.display_name || 'ユーザー'}</h1>

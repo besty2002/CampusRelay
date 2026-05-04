@@ -81,6 +81,7 @@ Stores additional user information.
 1. **Supabase SQL Execution:**
    - Run `supabase/chat_realtime_upgrade.sql` in Supabase Dashboard
    - Run `supabase/trust_system.sql` in Supabase Dashboard (manner_temp, email_verified, manner_tags)
+   - ⚠️ Run `supabase/category_schema_fix.sql` in Supabase Dashboard (category constraint sync)
 2. **Integration:**
    - Update `LoginPage.tsx` to collect additional user data during signup.
    - Replace `mockApi.ts` with real Supabase calls.
@@ -104,3 +105,44 @@ Stores additional user information.
    - Negative tags: 時間に遅れた, 返信が遅い, 説明と違った
    - Tags displayed in review cards on UserPublicProfilePage
    - `manner_tags text[]` column on reviews table
+
+### Language & Quality Fix (2026-05-04) ✅
+1. **한/일 혼재 버그 수정:**
+   - `PostDetailPage.tsx`: 4개 문자열 일본어 통일
+   - `NotificationSettingsPage.tsx`: 전체 UI 문자열 일본어 통일 (16개소)
+   - `ChatRoomPage.tsx`: 에러 메시지 일본어 통일
+   - `send-web-push/index.ts`: 푸시 알림 제목/본문 일본어 통일 (4개소)
+2. **하단 네비 알림 뱃지 (Unread Badge):**
+   - `NavLink` 컴포넌트에 `badge` prop 추가
+   - `Layout`에서 Supabase Realtime으로 `chat_rooms` 구독
+   - トーク 탭에 미읽은 메시지 수 표시 (빨간 뱃지, 99+ 처리)
+3. **카테고리 스키마 수정:**
+   - `category_schema_fix.sql` 작성
+   - DB CHECK 제약조건을 프론트엔드 6개 카테고리와 동기화
+   - 기존 `Supplies` → `Life` 마이그레이션 포함
+
+### Infinite Scroll & Image Viewer & Avatar System (2026-05-04) ✅
+1. **무한 스크롤 (Infinite Scroll):**
+   - `useInfiniteScroll` 커스텀 훅 생성 (IntersectionObserver 기반)
+   - `HomePage`, `FeedPage`에 적용 — 페이지당 20개씩 로드
+   - 필터/검색 변경 시 자동 리셋, 중복 방지
+   - 로딩 스피너 + "すべてのアイテムを表示しました" 종료 UI
+   - 이미지 lazy loading (`loading="lazy"`) 적용
+   - 검색 debounce 최적화 (400ms)
+2. **풀스크린 이미지 뷰어 (ImageViewer):**
+   - `ImageViewer` 컴포넌트 신규 생성
+   - 핀치 줌 (모바일 2점 터치)
+   - 마우스 휠 줌 (데스크톱)
+   - 더블탭/더블클릭 줌 토글
+   - 드래그 팬 (확대 상태에서 이미지 이동)
+   - 좌/우 화살표 네비게이션 + 키보드 단축키
+   - 닷 인디케이터 + 줌 퍼센트 표시
+   - `PostDetailPage` 이미지 갤러리에 통합
+3. **프로필 아바타 업로드:**
+   - `avatar_url` 필드 추가 (Profile 타입 + DB 마이그레이션)
+   - `UserAvatar` 재사용 컴포넌트 생성 (5단계 사이즈)
+   - `ProfilePage`에 아바타 업로드 UI (카메라 아이콘 오버레이)
+   - 이미지 압축 적용 (0.3MB, 400px, browser-image-compression)
+   - Supabase Storage `avatars` 버킷 사용
+   - `UserPublicProfilePage`에도 아바타 표시 적용
+   - ⚠️ `supabase/avatar_system.sql` 실행 + Storage 'avatars' 버킷 생성 필요

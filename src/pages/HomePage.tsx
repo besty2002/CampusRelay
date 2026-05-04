@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Post, PostCategory, PostCondition } from '../types';
@@ -17,12 +17,14 @@ import {
   Palette,
   Coffee,
   Filter,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { MannerTempGauge } from '../components/MannerTempGauge';
 import { PostCardSkeleton } from '../components/skeletons/PostCardSkeleton';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
 export const CATEGORY_MAP: Record<PostCategory, { label: string, icon: any, color: string }> = {
   Uniform: { label: '制服・衣類', icon: Shirt, color: 'bg-blue-50 text-blue-600' },
@@ -50,12 +52,15 @@ const CONDITION_LIST: { id: PostCondition | 'All', label: string }[] = [
   { id: 'Used', label: '使用感あり' },
 ];
 
+const PAGE_SIZE = 20;
+
 export const HomePage = () => {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<PostCategory | 'All'>('All');
   const [activeCondition, setActiveCondition] = useState<PostCondition | 'All'>('All');
   const [sizeFilter, setSizeFilter] = useState('');
@@ -63,14 +68,34 @@ export const HomePage = () => {
   const [fetchingSchools, setFetchingSchools] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
+  const { page, hasMore, setHasMore, loadingMore, setLoadingMore, sentinelRef, reset } = useInfiniteScroll({ pageSize: PAGE_SIZE });
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setPosts([]);
+    reset();
+  }, [debouncedSearch, activeCategory, activeCondition, sizeFilter, mySchoolIds]);
+
   useEffect(() => {
     if (user) {
       fetchMySchools();
       fetchWishlist();
     } else {
-      fetchPosts([], activeCategory, activeCondition, sizeFilter);
+      fetchPosts([], 0, true);
     }
-  }, [user, search, activeCategory, activeCondition, sizeFilter]);
+  }, [user]);
+
+  // Fetch posts when page or filters change
+  useEffect(() => {
+    if (fetchingSchools) return;
+    fetchPosts(mySchoolIds, page, page === 0);
+  }, [page, debouncedSearch, activeCategory, activeCondition, sizeFilter, mySchoolIds, fetchingSchools]);
 
   const fetchWishlist = async () => {
     const { data } = await supabase.from('wishlists').select('post_id').eq('user_id', user?.id);
@@ -86,12 +111,19 @@ export const HomePage = () => {
     
     const ids = data?.map(d => d.school_id) || [];
     setMySchoolIds(ids);
-    fetchPosts(ids, activeCategory, activeCondition, sizeFilter);
     setFetchingSchools(false);
   };
 
-  const fetchPosts = async (schoolIds: string[], category: PostCategory | 'All', condition: PostCondition | 'All', size: string) => {
-    setLoading(true);
+  const fetchPosts = useCallback(async (schoolIds: string[], pageNum: number, isFirstPage: boolean) => {
+    if (isFirstPage) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+
+    const from = pageNum * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
     let query = supabase
       .from('posts')
       .select(`
@@ -101,32 +133,49 @@ export const HomePage = () => {
         post_images (storage_path)
       `)
       .eq('status', 'Available')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
     if (schoolIds.length > 0) {
       query = query.in('school_id', schoolIds);
     }
 
-    if (category !== 'All') {
-      query = query.eq('category', category);
+    if (activeCategory !== 'All') {
+      query = query.eq('category', activeCategory);
     }
 
-    if (condition !== 'All') {
-      query = query.eq('condition', condition);
+    if (activeCondition !== 'All') {
+      query = query.eq('condition', activeCondition);
     }
 
-    if (size.trim()) {
-      query = query.ilike('item_size', `%${size}%`);
+    if (sizeFilter.trim()) {
+      query = query.ilike('item_size', `%${sizeFilter}%`);
     }
 
-    if (search) {
-      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+    if (debouncedSearch) {
+      query = query.or(`title.ilike.%${debouncedSearch}%,description.ilike.%${debouncedSearch}%`);
     }
 
     const { data } = await query;
-    if (data) setPosts(data as any[]);
+    
+    if (data) {
+      if (isFirstPage) {
+        setPosts(data as any[]);
+      } else {
+        setPosts(prev => {
+          const existingIds = new Set(prev.map(p => p.id));
+          const newPosts = (data as any[]).filter(p => !existingIds.has(p.id));
+          return [...prev, ...newPosts];
+        });
+      }
+      setHasMore(data.length === PAGE_SIZE);
+    } else {
+      setHasMore(false);
+    }
+
     setLoading(false);
-  };
+    setLoadingMore(false);
+  }, [activeCategory, activeCondition, sizeFilter, debouncedSearch, setHasMore, setLoadingMore]);
 
   const toggleWishlist = async (e: React.MouseEvent, postId: string) => {
     e.preventDefault();
@@ -302,7 +351,7 @@ export const HomePage = () => {
                 >
                   <div className="w-28 h-28 shrink-0 rounded-[1.5rem] bg-slate-50 overflow-hidden border border-slate-50 shadow-inner">
                     {thumbnail ? (
-                      <img src={thumbnail} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                      <img src={thumbnail} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-300">
                         <School size={32} strokeWidth={1} />
@@ -366,6 +415,21 @@ export const HomePage = () => {
               </div>
             );
           })}
+
+          {/* Infinite Scroll Sentinel */}
+          <div ref={sentinelRef} className="py-2">
+            {loadingMore && (
+              <div className="flex items-center justify-center gap-3 py-6">
+                <Loader2 className="animate-spin text-lime-500" size={24} />
+                <span className="text-sm font-bold text-slate-400">読み込み中...</span>
+              </div>
+            )}
+            {!hasMore && posts.length > 0 && (
+              <div className="text-center py-8">
+                <p className="text-slate-300 text-sm font-bold">すべてのアイテムを表示しました</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

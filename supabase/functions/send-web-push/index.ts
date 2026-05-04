@@ -33,12 +33,12 @@ serve(async (req) => {
         const receiverId = msg.sender_id === room.seller_id ? room.buyer_id : room.seller_id;
         
         const { data: sender } = await supabaseClient.from('profiles').select('display_name').eq('id', msg.sender_id).single();
-        const senderName = sender?.display_name || "사용자";
+        const senderName = sender?.display_name || "ユーザー";
 
         notificationsToSend.push({
           userId: receiverId,
-          title: `새 메시지 - ${senderName}`,
-          body: msg.image_url ? '사진을 보냈습니다.' : msg.text,
+          title: `新しいメッセージ - ${senderName}`,
+          body: msg.image_url ? '写真を送りました。' : msg.text,
           url: `/chat/${msg.room_id}` // 클릭 시 채팅방으로 이동
         });
       }
@@ -61,8 +61,8 @@ serve(async (req) => {
         matchedUserIds.forEach(uid => {
           notificationsToSend.push({
             userId: uid,
-            title: `관심 키워드 새 글 등록!`,
-            body: `'${post.title}' 아이템이 새로 올라왔어요.`,
+            title: `関心キーワードの新しい出品！`,
+            body: `『${post.title}』アイテムが新しく出品されました。`,
             url: `/post/${post.id}` // 클릭 시 게시글로 이동
           });
         });
@@ -70,7 +70,7 @@ serve(async (req) => {
     }
 
     if (notificationsToSend.length === 0) {
-      return new Response(JSON.stringify({ success: true, message: '알림 대상 없음' }), { headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ success: true, message: '通知対象なし' }), { headers: { 'Content-Type': 'application/json' } });
     }
 
     // 모아진 알림 대상을 조회하여 Web Push 전송

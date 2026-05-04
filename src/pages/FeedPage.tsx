@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Post } from '../types';
 import { Plus, Loader2, ArrowLeft, Package, Star, Search, Filter, Clock } from 'lucide-react';
 import { CATEGORY_MAP } from './HomePage';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+
+const PAGE_SIZE = 20;
 
 export const FeedPage = () => {
   const { schoolId } = useParams();
@@ -18,6 +21,8 @@ export const FeedPage = () => {
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const [showFilters, setShowFilters] = useState(false);
 
+  const { page, hasMore, setHasMore, loadingMore, setLoadingMore, sentinelRef, reset } = useInfiniteScroll({ pageSize: PAGE_SIZE });
+
   // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -30,17 +35,32 @@ export const FeedPage = () => {
     fetchSchoolInfo();
   }, [schoolId]);
 
+  // Reset when filters change
   useEffect(() => {
-    fetchPosts();
-  }, [schoolId, statusFilter, debouncedQuery, sortBy]);
+    setPosts([]);
+    reset();
+  }, [statusFilter, debouncedQuery, sortBy]);
+
+  // Fetch when page or filters change
+  useEffect(() => {
+    fetchPosts(page, page === 0);
+  }, [page, statusFilter, debouncedQuery, sortBy, schoolId]);
 
   const fetchSchoolInfo = async () => {
     const { data } = await supabase.from('schools').select('name_ja').eq('id', schoolId).single();
     if (data) setSchoolName(data.name_ja);
   };
 
-  const fetchPosts = async () => {
-    setLoading(true);
+  const fetchPosts = useCallback(async (pageNum: number, isFirstPage: boolean) => {
+    if (isFirstPage) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+
+    const from = pageNum * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
     let query = supabase
       .from('posts')
       .select(`
@@ -48,7 +68,8 @@ export const FeedPage = () => {
         profiles (display_name, completed_count, avg_rating, rating_count),
         post_images (storage_path, sort_order)
       `)
-      .eq('school_id', schoolId);
+      .eq('school_id', schoolId)
+      .range(from, to);
 
     // Apply Status Filter
     if (statusFilter !== 'ALL') {
@@ -72,9 +93,25 @@ export const FeedPage = () => {
     }
 
     const { data } = await query;
-    if (data) setPosts(data as any[]);
+    
+    if (data) {
+      if (isFirstPage) {
+        setPosts(data as any[]);
+      } else {
+        setPosts(prev => {
+          const existingIds = new Set(prev.map(p => p.id));
+          const newPosts = (data as any[]).filter(p => !existingIds.has(p.id));
+          return [...prev, ...newPosts];
+        });
+      }
+      setHasMore(data.length === PAGE_SIZE);
+    } else {
+      setHasMore(false);
+    }
+
     setLoading(false);
-  };
+    setLoadingMore(false);
+  }, [schoolId, statusFilter, debouncedQuery, sortBy, setHasMore, setLoadingMore]);
 
   return (
     <div className="max-w-4xl mx-auto p-4 pb-32">
@@ -207,7 +244,7 @@ export const FeedPage = () => {
               >
                 <div className="aspect-[4/3] bg-slate-100 relative overflow-hidden">
                   {thumbnail ? (
-                    <img src={thumbnail} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    <img src={thumbnail} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-300">
                       <Package size={48} strokeWidth={1} />
@@ -259,6 +296,21 @@ export const FeedPage = () => {
               </Link>
             );
           })}
+
+          {/* Infinite Scroll Sentinel */}
+          <div ref={sentinelRef} className="col-span-full py-2">
+            {loadingMore && (
+              <div className="flex items-center justify-center gap-3 py-6">
+                <Loader2 className="animate-spin text-lime-500" size={24} />
+                <span className="text-sm font-bold text-slate-400">読み込み中...</span>
+              </div>
+            )}
+            {!hasMore && posts.length > 0 && (
+              <div className="text-center py-8">
+                <p className="text-slate-300 text-sm font-bold">すべてのアイテムを表示しました</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -399,7 +399,7 @@ export const ChatRoomPage = () => {
         );
       }
     } catch (err: any) {
-      alert('이미지 업로드 실패: ' + err.message);
+      alert('画像のアップロードに失敗しました: ' + err.message);
     } finally {
       setUploadingImage(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

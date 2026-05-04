@@ -20,6 +20,7 @@ import { useAuth } from '../hooks/useAuth';
 import { ReviewModal } from '../components/ReviewModal';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { MannerTempGauge } from '../components/MannerTempGauge';
+import { ImageViewer } from '../components/ImageViewer';
 
 export const PostDetailPage = () => {
   const { postId } = useParams();
@@ -39,6 +40,8 @@ export const PostDetailPage = () => {
   const [reportReason, setReportReason] = useState('');
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewTargetUserId, setReviewTargetUserId] = useState('');
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   const isOwner = user?.id === post?.user_id;
 
@@ -133,7 +136,7 @@ export const PostDetailPage = () => {
       if (error.code === '23505') alert('既に申請済みです。');
       else alert(error.message);
     } else {
-      alert('申請가 完了しました！');
+      alert('申請が完了しました！');
     }
     setRequesting(false);
   };
@@ -282,16 +285,39 @@ export const PostDetailPage = () => {
       <div className="bg-white rounded-[3rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden mb-8">
         
         {post.post_images && post.post_images.length > 0 && (
-          <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar bg-slate-100 h-64 md:h-96">
-            {post.post_images.sort((a,b) => a.sort_order - b.sort_order).map((img, i) => (
-              <div key={img.id} className="min-w-full snap-center relative">
-                <img src={img.storage_path} alt="Post image" className="w-full h-full object-cover" />
-                <div className="absolute bottom-4 right-4 bg-black/50 text-white px-3 py-1 rounded-full text-[10px] font-black backdrop-blur-md">
-                  {i + 1} / {post.post_images!.length}
+          <>
+            <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar bg-slate-100 h-64 md:h-96 relative">
+              {post.post_images.sort((a,b) => a.sort_order - b.sort_order).map((img, i) => (
+                <div 
+                  key={img.id} 
+                  className="min-w-full snap-center relative cursor-zoom-in"
+                  onClick={() => {
+                    setViewerIndex(i);
+                    setViewerOpen(true);
+                  }}
+                >
+                  <img src={img.storage_path} alt="Post image" className="w-full h-full object-cover" />
                 </div>
+              ))}
+            </div>
+            {/* Dot Indicators */}
+            {post.post_images.length > 1 && (
+              <div className="flex justify-center gap-1.5 py-3 bg-white">
+                {post.post_images.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`rounded-full transition-all ${i === 0 ? 'w-5 h-1.5 bg-lime-500' : 'w-1.5 h-1.5 bg-slate-200'}`}
+                  />
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+            <ImageViewer
+              images={post.post_images.sort((a,b) => a.sort_order - b.sort_order).map(img => img.storage_path)}
+              initialIndex={viewerIndex}
+              isOpen={viewerOpen}
+              onClose={() => setViewerOpen(false)}
+            />
+          </>
         )}
 
         <div className="p-8 md:p-12">
@@ -502,7 +528,7 @@ export const PostDetailPage = () => {
         ) : (
           <div className="p-6 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 text-center">
             <p className="text-slate-400 font-bold text-sm">コメントを投稿するにはログインが必要です。</p>
-            <Link to="/auth" className="text-lime-600 font-black text-xs mt-2 inline-block uppercase tracking-widest">ログイン하는 거 가기 &rarr;</Link>
+            <Link to="/auth" className="text-lime-600 font-black text-xs mt-2 inline-block uppercase tracking-widest">ログインページへ &rarr;</Link>
           </div>
         )}
       </div>
@@ -512,11 +538,11 @@ export const PostDetailPage = () => {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] w-full max-sm p-8 shadow-2xl animate-in zoom-in-95 duration-200">
             <h2 className="text-2xl font-black text-slate-800 mb-2">投稿を通報</h2>
-            <p className="text-slate-500 text-sm font-medium mb-6">不適切な内容や虚偽の情報が含まれていますか？理由를 알려주세요.</p>
+            <p className="text-slate-500 text-sm font-medium mb-6">不適切な内容や虚偽の情報が含まれていますか？理由をお聞かせください。</p>
             
             <textarea 
               className="w-full p-4 bg-slate-50 rounded-2xl mb-6 border-none focus:ring-2 focus:ring-red-500 outline-none font-medium h-32" 
-              placeholder="通報의 사유를 입력해 주세요..."
+              placeholder="通報の理由を入力してください..."
               value={reportReason}
               onChange={(e) => setReportReason(e.target.value)}
             />

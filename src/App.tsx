@@ -17,7 +17,7 @@ import { SchoolVerificationPage } from './pages/SchoolVerificationPage';
 import { OfflineBanner } from './components/OfflineBanner';
 import { useAuth } from './hooks/useAuth';
 import { Loader2, Home, PlusSquare, User, ShieldCheck, Bell, MessageCircle } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from './lib/supabase';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -35,12 +35,48 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   
+  // Fetch unread message count
+  const fetchUnreadCount = useCallback(async () => {
+    if (!user) return;
+    
+    const { data: rooms } = await supabase
+      .from('chat_rooms')
+      .select('seller_id, buyer_id, unread_count_seller, unread_count_buyer')
+      .or(`seller_id.eq.${user.id},buyer_id.eq.${user.id}`);
+
+    if (rooms) {
+      const total = rooms.reduce((sum, room) => {
+        const isSeller = room.seller_id === user.id;
+        return sum + (isSeller ? (room.unread_count_seller || 0) : (room.unread_count_buyer || 0));
+      }, 0);
+      setUnreadMessages(total);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (user) {
       checkAdmin();
+      fetchUnreadCount();
+
+      // Realtime subscription for chat_rooms changes
+      const channel = supabase
+        .channel('nav-unread')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'chat_rooms'
+        }, () => {
+          fetchUnreadCount();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
-  }, [user]);
+  }, [user, fetchUnreadCount]);
 
   const checkAdmin = async () => {
     const { data } = await supabase.from('profiles').select('role').eq('id', user?.id).single();
@@ -80,7 +116,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             <PlusSquare size={24} />
           </Link>
           
-          <NavLink to="/messages" icon={<MessageCircle size={20} />} label="トーク" active={location.pathname === '/messages'} />
+          <NavLink to="/messages" icon={<MessageCircle size={20} />} label="トーク" active={location.pathname === '/messages'} badge={unreadMessages} />
           <NavLink to="/me" icon={<User size={20} />} label="プロフィール" active={location.pathname === '/me'} />
           
           {isAdmin && (
@@ -92,9 +128,16 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-const NavLink = ({ to, icon, label, active }: { to: string, icon: React.ReactNode, label: string, active: boolean }) => (
-  <Link to={to} className={`flex flex-col items-center gap-1 transition-all flex-1 ${active ? 'text-lime-600 scale-110' : 'text-slate-400'}`}>
-    {icon}
+const NavLink = ({ to, icon, label, active, badge }: { to: string, icon: React.ReactNode, label: string, active: boolean, badge?: number }) => (
+  <Link to={to} className={`flex flex-col items-center gap-1 transition-all flex-1 relative ${active ? 'text-lime-600 scale-110' : 'text-slate-400'}`}>
+    <div className="relative">
+      {icon}
+      {badge !== undefined && badge > 0 && (
+        <span className="absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 shadow-sm shadow-red-500/30 animate-in zoom-in-50 duration-200">
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
+    </div>
     <span className="text-[9px] font-black uppercase tracking-tighter">{label}</span>
   </Link>
 );

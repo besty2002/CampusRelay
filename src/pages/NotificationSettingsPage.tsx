@@ -50,12 +50,12 @@ export const NotificationSettingsPage = () => {
     if (!trimmed || !user) return;
     
     if (keywords.length >= 10) {
-      alert('키워드는 최대 10개까지만 등록 가능합니다.');
+      alert('キーワードは最大10個まで登録可能です。');
       return;
     }
 
     if (keywords.some(k => k.keyword === trimmed)) {
-      alert('이미 등록된 키워드입니다.');
+      alert('すでに登録済みのキーワードです。');
       return;
     }
 
@@ -67,7 +67,7 @@ export const NotificationSettingsPage = () => {
       .single();
 
     if (error) {
-      alert('등록 실패: ' + error.message);
+      alert('登録失敗: ' + error.message);
     } else if (data) {
       setKeywords(prev => [data, ...prev]);
       setNewKeyword('');
@@ -82,12 +82,12 @@ export const NotificationSettingsPage = () => {
 
   const togglePushNotification = async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      alert('이 브라우저는 푸시 알림을 지원하지 않습니다.');
+      alert('このブラウザはプッシュ通知に対応していません。');
       return;
     }
 
     if (pushEnabled) {
-      const confirmOff = window.confirm('정말 푸시 알림을 끄시겠습니까?');
+      const confirmOff = window.confirm('本当にプッシュ通知をオフにしますか？');
       if (confirmOff) {
         try {
           const registration = await navigator.serviceWorker.ready;
@@ -102,14 +102,14 @@ export const NotificationSettingsPage = () => {
           }
           setPushEnabled(false);
         } catch (e: any) {
-          alert('구독 해제 실패: ' + e.message);
+          alert('通知の解除に失敗しました: ' + e.message);
         }
       }
     } else {
       try {
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') {
-          alert('알림 권한이 차단되어 있습니다. 브라우저 설정에서 알림을 허용해주세요.');
+          alert('通知の権限がブロックされています。ブラウザの設定から通知を許可してください。');
           return;
         }
 
@@ -141,10 +141,10 @@ export const NotificationSettingsPage = () => {
         }
 
         setPushEnabled(true);
-        alert('알림이 성공적으로 설정되었습니다!');
+        alert('通知が正常に設定されました！');
       } catch (e: any) {
         console.error(e);
-        alert('알림 설정 실패: ' + e.message);
+        alert('通知の設定に失敗しました: ' + e.message);
       }
     }
   };
@@ -161,10 +161,10 @@ export const NotificationSettingsPage = () => {
     <div className="max-w-xl mx-auto p-4 pb-32">
       <header className="pt-8 mb-8">
         <Link to="/me" className="flex items-center gap-2 text-slate-400 font-bold text-sm mb-4 hover:text-lime-600 transition-colors">
-          <ArrowLeft size={16} /> 마이페이지로 돌아가기
+          <ArrowLeft size={16} /> マイページに戻る
         </Link>
-        <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-2">알림 설정</h1>
-        <p className="text-slate-500 font-medium text-sm">푸시 알림과 관심 키워드를 관리하세요.</p>
+        <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-2">通知設定</h1>
+        <p className="text-slate-500 font-medium text-sm">プッシュ通知と関心キーワードを管理しましょう。</p>
       </header>
 
       {/* 푸시 알림 권한 */}
@@ -175,8 +175,8 @@ export const NotificationSettingsPage = () => {
               {pushEnabled ? <Bell size={24} /> : <BellOff size={24} />}
             </div>
             <div>
-              <h2 className="text-lg font-black text-slate-800">앱 푸시 알림</h2>
-              <p className="text-xs font-bold text-slate-500 mt-1">새 메시지 및 알림 수신</p>
+              <h2 className="text-lg font-black text-slate-800">アプリプッシュ通知</h2>
+              <p className="text-xs font-bold text-slate-500 mt-1">新しいメッセージや通知を受信</p>
             </div>
           </div>
           <button
@@ -195,8 +195,8 @@ export const NotificationSettingsPage = () => {
             <Tag size={20} />
           </div>
           <div>
-            <h2 className="text-lg font-black text-slate-800">관심 키워드 알림</h2>
-            <p className="text-xs font-bold text-slate-500 mt-0.5">키워드 매칭 시 푸시 알림 전송 (최대 10개)</p>
+            <h2 className="text-lg font-black text-slate-800">関心キーワード通知</h2>
+            <p className="text-xs font-bold text-slate-500 mt-0.5">キーワードに一致する出品があるとプッシュ通知でお知らせ（最大10件）</p>
           </div>
         </div>
 
@@ -205,7 +205,7 @@ export const NotificationSettingsPage = () => {
             type="text"
             value={newKeyword}
             onChange={(e) => setNewKeyword(e.target.value)}
-            placeholder="예: 자전거, 토익책..."
+            placeholder="例: 体操服, 教科書..."
             className="flex-1 bg-slate-50 px-4 py-3 rounded-xl border-none focus:ring-2 focus:ring-lime-500 outline-none text-sm font-bold text-slate-700"
             disabled={adding || keywords.length >= 10}
           />
@@ -220,7 +220,7 @@ export const NotificationSettingsPage = () => {
 
         {keywords.length === 0 ? (
           <div className="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-            <p className="text-slate-400 font-bold text-sm">등록된 키워드가 없습니다.</p>
+            <p className="text-slate-400 font-bold text-sm">登録されたキーワードはありません。</p>
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
