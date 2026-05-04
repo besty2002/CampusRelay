@@ -75,7 +75,7 @@ export const ImageViewer = ({ images, initialIndex = 0, isOpen, onClose }: Image
 
   // Double-tap to zoom
   const lastTapTime = useRef(0);
-  const handleTap = (e: React.TouchEvent | React.MouseEvent) => {
+  const handleTap = () => {
     const now = Date.now();
     if (now - lastTapTime.current < 300) {
       // Double-tap
