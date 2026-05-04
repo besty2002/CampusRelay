@@ -212,7 +212,7 @@ export const ProfilePage = () => {
         <div className="flex flex-col items-center text-center relative">
           {/* Avatar with Upload */}
           <div 
-            className="relative group cursor-pointer mb-4"
+            className="relative group cursor-pointer mb-4 z-10"
             onClick={() => avatarInputRef.current?.click()}
           >
             <UserAvatar
