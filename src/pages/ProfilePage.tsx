@@ -211,35 +211,31 @@ export const ProfilePage = () => {
         
         <div className="flex flex-col items-center text-center relative">
           {/* Avatar with Upload */}
-          <div 
-            className="relative group cursor-pointer mb-4 z-10"
-            onClick={() => avatarInputRef.current?.click()}
-          >
+          <label className="relative group cursor-pointer mb-4 z-10 block">
             <UserAvatar
               avatarUrl={profile?.avatar_url}
               displayName={profile?.display_name || ''}
               size="xl"
               className="border-4 !border-white shadow-lg"
             />
-            <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
+            <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center pointer-events-none">
               {uploadingAvatar ? (
                 <Loader2 size={24} className="text-white animate-spin" />
               ) : (
                 <Camera size={24} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
               )}
             </div>
-            <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-lime-500 rounded-full flex items-center justify-center text-white shadow-lg border-2 border-white">
+            <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-lime-500 rounded-full flex items-center justify-center text-white shadow-lg border-2 border-white pointer-events-none">
               <Camera size={14} />
             </div>
             <input
-              ref={avatarInputRef}
               type="file"
               accept="image/*"
               onChange={handleAvatarUpload}
               className="hidden"
               disabled={uploadingAvatar}
             />
-          </div>
+          </label>
           <div className="flex items-center gap-1.5 mb-1">
             <h1 className="text-3xl font-black text-slate-800">{profile?.display_name || 'ユーザー'}</h1>
             <VerifiedBadge verified={profile?.email_verified || false} domain={profile?.verified_school_domain} size="lg" />
