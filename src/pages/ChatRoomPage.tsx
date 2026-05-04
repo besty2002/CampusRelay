@@ -2,10 +2,11 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { ArrowLeft, Send, Loader2, Package, Menu, Phone, ChevronDown, WifiOff, Image as ImageIcon, ChevronDown as ChevronDownIcon } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Package, Menu, Phone, ChevronDown, WifiOff, Image as ImageIcon, ChevronDown as ChevronDownIcon, Calendar as CalendarIcon, MapPin } from 'lucide-react';
 import type { ChatMessage, ChatRoom, PostStatus } from '../types';
 import { MessageSkeleton } from '../components/skeletons/MessageSkeleton';
 import imageCompression from 'browser-image-compression';
+import { AppointmentModal } from '../components/AppointmentModal';
 
 // ─── Helpers ───────────────────────────────────────────────
 const formatTime = (dateStr: string) =>
@@ -65,6 +66,7 @@ export const ChatRoomPage = () => {
 
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
 
   // ─── Fetch Room & Messages ────────────────────────────────
   const fetchRoomAndMessages = useCallback(async () => {
@@ -480,6 +482,98 @@ export const ChatRoomPage = () => {
     }
   };
 
+  const handleCreateAppointment = async (data: { date: string; location: string }) => {
+    if (!user || !roomId) return;
+
+    const msgText = '取引の約束を提案しました。';
+    
+    // 낙관적 UI
+    const optimisticId = `optimistic-appt-${Date.now()}`;
+    const optimisticMsg: ChatMessage = {
+      id: optimisticId,
+      room_id: roomId,
+      sender_id: user.id,
+      text: msgText,
+      appointment_data: {
+        date: data.date,
+        location: data.location,
+        status: 'proposed'
+      },
+      is_read: false,
+      created_at: new Date().toISOString(),
+      profiles: { display_name: '' }
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
+
+    try {
+      const { data: returnData, error } = await supabase
+        .from('chat_messages')
+        .insert({
+          room_id: roomId,
+          sender_id: user.id,
+          text: msgText,
+          appointment_data: {
+            date: data.date,
+            location: data.location,
+            status: 'proposed'
+          }
+        })
+        .select('*, profiles:profiles!chat_messages_sender_id_fkey (display_name)')
+        .single();
+
+      if (error) throw error;
+      
+      if (returnData) {
+        lastMessageTimeRef.current = returnData.created_at;
+        setMessages(prev =>
+          prev.map(m => m.id === optimisticId ? (returnData as any) : m)
+            .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
+        );
+      }
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+      alert('約束の提案に失敗しました。');
+      setMessages(prev => prev.filter(m => m.id !== optimisticId));
+    }
+  };
+
+  const handleUpdateAppointment = async (msgId: string, newStatus: 'accepted' | 'canceled') => {
+    if (!user) return;
+    
+    const msg = messages.find(m => m.id === msgId);
+    if (!msg || !msg.appointment_data) return;
+
+    // 낙관적 UI
+    setMessages(prev => prev.map(m => 
+      m.id === msgId 
+        ? { ...m, appointment_data: { ...m.appointment_data!, status: newStatus } } 
+        : m
+    ));
+
+    try {
+      const { error } = await supabase
+        .from('chat_messages')
+        .update({
+          appointment_data: {
+            ...msg.appointment_data,
+            status: newStatus
+          }
+        })
+        .eq('id', msgId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating appointment:', error);
+      alert('状態の更新に失敗しました。');
+      // 롤백
+      setMessages(prev => prev.map(m => 
+        m.id === msgId 
+          ? { ...m, appointment_data: { ...m.appointment_data!, status: msg.appointment_data!.status } } 
+          : m
+      ));
+    }
+  };
+
   // ─── Loading State ────────────────────────────────────────
   if (loading) return (
     <div className="fixed inset-0 w-full flex justify-center bg-[#8ECBAF] z-[100]">
@@ -636,7 +730,57 @@ export const ChatRoomPage = () => {
                           <img src={msg.image_url} alt="첨부 이미지" className="max-w-[200px] max-h-[250px] sm:max-w-[240px] rounded-xl object-cover" />
                         </div>
                       )}
-                      {msg.text && (
+                      
+                      {msg.appointment_data && (
+                        <div className={`p-4 ${isMe ? 'bg-[#05B54D]' : 'bg-lime-50'} ${isFirstInGroup ? 'rounded-2xl' : 'rounded-2xl'} m-1 min-w-[220px]`}>
+                          <div className={`flex items-center gap-2 mb-3 border-b pb-2 ${isMe ? 'border-white/20' : 'border-lime-200/50'}`}>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isMe ? 'bg-white/20 text-white' : 'bg-lime-200 text-lime-700'}`}>
+                              <CalendarIcon size={16} />
+                            </div>
+                            <div>
+                              <h4 className={`text-xs font-black ${isMe ? 'text-white' : 'text-slate-800'}`}>取引の約束</h4>
+                              <p className={`text-[10px] font-bold ${isMe ? 'text-white/80' : 'text-lime-600'}`}>
+                                {msg.appointment_data.status === 'proposed' ? '提案中' : msg.appointment_data.status === 'accepted' ? '確定済み' : 'キャンセル'}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2 mb-3">
+                            <div className="flex items-start gap-2">
+                              <CalendarIcon size={14} className={`mt-0.5 shrink-0 ${isMe ? 'text-white/70' : 'text-slate-400'}`} />
+                              <span className={`text-[13px] font-medium ${isMe ? 'text-white' : 'text-slate-700'}`}>
+                                {new Date(msg.appointment_data.date).toLocaleString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <MapPin size={14} className={`mt-0.5 shrink-0 ${isMe ? 'text-white/70' : 'text-slate-400'}`} />
+                              <span className={`text-[13px] font-medium break-all ${isMe ? 'text-white' : 'text-slate-700'}`}>
+                                {msg.appointment_data.location}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Action Buttons for receiver */}
+                          {!isMe && msg.appointment_data.status === 'proposed' && (
+                            <div className="flex gap-2 mt-2">
+                              <button 
+                                onClick={() => handleUpdateAppointment(msg.id, 'accepted')}
+                                className="flex-1 py-2 bg-lime-500 hover:bg-lime-600 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
+                              >
+                                承諾する
+                              </button>
+                              <button 
+                                onClick={() => handleUpdateAppointment(msg.id, 'canceled')}
+                                className="flex-1 py-2 bg-white hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl border border-slate-200 transition-colors"
+                              >
+                                断る
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {msg.text && !msg.appointment_data && (
                         <p className={`text-[14px] leading-relaxed whitespace-pre-wrap break-words ${msg.image_url ? 'px-3 pb-2 pt-1' : 'px-4 py-2.5'}`}>
                           {msg.text}
                         </p>
@@ -687,6 +831,15 @@ export const ChatRoomPage = () => {
           />
           <button 
             type="button"
+            onClick={() => setIsAppointmentModalOpen(true)}
+            className="w-9 h-9 rounded-full bg-lime-100 flex items-center justify-center text-lime-600 hover:bg-lime-200 active:scale-90 transition-all shrink-0"
+            title="取引の約束"
+          >
+            <CalendarIcon size={18} />
+          </button>
+          
+          <button 
+            type="button"
             onClick={() => fileInputRef.current?.click()}
             className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-300 active:scale-90 transition-all shrink-0"
             disabled={uploadingImage}
@@ -713,6 +866,13 @@ export const ChatRoomPage = () => {
           </button>
         </form>
       </footer>
+      
+      {/* Appointment Modal */}
+      <AppointmentModal 
+        isOpen={isAppointmentModalOpen}
+        onClose={() => setIsAppointmentModalOpen(false)}
+        onSubmit={handleCreateAppointment}
+      />
     </div>
     </div>
   );

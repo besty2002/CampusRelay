@@ -91,6 +91,11 @@ export interface ChatMessage {
   sender_id: string;
   text: string;
   image_url?: string;
+  appointment_data?: {
+    date: string;
+    location: string;
+    status: 'proposed' | 'accepted' | 'canceled';
+  };
   is_read: boolean;
   created_at: string;
   profiles: {
