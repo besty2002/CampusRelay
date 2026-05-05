@@ -2,14 +2,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { ArrowLeft, Send, Loader2, Package, Menu, Phone, ChevronDown, WifiOff, Image as ImageIcon, ChevronDown as ChevronDownIcon, Calendar as CalendarIcon, MapPin } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Package, Menu, Phone, ChevronDown, WifiOff, Image as ImageIcon, Calendar as CalendarIcon, MapPin, Clock, CheckCircle2 } from 'lucide-react';
 import type { ChatMessage, ChatRoom, PostStatus } from '../types';
 import { MessageSkeleton } from '../components/skeletons/MessageSkeleton';
 import imageCompression from 'browser-image-compression';
 import { AppointmentModal } from '../components/AppointmentModal';
 import { ReviewModal } from '../components/ReviewModal';
 import { StatusBadge } from '../components/StatusBadge';
-import { Package, Clock, CheckCircle2 } from 'lucide-react';
 
 // ─── Helpers ───────────────────────────────────────────────
 const formatTime = (dateStr: string) =>
