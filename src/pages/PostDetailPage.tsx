@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { ReviewModal } from '../components/ReviewModal';
+import { StatusBadge } from '../components/StatusBadge';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { MannerTempGauge } from '../components/MannerTempGauge';
 import { ImageViewer } from '../components/ImageViewer';
@@ -322,12 +323,7 @@ export const PostDetailPage = () => {
 
         <div className="p-8 md:p-12">
           <div className="flex justify-between items-start mb-6">
-            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-              post.status === 'Available' ? 'bg-lime-100 text-lime-600' :
-              post.status === 'Reserved' ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'
-            }`}>
-              {post.status}
-            </span>
+            <StatusBadge status={post.status} className="!px-3 !py-1" />
             <span className="text-[10px] font-black text-slate-300 uppercase tracking-tighter">
               {new Date(post.created_at).toLocaleDateString()}
             </span>

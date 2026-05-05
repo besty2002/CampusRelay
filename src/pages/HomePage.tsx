@@ -25,6 +25,7 @@ import { VerifiedBadge } from '../components/VerifiedBadge';
 import { MannerTempGauge } from '../components/MannerTempGauge';
 import { PostCardSkeleton } from '../components/skeletons/PostCardSkeleton';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { StatusBadge } from '../components/StatusBadge';
 
 export const CATEGORY_MAP: Record<PostCategory, { label: string, icon: any, color: string }> = {
   Uniform: { label: '制服・衣類', icon: Shirt, color: 'bg-blue-50 text-blue-600' },
@@ -374,6 +375,7 @@ export const HomePage = () => {
                             Size: {post.item_size}
                           </span>
                         )}
+                        <StatusBadge status={post.status} />
                         <span className="text-[10px] font-bold text-slate-400 truncate">{post.schools?.name_ja}</span>
                       </div>
                       <h2 className="text-xl font-black text-slate-800 truncate group-hover:text-lime-600 transition-colors mb-1">

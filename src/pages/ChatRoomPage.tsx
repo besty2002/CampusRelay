@@ -8,6 +8,8 @@ import { MessageSkeleton } from '../components/skeletons/MessageSkeleton';
 import imageCompression from 'browser-image-compression';
 import { AppointmentModal } from '../components/AppointmentModal';
 import { ReviewModal } from '../components/ReviewModal';
+import { StatusBadge } from '../components/StatusBadge';
+import { Package, Clock, CheckCircle2 } from 'lucide-react';
 
 // ─── Helpers ───────────────────────────────────────────────
 const formatTime = (dateStr: string) =>
@@ -657,18 +659,22 @@ export const ChatRoomPage = () => {
         {/* Status Dropdown (Seller Only) */}
         {isSeller && (
           <div className="relative shrink-0">
-            <button 
+            <StatusBadge 
+              status={room?.posts?.status || 'Available'} 
+              className="!px-2 !py-1" 
               onClick={() => setShowStatusMenu(!showStatusMenu)}
-              className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-black text-slate-600 flex items-center gap-1 transition-colors"
-            >
-              {room?.posts?.status === 'Available' ? '受付中' : room?.posts?.status === 'Reserved' ? '予約済み' : '譲渡済み'}
-              <ChevronDownIcon size={12} />
-            </button>
+            />
             {showStatusMenu && (
               <div className="absolute top-full right-0 mt-1 w-28 bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden py-1 z-50 animate-in slide-in-from-top-1 fade-in duration-100">
-                <button onClick={() => handleStatusChange('Available')} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">受付中</button>
-                <button onClick={() => handleStatusChange('Reserved')} className="w-full text-left px-3 py-2 text-xs font-bold text-amber-600 hover:bg-amber-50">予約済み</button>
-                <button onClick={() => handleStatusChange('Given')} className="w-full text-left px-3 py-2 text-xs font-bold text-slate-400 hover:bg-slate-50">譲渡済み</button>
+                <button onClick={() => handleStatusChange('Available')} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+                  <Package size={14} className="text-lime-500" /> 受付中
+                </button>
+                <button onClick={() => handleStatusChange('Reserved')} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-bold text-amber-600 hover:bg-amber-50 transition-colors">
+                  <Clock size={14} className="text-amber-500" /> 予約済み
+                </button>
+                <button onClick={() => handleStatusChange('Given')} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-bold text-slate-400 hover:bg-slate-50 transition-colors border-t border-slate-50">
+                  <CheckCircle2 size={14} className="text-slate-400" /> 譲渡済み
+                </button>
               </div>
             )}
           </div>

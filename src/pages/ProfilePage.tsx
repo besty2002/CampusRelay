@@ -7,6 +7,7 @@ import { MannerTempGauge } from '../components/MannerTempGauge';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { ProfileSkeleton } from '../components/skeletons/ProfileSkeleton';
 import { UserAvatar } from '../components/UserAvatar';
+import { StatusBadge } from '../components/StatusBadge';
 import imageCompression from 'browser-image-compression';
 import { 
   Package, 
@@ -322,12 +323,7 @@ export const ProfilePage = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className={`text-[10px] font-black uppercase ${
-                      post.status === 'Available' ? 'text-lime-600' :
-                      post.status === 'Reserved' ? 'text-amber-600' : 'text-slate-400'
-                    }`}>
-                      {post.status}
-                    </span>
+                    <StatusBadge status={post.status} className="!px-1.5 !py-0.5" />
                     <span className="text-[10px] font-bold text-slate-300">{post.schools?.name_ja}</span>
                   </div>
                   <h3 className="font-bold text-slate-800 truncate group-hover:text-lime-600 transition-colors">{post.title}</h3>
