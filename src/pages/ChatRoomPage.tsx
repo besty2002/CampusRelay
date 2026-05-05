@@ -7,6 +7,7 @@ import type { ChatMessage, ChatRoom, PostStatus } from '../types';
 import { MessageSkeleton } from '../components/skeletons/MessageSkeleton';
 import imageCompression from 'browser-image-compression';
 import { AppointmentModal } from '../components/AppointmentModal';
+import { ReviewModal } from '../components/ReviewModal';
 
 // ─── Helpers ───────────────────────────────────────────────
 const formatTime = (dateStr: string) =>
@@ -67,6 +68,8 @@ export const ChatRoomPage = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewTargetUserId, setReviewTargetUserId] = useState('');
 
   // ─── Fetch Room & Messages ────────────────────────────────
   const fetchRoomAndMessages = useCallback(async () => {
@@ -422,8 +425,14 @@ export const ChatRoomPage = () => {
       .eq('id', room.post_id);
       
     if (error) {
-      alert('상태 변경 실패: ' + error.message);
+      alert('状態変更に失敗しました: ' + error.message);
       setRoom(prev => prev ? { ...prev, posts: { ...prev.posts, status: room.posts.status } } : null);
+    } else {
+      // 거래 완료(Given)로 변경 시 리뷰 모달 표시
+      if (newStatus === 'Given') {
+        setReviewTargetUserId(isSeller ? room.buyer_id : room.seller_id);
+        setShowReviewModal(true);
+      }
     }
   };
 
@@ -873,6 +882,18 @@ export const ChatRoomPage = () => {
         onClose={() => setIsAppointmentModalOpen(false)}
         onSubmit={handleCreateAppointment}
       />
+
+      {/* Review Modal */}
+      {showReviewModal && user && room && (
+        <ReviewModal
+          isOpen={showReviewModal}
+          onClose={() => setShowReviewModal(false)}
+          postId={room.post_id}
+          fromUserId={user.id}
+          toUserId={reviewTargetUserId}
+          toUserName={isSeller ? room.buyer?.display_name : room.seller?.display_name}
+        />
+      )}
     </div>
     </div>
   );

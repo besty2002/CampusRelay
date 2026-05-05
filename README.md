@@ -1,73 +1,95 @@
-# React + TypeScript + Vite
+# CampusRelay
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+CampusRelay는 학교 기반 무료 나눔 / 중고 거래 플랫폼입니다.
+MVP → 일본 전국 확장을 목표로 합니다.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🔧 Tech Stack
 
-## React Compiler
+* Frontend: React + TypeScript + Vite
+* Backend: Supabase (DB / Auth / Storage)
+* Hosting: Cloudflare Pages
+* Map: Google Maps API
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 📌 Core Features
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+* 학교 기반 사용자 인증
+* 게시글 등록 (무료 나눔 / 판매)
+* 채팅 기반 거래
+* 지도 기반 탐색
+* 학교별 데이터 분리
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+---
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## 📁 Project Structure
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+  ├── components/
+  ├── pages/
+  ├── hooks/
+  ├── lib/
+  ├── types/
+  ├── App.tsx
+  └── main.tsx
+
+supabase/
+  ├── migrations/
+  └── functions/
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## ⚙️ Development Rules
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+* Always generate complete code in one request
+* Do not split files across multiple prompts
+* No auto execution / testing / debugging
+* Keep output minimal (code first)
+
+👉 See AGENT.md for full generation rules
+
+---
+
+## 🔐 Security
+
+* Supabase RLS required
+* Users can only access data within the same school
+* Only owners can modify their data
+
+---
+
+## 🚀 Getting Started
+
+```bash
+npm install
+npm run dev
 ```
+
+---
+
+## 🌍 Deployment
+
+* Deploy via Cloudflare Pages
+* Connect custom domain (campusrelay.jp)
+
+---
+
+## 📈 Future Plan
+
+* School → Region → Nationwide expansion
+* Admin system per school
+* Monetization (ads / premium)
+
+---
+
+## ⚠️ Notes
+
+* MVP first (avoid over-engineering)
+* Mobile-first UI
+* Simple UX is priority
+
+---
