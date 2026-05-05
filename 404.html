@@ -4,7 +4,9 @@
     <meta charset="utf-8">
     <title>Campus Relay</title>
     <script type="text/javascript">
-      var pathSegmentsToKeep = 1;
+      // GitHub Pages에서는 '/CampusRelay'와 같이 1개의 경로(segment)를 유지해야 하고,
+      // Cloudflare Pages나 로컬호스트에서는 루트('/')에서 시작하므로 0개로 설정해야 합니다.
+      var pathSegmentsToKeep = window.location.hostname.endsWith('github.io') ? 1 : 0;
 
       var l = window.location;
       l.replace(
