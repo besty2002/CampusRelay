@@ -14,6 +14,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { UserAvatar } from '../components/UserAvatar';
+import { StatusBadge } from '../components/StatusBadge';
 
 export const UserPublicProfilePage = () => {
   const { userId } = useParams();
@@ -144,7 +145,8 @@ export const UserPublicProfilePage = () => {
                 to={`/post/${post.id}`}
                 className="bg-white p-4 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-lg transition-all flex gap-4 items-center group"
               >
-                <div className="w-16 h-16 shrink-0 rounded-2xl bg-slate-50 overflow-hidden">
+                <div className="w-16 h-16 shrink-0 rounded-2xl bg-slate-50 overflow-hidden relative">
+                  <StatusBadge status={post.status} className="absolute top-1 left-1 z-10 shadow-sm backdrop-blur-md bg-white/90 scale-[0.8] origin-top-left" />
                   {post.post_images && post.post_images.length > 0 ? (
                     <img src={post.post_images[0].storage_path} alt={post.title} className="w-full h-full object-cover" />
                   ) : (

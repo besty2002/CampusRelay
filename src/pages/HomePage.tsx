@@ -350,7 +350,8 @@ export const HomePage = () => {
                   to={`/post/${post.id}`}
                   className="group bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-2xl hover:shadow-slate-200/50 transition-all flex gap-5 active:scale-[0.98] relative"
                 >
-                  <div className="w-28 h-28 shrink-0 rounded-[1.5rem] bg-slate-50 overflow-hidden border border-slate-50 shadow-inner">
+                  <div className="w-28 h-28 shrink-0 rounded-[1.5rem] bg-slate-50 overflow-hidden border border-slate-50 shadow-inner relative">
+                    <StatusBadge status={post.status} className="absolute top-2 left-2 z-10 shadow-sm backdrop-blur-md bg-white/90" />
                     {thumbnail ? (
                       <img src={thumbnail} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
                     ) : (
@@ -361,7 +362,7 @@ export const HomePage = () => {
                   </div>
                   <div className="flex-1 min-w-0 flex flex-col justify-between py-1 text-left">
                     <div>
-                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                      <div className="flex flex-wrap items-center gap-2 mb-1.5 pr-8">
                         <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
                           post.mode === 'GIVEAWAY' ? 'bg-lime-50 text-lime-600' : 'bg-purple-50 text-purple-600'
                         }`}>
@@ -375,7 +376,6 @@ export const HomePage = () => {
                             Size: {post.item_size}
                           </span>
                         )}
-                        <StatusBadge status={post.status} />
                         <span className="text-[10px] font-bold text-slate-400 truncate">{post.schools?.name_ja}</span>
                       </div>
                       <h2 className="text-xl font-black text-slate-800 truncate group-hover:text-lime-600 transition-colors mb-1">

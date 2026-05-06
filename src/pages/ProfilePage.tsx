@@ -179,7 +179,8 @@ export const ProfilePage = () => {
                   to={`/post/${post.id}`}
                   className="bg-white p-4 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-lg transition-all flex gap-4 items-center group"
                 >
-                  <div className="w-20 h-20 shrink-0 rounded-2xl bg-slate-50 overflow-hidden border border-slate-100">
+                  <div className="w-20 h-20 shrink-0 rounded-2xl bg-slate-50 overflow-hidden border border-slate-100 relative">
+                    <StatusBadge status={post.status} className="absolute top-1 left-1 z-10 shadow-sm backdrop-blur-md bg-white/90 scale-90 origin-top-left" />
                     {thumbnail ? (
                       <img src={thumbnail} alt={post.title} className="w-full h-full object-cover" />
                     ) : (
@@ -312,7 +313,8 @@ export const ProfilePage = () => {
                 to={`/post/${post.id}`}
                 className="bg-white p-4 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-lg transition-all flex gap-4 items-center group"
               >
-                <div className="w-16 h-16 shrink-0 rounded-2xl bg-slate-50 overflow-hidden border border-slate-100">
+                <div className="w-16 h-16 shrink-0 rounded-2xl bg-slate-50 overflow-hidden border border-slate-100 relative">
+                  <StatusBadge status={post.status} className="absolute top-1 left-1 z-10 shadow-sm backdrop-blur-md bg-white/90 scale-[0.8] origin-top-left" />
                   {post.post_images && post.post_images.length > 0 ? (
                     <img src={post.post_images[0].storage_path} alt={post.title} className="w-full h-full object-cover" />
                   ) : (
@@ -323,7 +325,6 @@ export const ProfilePage = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <StatusBadge status={post.status} className="!px-1.5 !py-0.5" />
                     <span className="text-[10px] font-bold text-slate-300">{post.schools?.name_ja}</span>
                   </div>
                   <h3 className="font-bold text-slate-800 truncate group-hover:text-lime-600 transition-colors">{post.title}</h3>
