@@ -19,8 +19,26 @@ CREATE POLICY "Manage own user_schools" ON user_schools FOR ALL TO authenticated
 
 -- Posts: Public read (Available, Reserved, Given), but only school_admin can see Hidden? For simplicity public read all for now.
 CREATE POLICY "Public read posts" ON posts FOR SELECT USING (status != 'Hidden' OR auth.uid() = user_id);
-CREATE POLICY "Insert own posts" ON posts FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Update own posts" ON posts FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Insert own posts" ON posts FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Update own posts" ON posts FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Admins can moderate posts" ON posts FOR UPDATE TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid()
+        AND role IN ('school_admin', 'super_admin')
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid()
+        AND role IN ('school_admin', 'super_admin')
+    )
+  );
 
 -- Post Images: Public read, insert by post owner
 CREATE POLICY "Public read post_images" ON post_images FOR SELECT USING (true);
@@ -35,7 +53,8 @@ CREATE POLICY "Read post_requests" ON post_requests FOR SELECT TO authenticated
 CREATE POLICY "Insert post_requests" ON post_requests FOR INSERT TO authenticated WITH CHECK (requester_id = auth.uid());
 -- Update: Post Owner
 CREATE POLICY "Update post_requests" ON post_requests FOR UPDATE TO authenticated
-  USING (EXISTS (SELECT 1 FROM posts WHERE id = post_id AND user_id = auth.uid()));
+  USING (EXISTS (SELECT 1 FROM posts WHERE id = post_id AND user_id = auth.uid()))
+  WITH CHECK (EXISTS (SELECT 1 FROM posts WHERE id = post_id AND user_id = auth.uid()));
 
 -- Reviews: Public read
 CREATE POLICY "Public read reviews" ON reviews FOR SELECT USING (true);

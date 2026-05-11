@@ -1,95 +1,72 @@
 # CampusRelay
 
-CampusRelay는 학교 기반 무료 나눔 / 중고 거래 플랫폼입니다.
-MVP → 일본 전국 확장을 목표로 합니다.
+CampusRelay is a school-based item sharing platform for local communities.
+The MVP focuses on helping students and families give away or exchange school-related items safely within their school network.
 
----
+## Tech Stack
 
-## 🔧 Tech Stack
+- Frontend: React + TypeScript + Vite
+- Backend: Supabase (Database, Auth, Storage, Edge Functions)
+- Hosting: Cloudflare Pages
+- PWA: Vite PWA / Workbox
 
-* Frontend: React + TypeScript + Vite
-* Backend: Supabase (DB / Auth / Storage)
-* Hosting: Cloudflare Pages
-* Map: Google Maps API
+## Core Features
 
----
+- School-scoped item feed
+- Giveaway and exchange posts
+- Post images and item status management
+- Wishlist, comments, reports, and admin moderation
+- Realtime chat with image messages and appointment proposals
+- Push notifications and keyword alerts
 
-## 📌 Core Features
+## Project Structure
 
-* 학교 기반 사용자 인증
-* 게시글 등록 (무료 나눔 / 판매)
-* 채팅 기반 거래
-* 지도 기반 탐색
-* 학교별 데이터 분리
-
----
-
-## 📁 Project Structure
-
-```
+```text
 src/
-  ├── components/
-  ├── pages/
-  ├── hooks/
-  ├── lib/
-  ├── types/
-  ├── App.tsx
-  └── main.tsx
+  components/
+  hooks/
+  lib/
+  pages/
+  test/
+  App.tsx
+  main.tsx
 
 supabase/
-  ├── migrations/
-  └── functions/
+  functions/
+  migrations/
+  *.sql
 ```
 
----
+## Environment
 
-## ⚙️ Development Rules
+Copy `.env.example` to `.env` and fill in the public Vite values for local development.
+Supabase Edge Function secrets must be configured in Supabase, not committed to the repository.
 
-* Always generate complete code in one request
-* Do not split files across multiple prompts
-* No auto execution / testing / debugging
-* Keep output minimal (code first)
+```bash
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+```
 
-👉 See AGENT.md for full generation rules
-
----
-
-## 🔐 Security
-
-* Supabase RLS required
-* Users can only access data within the same school
-* Only owners can modify their data
-
----
-
-## 🚀 Getting Started
+## Development
 
 ```bash
 npm install
 npm run dev
 ```
 
----
+## Verification
 
-## 🌍 Deployment
+```bash
+npm run build
+npm run test
+npm run lint
+```
 
-* Deploy via Cloudflare Pages
-* Connect custom domain (campusrelay.jp)
+`npm run lint` may still report type cleanup items in legacy pages. Build and tests are the current required verification gates.
 
----
+## Security Notes
 
-## 📈 Future Plan
-
-* School → Region → Nationwide expansion
-* Admin system per school
-* Monetization (ads / premium)
-
----
-
-## ⚠️ Notes
-
-* MVP first (avoid over-engineering)
-* Mobile-first UI
-* Simple UX is priority
-
----
+- Supabase RLS is required for all user-owned and chat-owned data.
+- Admin moderation is enforced through database policies, not only through UI checks.
+- Storage uploads must be scoped by post ownership or chat room participation.
+- Do not commit real `.env` files.

@@ -1,14 +1,14 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => {
-  // Cloudflare Pagesは環境変数 CF_PAGES を提供します。
-  // GitHub Pages 配布時のみ /CampusRelay/ を使用し、それ以外（ローカル、Cloudflare）では / を使用します。
+  // Cloudflare Pages provides CF_PAGES in the build environment.
+  // Use /CampusRelay/ only for GitHub Pages builds; local and Cloudflare builds use /.
   const isGitHubPages = command === 'build' && !process.env.CF_PAGES;
   const base = isGitHubPages ? '/CampusRelay/' : '/';
-  
+
   return {
     plugins: [
       react(),
@@ -27,23 +27,23 @@ export default defineConfig(({ command }) => {
             {
               src: 'pwa-192x192.png',
               sizes: '192x192',
-              type: 'image/png'
-            },
-            {
-              src: 'pwa-512x512.png',
-              sizes: '512x512',
-              type: 'image/png'
+              type: 'image/png',
             },
             {
               src: 'pwa-512x512.png',
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any maskable'
-            }
-          ]
-        }
-      })
+            },
+            {
+              src: 'pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any maskable',
+            },
+          ],
+        },
+      }),
     ],
-    base: base,
-  }
-})
+    base,
+  };
+});

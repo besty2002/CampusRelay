@@ -5,7 +5,7 @@ export const PUBLIC_VAPID_KEY = 'BGKPPYNvbaFAi0DoL9sgU5oklY8XhfkS8F6cQ38vfJC4lRH
 export function urlB64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
+    .replace(/-/g, '+')
     .replace(/_/g, '/');
 
   const rawData = window.atob(base64);

@@ -22,7 +22,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    let notificationsToSend: { userId: string, title: string, body: string, url: string }[] = [];
+    const notificationsToSend: { userId: string, title: string, body: string, url: string }[] = [];
 
     // 트리거 1: 새로운 채팅 메시지 등록 시
     if (payload.table === 'chat_messages' && payload.type === 'INSERT') {

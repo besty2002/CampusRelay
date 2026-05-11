@@ -59,6 +59,13 @@ BEGIN
           WHERE chat_rooms.id = chat_messages.room_id
           AND (chat_rooms.seller_id = auth.uid() OR chat_rooms.buyer_id = auth.uid())
         )
+      )
+      WITH CHECK (
+        EXISTS (
+          SELECT 1 FROM chat_rooms
+          WHERE chat_rooms.id = chat_messages.room_id
+          AND (chat_rooms.seller_id = auth.uid() OR chat_rooms.buyer_id = auth.uid())
+        )
       );
   END IF;
 END $$;
@@ -71,7 +78,8 @@ BEGIN
   ) THEN
     CREATE POLICY "Users can update their own chat rooms"
       ON chat_rooms FOR UPDATE
-      USING (auth.uid() = seller_id OR auth.uid() = buyer_id);
+      USING (auth.uid() = seller_id OR auth.uid() = buyer_id)
+      WITH CHECK (auth.uid() = seller_id OR auth.uid() = buyer_id);
   END IF;
 END $$;
 

@@ -28,7 +28,16 @@ CREATE POLICY "Users can see their own chat rooms"
 
 CREATE POLICY "Users can create chat rooms"
   ON chat_rooms FOR INSERT
-  WITH CHECK (auth.uid() = buyer_id OR auth.uid() = seller_id);
+  WITH CHECK (
+    auth.uid() = buyer_id
+    AND buyer_id <> seller_id
+    AND EXISTS (
+      SELECT 1 FROM posts
+      WHERE posts.id = chat_rooms.post_id
+        AND posts.user_id = chat_rooms.seller_id
+        AND posts.status IN ('Available', 'Reserved')
+    )
+  );
 
 -- Chat Messages Policies
 CREATE POLICY "Users can see messages in their rooms"
@@ -45,6 +54,23 @@ CREATE POLICY "Users can send messages in their rooms"
   ON chat_messages FOR INSERT
   WITH CHECK (
     auth.uid() = sender_id AND
+    EXISTS (
+      SELECT 1 FROM chat_rooms
+      WHERE chat_rooms.id = chat_messages.room_id
+      AND (chat_rooms.seller_id = auth.uid() OR chat_rooms.buyer_id = auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can update messages in their rooms"
+  ON chat_messages FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM chat_rooms
+      WHERE chat_rooms.id = chat_messages.room_id
+      AND (chat_rooms.seller_id = auth.uid() OR chat_rooms.buyer_id = auth.uid())
+    )
+  )
+  WITH CHECK (
     EXISTS (
       SELECT 1 FROM chat_rooms
       WHERE chat_rooms.id = chat_messages.room_id

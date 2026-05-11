@@ -77,33 +77,12 @@ export const HomePage = () => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Reset pagination when filters change
-  useEffect(() => {
-    setPosts([]);
-    reset();
-  }, [debouncedSearch, activeCategory, activeCondition, sizeFilter, mySchoolIds]);
-
-  useEffect(() => {
-    if (user) {
-      fetchMySchools();
-      fetchWishlist();
-    } else {
-      fetchPosts([], 0, true);
-    }
-  }, [user]);
-
-  // Fetch posts when page or filters change
-  useEffect(() => {
-    if (fetchingSchools) return;
-    fetchPosts(mySchoolIds, page, page === 0);
-  }, [page, debouncedSearch, activeCategory, activeCondition, sizeFilter, mySchoolIds, fetchingSchools]);
-
-  const fetchWishlist = async () => {
+  const fetchWishlist = useCallback(async () => {
     const { data } = await supabase.from('wishlists').select('post_id').eq('user_id', user?.id);
     if (data) setWishlistIds(data.map(d => d.post_id));
-  };
+  }, [user?.id]);
 
-  const fetchMySchools = async () => {
+  const fetchMySchools = useCallback(async () => {
     setFetchingSchools(true);
     const { data } = await supabase
       .from('user_schools')
@@ -113,7 +92,7 @@ export const HomePage = () => {
     const ids = data?.map(d => d.school_id) || [];
     setMySchoolIds(ids);
     setFetchingSchools(false);
-  };
+  }, [user?.id]);
 
   const fetchPosts = useCallback(async (schoolIds: string[], pageNum: number, isFirstPage: boolean) => {
     if (isFirstPage) {
@@ -177,6 +156,27 @@ export const HomePage = () => {
     setLoading(false);
     setLoadingMore(false);
   }, [activeCategory, activeCondition, sizeFilter, debouncedSearch, setHasMore, setLoadingMore]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setPosts([]);
+    reset();
+  }, [debouncedSearch, activeCategory, activeCondition, sizeFilter, mySchoolIds, reset]);
+
+  useEffect(() => {
+    if (user) {
+      fetchMySchools();
+      fetchWishlist();
+    } else {
+      fetchPosts([], 0, true);
+    }
+  }, [user, fetchMySchools, fetchWishlist, fetchPosts]);
+
+  // Fetch posts when page or filters change
+  useEffect(() => {
+    if (fetchingSchools) return;
+    fetchPosts(mySchoolIds, page, page === 0);
+  }, [page, mySchoolIds, fetchingSchools, fetchPosts]);
 
   const toggleWishlist = async (e: React.MouseEvent, postId: string) => {
     e.preventDefault();

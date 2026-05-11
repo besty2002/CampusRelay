@@ -7,9 +7,16 @@ ON storage.objects FOR SELECT
 USING ( bucket_id = 'chat-images' );
 
 -- 3. 로그인한 유저(authenticated)만 이미지를 업로드(INSERT)할 수 있도록 허용하는 정책
-CREATE POLICY "Auth Users Upload" 
+CREATE POLICY "Chat participants upload" 
 ON storage.objects FOR INSERT 
-WITH CHECK ( bucket_id = 'chat-images' AND auth.role() = 'authenticated' );
+WITH CHECK (
+  bucket_id = 'chat-images'
+  AND EXISTS (
+    SELECT 1 FROM chat_rooms
+    WHERE chat_rooms.id = (storage.foldername(name))[1]::uuid
+      AND (chat_rooms.seller_id = auth.uid() OR chat_rooms.buyer_id = auth.uid())
+  )
+);
 
 -- 4. 본인이 올린 이미지만 수정(UPDATE)할 수 있도록 허용하는 정책
 CREATE POLICY "Auth Users Update" 

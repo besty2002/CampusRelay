@@ -31,6 +31,34 @@ export const ImageViewer = ({ images, initialIndex = 0, isOpen, onClose }: Image
     };
   }, [isOpen]);
 
+  const resetTransform = useCallback(() => {
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+  }, []);
+
+  const goToNext = useCallback(() => {
+    if (currentIndex < images.length - 1) {
+      setCurrentIndex(prev => prev + 1);
+      resetTransform();
+    }
+  }, [currentIndex, images.length, resetTransform]);
+
+  const goToPrev = useCallback(() => {
+    if (currentIndex > 0) {
+      setCurrentIndex(prev => prev - 1);
+      resetTransform();
+    }
+  }, [currentIndex, resetTransform]);
+
+  const handleZoomIn = useCallback(() => setScale(prev => Math.min(prev + 0.5, 5)), []);
+  const handleZoomOut = useCallback(() => {
+    setScale(prev => {
+      const newScale = Math.max(prev - 0.5, 1);
+      if (newScale === 1) setPosition({ x: 0, y: 0 });
+      return newScale;
+    });
+  }, []);
+
   // Keyboard navigation
   useEffect(() => {
     if (!isOpen) return;
@@ -43,35 +71,7 @@ export const ImageViewer = ({ images, initialIndex = 0, isOpen, onClose }: Image
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, currentIndex]);
-
-  const resetTransform = useCallback(() => {
-    setScale(1);
-    setPosition({ x: 0, y: 0 });
-  }, []);
-
-  const goToNext = () => {
-    if (currentIndex < images.length - 1) {
-      setCurrentIndex(prev => prev + 1);
-      resetTransform();
-    }
-  };
-
-  const goToPrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(prev => prev - 1);
-      resetTransform();
-    }
-  };
-
-  const handleZoomIn = () => setScale(prev => Math.min(prev + 0.5, 5));
-  const handleZoomOut = () => {
-    setScale(prev => {
-      const newScale = Math.max(prev - 0.5, 1);
-      if (newScale === 1) setPosition({ x: 0, y: 0 });
-      return newScale;
-    });
-  };
+  }, [isOpen, onClose, goToPrev, goToNext, handleZoomIn, handleZoomOut]);
 
   // Double-tap to zoom
   const lastTapTime = useRef(0);

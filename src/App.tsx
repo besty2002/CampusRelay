@@ -1,46 +1,54 @@
-import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
-import { AuthPage } from './pages/AuthPage';
-import { SchoolSelectPage } from './pages/SchoolSelectPage';
-import { FeedPage } from './pages/FeedPage';
-import { CreatePostPage } from './pages/CreatePostPage';
-import { PostDetailPage } from './pages/PostDetailPage';
-import { ProfilePage } from './pages/ProfilePage';
-import { HomePage } from './pages/HomePage';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { NotificationsPage } from './pages/NotificationsPage';
-import { NotificationSettingsPage } from './pages/NotificationSettingsPage';
-import { UserPublicProfilePage } from './pages/UserPublicProfilePage';
-import { ActivityDashboardPage } from './pages/ActivityDashboardPage';
-import { ChatListPage } from './pages/ChatListPage';
-import { ChatRoomPage } from './pages/ChatRoomPage';
-import { SchoolVerificationPage } from './pages/SchoolVerificationPage';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Bell, Home, Loader2, MessageCircle, PlusSquare, ShieldCheck, User } from 'lucide-react';
 import { OfflineBanner } from './components/OfflineBanner';
 import { useAuth } from './hooks/useAuth';
-import { Loader2, Home, PlusSquare, User, ShieldCheck, Bell, MessageCircle } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
 import { supabase } from './lib/supabase';
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+const AuthPage = lazy(() => import('./pages/AuthPage').then(module => ({ default: module.AuthPage })));
+const SchoolSelectPage = lazy(() => import('./pages/SchoolSelectPage').then(module => ({ default: module.SchoolSelectPage })));
+const FeedPage = lazy(() => import('./pages/FeedPage').then(module => ({ default: module.FeedPage })));
+const CreatePostPage = lazy(() => import('./pages/CreatePostPage').then(module => ({ default: module.CreatePostPage })));
+const PostDetailPage = lazy(() => import('./pages/PostDetailPage').then(module => ({ default: module.PostDetailPage })));
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then(module => ({ default: module.ProfilePage })));
+const HomePage = lazy(() => import('./pages/HomePage').then(module => ({ default: module.HomePage })));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then(module => ({ default: module.NotificationsPage })));
+const NotificationSettingsPage = lazy(() => import('./pages/NotificationSettingsPage').then(module => ({ default: module.NotificationSettingsPage })));
+const UserPublicProfilePage = lazy(() => import('./pages/UserPublicProfilePage').then(module => ({ default: module.UserPublicProfilePage })));
+const ActivityDashboardPage = lazy(() => import('./pages/ActivityDashboardPage').then(module => ({ default: module.ActivityDashboardPage })));
+const ChatListPage = lazy(() => import('./pages/ChatListPage').then(module => ({ default: module.ChatListPage })));
+const ChatRoomPage = lazy(() => import('./pages/ChatRoomPage').then(module => ({ default: module.ChatRoomPage })));
+const SchoolVerificationPage = lazy(() => import('./pages/SchoolVerificationPage').then(module => ({ default: module.SchoolVerificationPage })));
+
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <Loader2 className="animate-spin text-lime-500" />
+  </div>
+);
+
+const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   const { user, loading } = useAuth();
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Loader2 className="animate-spin text-lime-500" />
-    </div>
-  );
+
+  if (loading) return <PageLoader />;
   if (!user) return <Navigate to="/auth" replace />;
+
   return <>{children}</>;
 };
 
-const Layout = ({ children }: { children: React.ReactNode }) => {
+const Layout = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
-  
-  // Fetch unread message count
+
   const fetchUnreadCount = useCallback(async () => {
-    if (!user) return;
-    
+    if (!user) {
+      setUnreadMessages(0);
+      return;
+    }
+
     const { data: rooms } = await supabase
       .from('chat_rooms')
       .select('seller_id, buyer_id, unread_count_seller, unread_count_buyer')
@@ -55,46 +63,53 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     }
   }, [user]);
 
+  const checkAdmin = useCallback(async () => {
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
+
+    const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    setIsAdmin(data?.role === 'school_admin' || data?.role === 'super_admin');
+  }, [user]);
+
   useEffect(() => {
-    if (user) {
-      checkAdmin();
-      fetchUnreadCount();
-
-      // Realtime subscription for chat_rooms changes
-      const channel = supabase
-        .channel('nav-unread')
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'chat_rooms'
-        }, () => {
-          fetchUnreadCount();
-        })
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
+    if (!user) {
+      setIsAdmin(false);
+      setUnreadMessages(0);
+      return;
     }
-  }, [user, fetchUnreadCount]);
 
-  const checkAdmin = async () => {
-    const { data } = await supabase.from('profiles').select('role').eq('id', user?.id).single();
-    if (data?.role === 'school_admin' || data?.role === 'super_admin') {
-      setIsAdmin(true);
-    }
-  };
+    checkAdmin();
+    fetchUnreadCount();
+
+    const channel = supabase
+      .channel('nav-unread')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'chat_rooms',
+      }, () => {
+        fetchUnreadCount();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchUnreadCount, checkAdmin]);
 
   const isAuthPage = location.pathname === '/auth';
   const isChatRoom = location.pathname.startsWith('/chat/');
-  
-  // Auth page and chat room: no layout wrapper
-  if (isAuthPage || isChatRoom) return (
-    <>
-      <OfflineBanner />
-      {children}
-    </>
-  );
+
+  if (isAuthPage || isChatRoom) {
+    return (
+      <>
+        <OfflineBanner />
+        {children}
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
@@ -103,22 +118,21 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         {children}
       </div>
 
-      {/* Bottom Navigation */}
       <nav className="fixed bottom-0 w-full bg-white/80 backdrop-blur-lg border-t border-slate-100 px-2 py-3 z-50">
         <div className="max-w-md mx-auto flex justify-between items-center gap-1">
           <NavLink to="/" icon={<Home size={20} />} label="ホーム" active={location.pathname === '/'} />
           <NavLink to="/notifications" icon={<Bell size={20} />} label="通知" active={location.pathname === '/notifications'} />
-          
-          <Link 
-            to="/post/new" 
+
+          <Link
+            to="/post/new"
             className="w-12 h-12 bg-lime-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-lime-500/30 active:scale-90 transition-all -mt-8 border-4 border-white shrink-0"
           >
             <PlusSquare size={24} />
           </Link>
-          
+
           <NavLink to="/messages" icon={<MessageCircle size={20} />} label="トーク" active={location.pathname === '/messages'} badge={unreadMessages} />
           <NavLink to="/me" icon={<User size={20} />} label="プロフィール" active={location.pathname === '/me'} />
-          
+
           {isAdmin && (
             <NavLink to="/admin" icon={<ShieldCheck size={20} />} label="管理" active={location.pathname === '/admin'} />
           )}
@@ -128,7 +142,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-const NavLink = ({ to, icon, label, active, badge }: { to: string, icon: React.ReactNode, label: string, active: boolean, badge?: number }) => (
+const NavLink = ({ to, icon, label, active, badge }: { to: string, icon: ReactNode, label: string, active: boolean, badge?: number }) => (
   <Link to={to} className={`flex flex-col items-center gap-1 transition-all flex-1 relative ${active ? 'text-lime-600 scale-110' : 'text-slate-400'}`}>
     <div className="relative">
       {icon}
@@ -148,25 +162,27 @@ function App() {
   return (
     <BrowserRouter basename={basename}>
       <Layout>
-        <Routes>
-          <Route path="/auth" element={<AuthPage />} />
-          <Route path="/" element={<HomePage />} />
-          <Route path="/schools" element={<ProtectedRoute><SchoolSelectPage /></ProtectedRoute>} />
-          <Route path="/feed/:schoolId" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
-          <Route path="/post/new" element={<ProtectedRoute><CreatePostPage /></ProtectedRoute>} />
-          <Route path="/post/edit/:postId" element={<ProtectedRoute><CreatePostPage /></ProtectedRoute>} />
-          <Route path="/post/:postId" element={<PostDetailPage />} />
-          <Route path="/me" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-          <Route path="/user/:userId" element={<ProtectedRoute><UserPublicProfilePage /></ProtectedRoute>} />
-          <Route path="/activity" element={<ProtectedRoute><ActivityDashboardPage /></ProtectedRoute>} />
-          <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
-          <Route path="/settings/notifications" element={<ProtectedRoute><NotificationSettingsPage /></ProtectedRoute>} />
-          <Route path="/verify" element={<ProtectedRoute><SchoolVerificationPage /></ProtectedRoute>} />
-          <Route path="/messages" element={<ProtectedRoute><ChatListPage /></ProtectedRoute>} />
-          <Route path="/chat/:roomId" element={<ProtectedRoute><ChatRoomPage /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/" element={<HomePage />} />
+            <Route path="/schools" element={<ProtectedRoute><SchoolSelectPage /></ProtectedRoute>} />
+            <Route path="/feed/:schoolId" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
+            <Route path="/post/new" element={<ProtectedRoute><CreatePostPage /></ProtectedRoute>} />
+            <Route path="/post/edit/:postId" element={<ProtectedRoute><CreatePostPage /></ProtectedRoute>} />
+            <Route path="/post/:postId" element={<PostDetailPage />} />
+            <Route path="/me" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+            <Route path="/user/:userId" element={<ProtectedRoute><UserPublicProfilePage /></ProtectedRoute>} />
+            <Route path="/activity" element={<ProtectedRoute><ActivityDashboardPage /></ProtectedRoute>} />
+            <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+            <Route path="/settings/notifications" element={<ProtectedRoute><NotificationSettingsPage /></ProtectedRoute>} />
+            <Route path="/verify" element={<ProtectedRoute><SchoolVerificationPage /></ProtectedRoute>} />
+            <Route path="/messages" element={<ProtectedRoute><ChatListPage /></ProtectedRoute>} />
+            <Route path="/chat/:roomId" element={<ProtectedRoute><ChatRoomPage /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </Layout>
     </BrowserRouter>
   );

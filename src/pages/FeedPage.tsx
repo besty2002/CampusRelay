@@ -31,25 +31,10 @@ export const FeedPage = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  useEffect(() => {
-    fetchSchoolInfo();
-  }, [schoolId]);
-
-  // Reset when filters change
-  useEffect(() => {
-    setPosts([]);
-    reset();
-  }, [statusFilter, debouncedQuery, sortBy]);
-
-  // Fetch when page or filters change
-  useEffect(() => {
-    fetchPosts(page, page === 0);
-  }, [page, statusFilter, debouncedQuery, sortBy, schoolId]);
-
-  const fetchSchoolInfo = async () => {
+  const fetchSchoolInfo = useCallback(async () => {
     const { data } = await supabase.from('schools').select('name_ja').eq('id', schoolId).single();
     if (data) setSchoolName(data.name_ja);
-  };
+  }, [schoolId]);
 
   const fetchPosts = useCallback(async (pageNum: number, isFirstPage: boolean) => {
     if (isFirstPage) {
@@ -112,6 +97,21 @@ export const FeedPage = () => {
     setLoading(false);
     setLoadingMore(false);
   }, [schoolId, statusFilter, debouncedQuery, sortBy, setHasMore, setLoadingMore]);
+
+  useEffect(() => {
+    fetchSchoolInfo();
+  }, [fetchSchoolInfo]);
+
+  // Reset when filters change
+  useEffect(() => {
+    setPosts([]);
+    reset();
+  }, [statusFilter, debouncedQuery, sortBy, reset]);
+
+  // Fetch when page or filters change
+  useEffect(() => {
+    fetchPosts(page, page === 0);
+  }, [page, fetchPosts]);
 
   return (
     <div className="max-w-4xl mx-auto p-4 pb-32">
