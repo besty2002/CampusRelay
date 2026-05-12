@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams, useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { PostMode, PostCategory, PostCondition, School } from '../types';
@@ -376,7 +376,7 @@ export const CreatePostPage = () => {
 
         <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 space-y-6">
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Images (Max 5)</label>
+            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">画像（最大5枚）</label>
             <div className="flex flex-wrap gap-4">
               {previews.map((preview, index) => (
                 <div key={index} className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-200 shadow-sm group">
@@ -392,13 +392,13 @@ export const CreatePostPage = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Title</label>
+            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">タイトル</label>
             <input required value={title} onChange={e => setTitle(e.target.value)} className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-bold" placeholder="例：弘道小学校の体操服（上）" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Category</label>
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">カテゴリ</label>
               <select 
                 value={category} onChange={e => setCategory(e.target.value as any)}
                 className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-bold appearance-none"
@@ -412,7 +412,7 @@ export const CreatePostPage = () => {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Condition</label>
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">商品の状態</label>
               <select value={condition} onChange={e => setCondition(e.target.value as any)} className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-bold appearance-none">
                 <option value="Like New">未使用に近い</option>
                 <option value="Good">目立った傷なし</option>
@@ -423,22 +423,22 @@ export const CreatePostPage = () => {
 
           {category === 'Uniform' && (
             <div className="animate-in fade-in slide-in-from-top-1 duration-300">
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Size (例: 140, M, LL)</label>
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">サイズ（例：140、M、LL）</label>
               <input value={itemSize} onChange={e => setItemSize(e.target.value)} className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-bold" placeholder="サイズを入力..." />
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Description</label>
+            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">商品の説明</label>
             <textarea required value={description} onChange={e => setDescription(e.target.value)} rows={4} className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-medium" placeholder="詳細を入力してください。" />
           </div>
         </div>
 
         <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100">
-          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">Sharing Mode</label>
+          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">出品方法</label>
           <div className="flex gap-3 mb-6">
-            <button type="button" onClick={() => setMode('GIVEAWAY')} className={`flex-1 py-4 rounded-2xl font-black text-sm transition-all ${mode === 'GIVEAWAY' ? 'bg-lime-500 text-white shadow-lg shadow-lime-500/30' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>Free Giveaway</button>
-            <button type="button" onClick={() => setMode('EXCHANGE')} className={`flex-1 py-4 rounded-2xl font-black text-sm transition-all ${mode === 'EXCHANGE' ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/30' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>Exchange</button>
+            <button type="button" onClick={() => setMode('GIVEAWAY')} className={`flex-1 py-4 rounded-2xl font-black text-sm transition-all ${mode === 'GIVEAWAY' ? 'bg-lime-500 text-white shadow-lg shadow-lime-500/30' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>無料で譲る</button>
+            <button type="button" onClick={() => setMode('EXCHANGE')} className={`flex-1 py-4 rounded-2xl font-black text-sm transition-all ${mode === 'EXCHANGE' ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/30' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>交換する</button>
           </div>
           {mode === 'EXCHANGE' && (
             <div className="animate-in slide-in-from-top-2 duration-300">
