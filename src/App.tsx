@@ -4,6 +4,7 @@ import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react
 import { Bell, Home, Loader2, MessageCircle, PlusSquare, ShieldCheck, User } from 'lucide-react';
 import { OfflineBanner } from './components/OfflineBanner';
 import { useAuth } from './hooks/useAuth';
+import { isSupabaseConfigured, missingPublicEnvVars } from './lib/env';
 import { supabase } from './lib/supabase';
 
 const AuthPage = lazy(() => import('./pages/AuthPage').then(module => ({ default: module.AuthPage })));
@@ -157,8 +158,34 @@ const NavLink = ({ to, icon, label, active, badge }: { to: string, icon: ReactNo
   </Link>
 );
 
+const MissingConfigPage = () => (
+  <div className="min-h-screen bg-slate-50 px-6 py-16">
+    <div className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+      <p className="text-sm font-semibold text-lime-600">Local setup needed</p>
+      <h1 className="mt-3 text-3xl font-black text-slate-900">Campus Relay can&apos;t start yet</h1>
+      <p className="mt-3 text-sm leading-6 text-slate-600">
+        This local build is missing Supabase environment variables, so the app was stopping before the first screen rendered.
+        Add the keys below to <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">.env</code> in the project root, then restart the dev server.
+      </p>
+      <div className="mt-6 rounded-2xl bg-slate-950 p-4 text-sm text-slate-100">
+        <pre className="whitespace-pre-wrap font-mono">VITE_SUPABASE_URL=your-project-url{'\n'}VITE_SUPABASE_ANON_KEY=your-anon-key</pre>
+      </div>
+      <p className="mt-4 text-xs leading-5 text-slate-500">
+        Missing now: {missingPublicEnvVars.join(', ')}
+      </p>
+      <p className="mt-4 text-xs leading-5 text-slate-500">
+        You can start from <code className="rounded bg-slate-100 px-1.5 py-0.5">.env.example</code>. Once those values are set, the normal app will load again.
+      </p>
+    </div>
+  </div>
+);
+
 function App() {
   const basename = import.meta.env.BASE_URL?.replace(/\/$/, '') || '';
+
+  if (!isSupabaseConfigured) {
+    return <MissingConfigPage />;
+  }
 
   return (
     <BrowserRouter basename={basename}>
