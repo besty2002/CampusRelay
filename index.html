@@ -19,6 +19,38 @@
       }(window.location))
     </script>
     <!-- End Single Page Apps for GitHub Pages -->
+    <script type="text/javascript">
+      (function() {
+        var resetKey = 'campusrelay-sw-reset-v2';
+        if (!('serviceWorker' in navigator) || !('caches' in window)) return;
+        if (sessionStorage.getItem(resetKey)) return;
+
+        window.addEventListener('load', function() {
+          Promise.all([
+            navigator.serviceWorker.getRegistrations(),
+            caches.keys()
+          ]).then(function(results) {
+            var registrations = results[0];
+            var cacheKeys = results[1];
+
+            return Promise.all(
+              registrations.map(function(registration) {
+                return registration.unregister();
+              }).concat(
+                cacheKeys.map(function(cacheKey) {
+                  return caches.delete(cacheKey);
+                })
+              )
+            );
+          }).then(function() {
+            sessionStorage.setItem(resetKey, '1');
+            window.location.reload();
+          }).catch(function() {
+            sessionStorage.setItem(resetKey, '1');
+          });
+        });
+      }());
+    </script>
   </head>
   <body>
     <div id="root"></div>
