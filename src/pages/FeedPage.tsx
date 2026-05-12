@@ -32,11 +32,24 @@ export const FeedPage = () => {
   }, [searchQuery]);
 
   const fetchSchoolInfo = useCallback(async () => {
+    if (!schoolId) {
+      setSchoolName('');
+      return;
+    }
+
     const { data } = await supabase.from('schools').select('name_ja').eq('id', schoolId).single();
     if (data) setSchoolName(data.name_ja);
   }, [schoolId]);
 
   const fetchPosts = useCallback(async (pageNum: number, isFirstPage: boolean) => {
+    if (!schoolId) {
+      setPosts([]);
+      setHasMore(false);
+      setLoading(false);
+      setLoadingMore(false);
+      return;
+    }
+
     if (isFirstPage) {
       setLoading(true);
     } else {

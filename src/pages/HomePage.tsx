@@ -67,6 +67,7 @@ export const HomePage = () => {
   const [sizeFilter, setSizeFilter] = useState('');
   const [mySchoolIds, setMySchoolIds] = useState<string[]>([]);
   const [fetchingSchools, setFetchingSchools] = useState(false);
+  const [schoolsLoaded, setSchoolsLoaded] = useState(!user);
   const [showFilters, setShowFilters] = useState(false);
 
   const { page, hasMore, setHasMore, loadingMore, setLoadingMore, sentinelRef, reset } = useInfiniteScroll({ pageSize: PAGE_SIZE });
@@ -84,6 +85,7 @@ export const HomePage = () => {
 
   const fetchMySchools = useCallback(async () => {
     setFetchingSchools(true);
+    setSchoolsLoaded(false);
     const { data } = await supabase
       .from('user_schools')
       .select('school_id')
@@ -92,6 +94,7 @@ export const HomePage = () => {
     const ids = data?.map(d => d.school_id) || [];
     setMySchoolIds(ids);
     setFetchingSchools(false);
+    setSchoolsLoaded(true);
   }, [user?.id]);
 
   const fetchPosts = useCallback(async (schoolIds: string[], pageNum: number, isFirstPage: boolean) => {
@@ -168,15 +171,18 @@ export const HomePage = () => {
       fetchMySchools();
       fetchWishlist();
     } else {
+      setMySchoolIds([]);
+      setSchoolsLoaded(true);
       fetchPosts([], 0, true);
     }
   }, [user, fetchMySchools, fetchWishlist, fetchPosts]);
 
   // Fetch posts when page or filters change
   useEffect(() => {
+    if (user && !schoolsLoaded) return;
     if (fetchingSchools) return;
     fetchPosts(mySchoolIds, page, page === 0);
-  }, [page, mySchoolIds, fetchingSchools, fetchPosts]);
+  }, [page, mySchoolIds, fetchingSchools, schoolsLoaded, user, fetchPosts]);
 
   const toggleWishlist = async (e: React.MouseEvent, postId: string) => {
     e.preventDefault();

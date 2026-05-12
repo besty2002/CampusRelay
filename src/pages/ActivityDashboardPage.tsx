@@ -7,6 +7,7 @@ import {
   Loader2, 
   Package, 
   Clock,
+  ArrowLeft,
   ArrowUpRight,
   ArrowDownLeft,
   ChevronRight
@@ -68,6 +69,9 @@ export const ActivityDashboardPage = () => {
   return (
     <div className="max-w-2xl mx-auto p-6 pt-12 pb-32">
       <header className="mb-10">
+        <Link to="/me" className="flex items-center gap-2 text-slate-400 font-bold text-sm mb-4 hover:text-lime-600 transition-colors">
+          <ArrowLeft size={16} /> プロフィールに戻る
+        </Link>
         <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-2">My Activity</h1>
         <p className="text-slate-500 font-medium ml-1">お譲りの申請や進行状況を管理しましょう。</p>
       </header>

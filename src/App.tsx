@@ -16,6 +16,7 @@ const HomePage = lazy(() => import('./pages/HomePage').then(module => ({ default
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then(module => ({ default: module.NotificationsPage })));
 const NotificationSettingsPage = lazy(() => import('./pages/NotificationSettingsPage').then(module => ({ default: module.NotificationSettingsPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then(module => ({ default: module.SettingsPage })));
 const UserPublicProfilePage = lazy(() => import('./pages/UserPublicProfilePage').then(module => ({ default: module.UserPublicProfilePage })));
 const ActivityDashboardPage = lazy(() => import('./pages/ActivityDashboardPage').then(module => ({ default: module.ActivityDashboardPage })));
 const ChatListPage = lazy(() => import('./pages/ChatListPage').then(module => ({ default: module.ChatListPage })));
@@ -175,6 +176,7 @@ function App() {
             <Route path="/user/:userId" element={<ProtectedRoute><UserPublicProfilePage /></ProtectedRoute>} />
             <Route path="/activity" element={<ProtectedRoute><ActivityDashboardPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/settings/notifications" element={<ProtectedRoute><NotificationSettingsPage /></ProtectedRoute>} />
             <Route path="/verify" element={<ProtectedRoute><SchoolVerificationPage /></ProtectedRoute>} />
             <Route path="/messages" element={<ProtectedRoute><ChatListPage /></ProtectedRoute>} />

@@ -19,7 +19,6 @@ import {
   Heart,
   Clock,
   ArrowLeft,
-  Bell,
   Camera,
   Loader2
 } from 'lucide-react';
@@ -276,10 +275,8 @@ export const ProfilePage = () => {
       {/* Menu Options */}
       <div className="grid gap-3 mb-8">
         <MenuButton icon={<Heart size={20} />} label="お気に入り" onClick={() => setView('wishlist')} />
-        <MenuButton icon={<Bell size={20} />} label="通知・キーワード設定" onClick={() => navigate('/settings/notifications')} />
-        <MenuButton icon={<ShieldCheck size={20} />} label="学校認証" onClick={() => navigate('/verify')} />
-        <MenuButton icon={<Clock size={20} />} label="取引履歴" />
-        <MenuButton icon={<Settings size={20} />} label="設定" />
+        <MenuButton icon={<Clock size={20} />} label="取引履歴" onClick={() => navigate('/activity')} />
+        <MenuButton icon={<Settings size={20} />} label="設定" onClick={() => navigate('/settings')} />
         <button 
           onClick={handleLogout}
           className="w-full flex items-center justify-between p-6 bg-white rounded-[2rem] shadow-sm border border-slate-100 text-red-500 font-bold hover:bg-red-50 transition-all"
