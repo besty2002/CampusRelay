@@ -16,7 +16,11 @@ export default defineConfig(({ command }) => {
         strategies: 'injectManifest',
         srcDir: 'src',
         filename: 'sw.ts',
-        registerType: 'autoUpdate',
+        registerType: 'prompt',
+        injectRegister: false,
+        devOptions: {
+          enabled: false,
+        },
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
         manifest: {
           name: 'CampusRelay',

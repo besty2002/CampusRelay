@@ -1,5 +1,4 @@
 /// <reference lib="webworker" />
-import { clientsClaim } from 'workbox-core';
 import { precacheAndRoute } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
 import { StaleWhileRevalidate, CacheFirst, NetworkFirst } from 'workbox-strategies';
@@ -8,14 +7,11 @@ import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
 declare let self: ServiceWorkerGlobalScope;
 
-self.skipWaiting();
-clientsClaim();
-
-// Vite PWA가 빌드 시점에 에셋 목록을 주입합니다.
+// Vite PWA・ ・誤糖 ・懍川乱 ・川・ ・ｩ・晧揆 ・ｼ・・鮒・壱共.
 precacheAndRoute(self.__WB_MANIFEST);
 
 // 1. Supabase API (Posts, Feeds) -> StaleWhileRevalidate
-// 오프라인 상태에서도 기존 피드를 보여주고, 온라인 시 즉시 갱신
+// ・､嵓・攵・ｸ ・・・・川・・・・ｰ・ｴ 嵓ｼ・罹･ｼ ・ｴ・ｬ・ｼ・, ・ｨ・ｼ・ｸ ・・・餓亨 ・ｱ・
 registerRoute(
   ({ url }) => url.origin.includes('supabase.co') && url.pathname.startsWith('/rest/v1/posts'),
   new StaleWhileRevalidate({
@@ -27,7 +23,7 @@ registerRoute(
 );
 
 // 2. Chat Data -> NetworkFirst
-// 네트워크가 가능하면 최신 메시지를 받고, 실패(오프라인)하면 캐시 사용
+// ・､孖ｸ・醐〓・ ・・･﨑俯ｩｴ ・懍侠 ・肥亨・・ｼ ・幀ｳ, ・､甯ｨ(・､嵓・攵・ｸ)﨑俯ｩｴ ・川亨 ・ｬ・ｩ
 registerRoute(
   ({ url }) => url.origin.includes('supabase.co') && (url.pathname.startsWith('/rest/v1/chat_messages') || url.pathname.startsWith('/rest/v1/chat_rooms')),
   new NetworkFirst({
@@ -39,7 +35,7 @@ registerRoute(
 );
 
 // 3. Supabase Storage (Images) -> CacheFirst
-// 정적 이미지는 한 번 로드되면 7일간 캐시 우선 사용
+// ・菩・・ｴ・ｸ・・・﨑・・・・罹糖・俯ｩｴ 7・ｼ・・・川亨 ・ｰ・ ・ｬ・ｩ
 registerRoute(
   ({ url }) => url.origin.includes('supabase.co') && url.pathname.startsWith('/storage/v1/object/public/'),
   new CacheFirst({
@@ -51,7 +47,7 @@ registerRoute(
   })
 );
 
-// 푸시 알림 수신 이벤트
+// 岺ｸ・・・誤ｦｼ ・們侠 ・ｴ・､孖ｸ
 self.addEventListener('push', (event: PushEvent) => {
   let data: any = {};
   if (event.data) {
@@ -64,7 +60,7 @@ self.addEventListener('push', (event: PushEvent) => {
 
   const title = data.title || 'CampusRelay';
   const options = {
-    body: data.body || '새로운 알림이 도착했습니다.',
+    body: data.body || '・壱｡懍垓 ・誤ｦｼ・ｴ ・・ｰｩ嵂溢慣・壱共.',
     icon: '/vite.svg',
     badge: '/vite.svg',
     data: {
@@ -75,10 +71,10 @@ self.addEventListener('push', (event: PushEvent) => {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// 알림 클릭 이벤트 (클릭 시 해당 URL로 이동)
+// ・誤ｦｼ 增ｴ・ｭ ・ｴ・､孖ｸ (增ｴ・ｭ ・・﨑ｴ・ｹ URL・・・ｴ・・
 self.addEventListener('notificationclick', (event: NotificationEvent) => {
   event.notification.close();
-  
+
   if (event.notification.data && event.notification.data.url) {
     event.waitUntil(
       self.clients.openWindow(event.notification.data.url)
