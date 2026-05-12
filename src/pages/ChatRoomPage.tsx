@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { ArrowLeft, Send, Loader2, Package, Menu, Phone, ChevronDown, WifiOff, Image as ImageIcon, Calendar as CalendarIcon, MapPin, Clock, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Package, Menu, ChevronDown, WifiOff, Image as ImageIcon, Calendar as CalendarIcon, MapPin, Clock, CheckCircle2 } from 'lucide-react';
 import type { ChatMessage, ChatRoom, PostStatus } from '../types';
 import { MessageSkeleton } from '../components/skeletons/MessageSkeleton';
 import imageCompression from 'browser-image-compression';
@@ -68,9 +68,11 @@ export const ChatRoomPage = () => {
 
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewTargetUserId, setReviewTargetUserId] = useState('');
+  const headerMenuRef = useRef<HTMLDivElement>(null);
 
   // ─── Fetch Room & Messages ────────────────────────────────
   const fetchRoomAndMessages = useCallback(async () => {
@@ -319,6 +321,19 @@ export const ChatRoomPage = () => {
     const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
     setShowScrollDown(!isNearBottom);
   };
+
+  useEffect(() => {
+    if (!showHeaderMenu) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (headerMenuRef.current && !headerMenuRef.current.contains(event.target as Node)) {
+        setShowHeaderMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showHeaderMenu]);
 
   // ─── Typing broadcast ─────────────────────────────────────
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -629,12 +644,46 @@ export const ChatRoomPage = () => {
             </div>
           )}
         </div>
-        <button className="p-1.5 hover:bg-white/10 rounded-full transition-colors">
-          <Phone size={20} />
-        </button>
-        <button className="p-1.5 hover:bg-white/10 rounded-full transition-colors">
-          <Menu size={20} />
-        </button>
+        <div className="relative" ref={headerMenuRef}>
+          <button
+            onClick={() => setShowHeaderMenu(prev => !prev)}
+            className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
+            aria-label="チャットメニュー"
+          >
+            <Menu size={20} />
+          </button>
+          {showHeaderMenu && (
+            <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden py-1 z-50 animate-in slide-in-from-top-1 fade-in duration-100">
+              <button
+                onClick={() => {
+                  setShowHeaderMenu(false);
+                  navigate(`/post/${room?.post_id}`);
+                }}
+                className="w-full px-4 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                商品詳細を見る
+              </button>
+              <button
+                onClick={() => {
+                  setShowHeaderMenu(false);
+                  navigate(`/user/${otherParty?.id}`);
+                }}
+                className="w-full px-4 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                相手のプロフィールを見る
+              </button>
+              <button
+                onClick={() => {
+                  setShowHeaderMenu(false);
+                  setIsAppointmentModalOpen(true);
+                }}
+                className="w-full px-4 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100"
+              >
+                取引予定を作成
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       {/* ═══ Item Card & Status Controller ═══ */}
