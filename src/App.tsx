@@ -14,7 +14,15 @@ const CreatePostPage = lazy(() => import('./pages/CreatePostPage').then(module =
 const PostDetailPage = lazy(() => import('./pages/PostDetailPage').then(module => ({ default: module.PostDetailPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(module => ({ default: module.ProfilePage })));
 const HomePage = lazy(() => import('./pages/HomePage').then(module => ({ default: module.HomePage })));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout').then(module => ({ default: module.AdminLayout })));
+const AdminOverviewPage = lazy(() => import('./pages/admin/AdminOverviewPage').then(module => ({ default: module.AdminOverviewPage })));
+const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then(module => ({ default: module.AdminUsersPage })));
+const AdminReportsPage = lazy(() => import('./pages/admin/AdminReportsPage').then(module => ({ default: module.AdminReportsPage })));
+const AdminPostsPage = lazy(() => import('./pages/admin/AdminPostsPage').then(module => ({ default: module.AdminPostsPage })));
+const AdminCommentsPage = lazy(() => import('./pages/admin/AdminCommentsPage').then(module => ({ default: module.AdminCommentsPage })));
+const AdminAuditLogPage = lazy(() => import('./pages/admin/AdminAuditLogPage').then(module => ({ default: module.AdminAuditLogPage })));
+const AdminInvitesPage = lazy(() => import('./pages/admin/AdminInvitesPage').then(module => ({ default: module.AdminInvitesPage })));
+const AdminAuthPage = lazy(() => import('./pages/admin/AdminAuthPage').then(module => ({ default: module.AdminAuthPage })));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then(module => ({ default: module.NotificationsPage })));
 const NotificationSettingsPage = lazy(() => import('./pages/NotificationSettingsPage').then(module => ({ default: module.NotificationSettingsPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then(module => ({ default: module.SettingsPage })));
@@ -136,7 +144,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
           <NavLink to="/me" icon={<User size={20} />} label="プロフィール" active={location.pathname === '/me'} />
 
           {isAdmin && (
-            <NavLink to="/admin" icon={<ShieldCheck size={20} />} label="管理" active={location.pathname === '/admin'} />
+            <NavLink to="/admin" icon={<ShieldCheck size={20} />} label="管理" active={location.pathname.startsWith('/admin')} />
           )}
         </div>
       </nav>
@@ -208,7 +216,16 @@ function App() {
             <Route path="/verify" element={<ProtectedRoute><SchoolVerificationPage /></ProtectedRoute>} />
             <Route path="/messages" element={<ProtectedRoute><ChatListPage /></ProtectedRoute>} />
             <Route path="/chat/:roomId" element={<ProtectedRoute><ChatRoomPage /></ProtectedRoute>} />
-            <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/auth" element={<AdminAuthPage />} />
+            <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
+              <Route index element={<AdminOverviewPage />} />
+              <Route path="users" element={<AdminUsersPage />} />
+              <Route path="reports" element={<AdminReportsPage />} />
+              <Route path="posts" element={<AdminPostsPage />} />
+              <Route path="comments" element={<AdminCommentsPage />} />
+              <Route path="audit" element={<AdminAuditLogPage />} />
+              <Route path="invites" element={<AdminInvitesPage />} />
+            </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
