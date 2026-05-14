@@ -60,7 +60,7 @@ export const PostDetailPage = () => {
       .from('posts')
       .select(`
         *,
-        profiles (*),
+        profiles!user_id (*),
         post_images (id, storage_path, sort_order)
       `)
       .eq('id', postId)
@@ -72,7 +72,7 @@ export const PostDetailPage = () => {
       if (user?.id === postData.user_id) {
         const { data: reqs } = await supabase
           .from('post_requests')
-          .select('*, profiles(display_name, completed_count)')
+          .select('*, profiles!requester_id(display_name, completed_count)')
           .eq('post_id', postId);
         if (reqs) setRequests(reqs as any);
       }
@@ -82,7 +82,7 @@ export const PostDetailPage = () => {
         .from('comments')
         .select(`
           *,
-          profiles (display_name)
+          profiles!user_id (display_name)
         `)
         .eq('post_id', postId)
         .order('created_at', { ascending: true });

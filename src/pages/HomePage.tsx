@@ -111,7 +111,7 @@ export const HomePage = () => {
       .from('posts')
       .select(`
         *,
-        profiles (*),
+        profiles!user_id (*),
         schools (name_ja),
         post_images (storage_path)
       `)
@@ -119,7 +119,9 @@ export const HomePage = () => {
       .order('created_at', { ascending: false })
       .range(from, to);
 
-    if (schoolIds.length > 0) {
+    // 학교 ID 필터링: 등록된 학교가 있는 경우에만 해당 학교 상품만 필터링
+    // 등록된 학교가 없는 경우(빈 배열)에는 전체 상품을 노출
+    if (schoolIds && schoolIds.length > 0) {
       query = query.in('school_id', schoolIds);
     }
 
@@ -139,9 +141,12 @@ export const HomePage = () => {
       query = query.or(`title.ilike.%${debouncedSearch}%,description.ilike.%${debouncedSearch}%`);
     }
 
-    const { data } = await query;
+    const { data, error } = await query;
     
-    if (data) {
+    if (error) {
+      console.error('Error fetching posts:', error);
+      setHasMore(false);
+    } else if (data) {
       if (isFirstPage) {
         setPosts(data as any[]);
       } else {
@@ -179,8 +184,11 @@ export const HomePage = () => {
 
   // Fetch posts when page or filters change
   useEffect(() => {
+    // 유저가 로그인 상태인데 학교 정보를 아직 불러오는 중이라면 대기
     if (user && !schoolsLoaded) return;
     if (fetchingSchools) return;
+    
+    // 학교 정보 로딩이 완료되었거나 비로그인 상태일 때 실행
     fetchPosts(mySchoolIds, page, page === 0);
   }, [page, mySchoolIds, fetchingSchools, schoolsLoaded, user, fetchPosts]);
 
@@ -322,7 +330,9 @@ export const HomePage = () => {
 
       <div className="flex items-center justify-between mb-6 px-2">
         <h2 className="text-2xl font-black text-slate-800">
-          {user && mySchoolIds.length > 0 ? '学校の出品情報' : '最新の出品フィード'}
+          {user && mySchoolIds.length > 0 
+            ? 'わが校の最新アイテム' 
+            : 'すべての最新アイテム'}
         </h2>
         {user && mySchoolIds.length > 0 && (
           <Link to="/schools" className="text-sm font-bold text-lime-600 flex items-center gap-1 hover:underline">
