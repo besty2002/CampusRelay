@@ -1,0 +1,1 @@
+const c="BGKPPYNvbaFAi0DoL9sgU5oklY8XhfkS8F6cQ38vfJC4lRHyWbLJffWY5Sb6bQN6m4e7i8lUq37T4tJrCMNvgu4";function l(e){const o="=".repeat((4-e.length%4)%4),a=(e+o).replace(/-/g,"+").replace(/_/g,"/"),r=window.atob(a),n=new Uint8Array(r.length);for(let t=0;t<r.length;++t)n[t]=r.charCodeAt(t);return n}export{c as PUBLIC_VAPID_KEY,l as urlB64ToUint8Array};

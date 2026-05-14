@@ -19,8 +19,40 @@
       }(window.location))
     </script>
     <!-- End Single Page Apps for GitHub Pages -->
-    <script type="module" crossorigin src="/CampusRelay/assets/index-D8Kg-HdP.js"></script>
-    <link rel="stylesheet" crossorigin href="/CampusRelay/assets/index-DHv5CxXd.css">
+    <script type="text/javascript">
+      (function() {
+        var resetKey = 'campusrelay-sw-reset-v2';
+        if (!('serviceWorker' in navigator) || !('caches' in window)) return;
+        if (sessionStorage.getItem(resetKey)) return;
+
+        window.addEventListener('load', function() {
+          Promise.all([
+            navigator.serviceWorker.getRegistrations(),
+            caches.keys()
+          ]).then(function(results) {
+            var registrations = results[0];
+            var cacheKeys = results[1];
+
+            return Promise.all(
+              registrations.map(function(registration) {
+                return registration.unregister();
+              }).concat(
+                cacheKeys.map(function(cacheKey) {
+                  return caches.delete(cacheKey);
+                })
+              )
+            );
+          }).then(function() {
+            sessionStorage.setItem(resetKey, '1');
+            window.location.reload();
+          }).catch(function() {
+            sessionStorage.setItem(resetKey, '1');
+          });
+        });
+      }());
+    </script>
+    <script type="module" crossorigin src="/CampusRelay/assets/index-KD8I9WvZ.js"></script>
+    <link rel="stylesheet" crossorigin href="/CampusRelay/assets/index-BRkFsujB.css">
   <link rel="manifest" href="/CampusRelay/manifest.webmanifest"></head>
   <body>
     <div id="root"></div>
