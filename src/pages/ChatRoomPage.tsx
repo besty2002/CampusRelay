@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -10,7 +10,7 @@ import { AppointmentModal } from '../components/AppointmentModal';
 import { ReviewModal } from '../components/ReviewModal';
 import { StatusBadge } from '../components/StatusBadge';
 
-// ─── Helpers ───────────────────────────────────────────────
+// 笏笏笏 Helpers 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 const formatTime = (dateStr: string) =>
   new Date(dateStr).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
@@ -28,7 +28,7 @@ const isSameDay = (a: string, b: string) => {
     da.getDate() === db.getDate();
 };
 
-// ─── Typing Indicator Dots ─────────────────────────────────
+// 笏笏笏 Typing Indicator Dots 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 const TypingIndicator = () => (
   <div className="flex justify-start mb-3">
     <div className="flex items-end gap-2">
@@ -46,7 +46,7 @@ const TypingIndicator = () => (
   </div>
 );
 
-// ─── Main Component ────────────────────────────────────────
+// 笏笏笏 Main Component 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 export const ChatRoomPage = () => {
   const { roomId } = useParams();
   const { user } = useAuth();
@@ -70,11 +70,13 @@ export const ChatRoomPage = () => {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
+  const [editingAppointmentId, setEditingAppointmentId] = useState<string | null>(null);
+  const [appointmentDraft, setAppointmentDraft] = useState<{ date: string; location: string } | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewTargetUserId, setReviewTargetUserId] = useState('');
   const headerMenuRef = useRef<HTMLDivElement>(null);
 
-  // ─── Fetch Room & Messages ────────────────────────────────
+  // 笏笏笏 Fetch Room & Messages 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
   const fetchRoomAndMessages = useCallback(async () => {
     if (!roomId) return;
     setLoading(true);
@@ -111,7 +113,7 @@ export const ChatRoomPage = () => {
     setLoading(false);
   }, [roomId]);
 
-  // ─── Fetch only NEW messages (for polling fallback) ───────
+  // 笏笏笏 Fetch only NEW messages (for polling fallback) 笏笏笏笏笏笏笏
   const fetchNewMessages = useCallback(async () => {
     if (!roomId) return;
     
@@ -124,7 +126,7 @@ export const ChatRoomPage = () => {
       .eq('room_id', roomId)
       .order('created_at', { ascending: true });
 
-    // 마지막 메시지 이후의 것만 가져옴
+    // ・溢ｧ・・・肥亨・ ・ｴ弡・攪 ・・ｧ・・・ｸ・ｴ
     if (lastMessageTimeRef.current) {
       query.gt('created_at', lastMessageTimeRef.current);
     }
@@ -142,7 +144,7 @@ export const ChatRoomPage = () => {
     }
   }, [roomId]);
 
-  // ─── Start/Stop Polling ───────────────────────────────────
+  // 笏笏笏 Start/Stop Polling 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
   const startPolling = useCallback(() => {
     if (pollingRef.current) return;
     console.log('[Chat] Starting fallback polling (3s interval)');
@@ -159,7 +161,7 @@ export const ChatRoomPage = () => {
     }
   }, []);
 
-  // ─── Mark messages as read (defensive) ────────────────────
+  // 笏笏笏 Mark messages as read (defensive) 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
   const markMessagesAsRead = useCallback(async () => {
     if (!user || !roomId || !room) return;
 
@@ -179,18 +181,18 @@ export const ChatRoomPage = () => {
         .update(isSeller ? { unread_count_seller: 0 } : { unread_count_buyer: 0 })
         .eq('id', roomId);
     } catch (err) {
-      // is_read 컬럼이 없어도 에러 무시
+      // is_read ・ｬ・ｼ・ｴ ・・牟・・・尖洳 ・ｴ・・
       console.warn('[Chat] markMessagesAsRead failed (is_read column may not exist):', err);
     }
   }, [user, roomId, room]);
 
-  // ─── Realtime Subscription + Polling Fallback ─────────────
+  // 笏笏笏 Realtime Subscription + Polling Fallback 笏笏笏笏笏笏笏笏笏笏笏笏笏
   useEffect(() => {
     if (!user || !roomId) return;
 
     fetchRoomAndMessages();
 
-    // ★ 항상 polling도 시작 (Realtime 성공하면 멈춤)
+    // 笘・﨑ｭ・・polling・・・懍梠 (Realtime ・ｱ・ｵ﨑俯ｩｴ ・溢ｶ､)
     startPolling();
 
     // 1) Messages subscription with status logging
@@ -204,21 +206,21 @@ export const ChatRoomPage = () => {
       }, async (payload) => {
         console.log('[Realtime] INSERT received:', payload.new.id);
 
-        // ★ 먼저 payload에서 바로 메시지 추가 (빠른 반영)
+        // 笘・・ｼ・ payload・川・ ・罷｡・・肥亨・ ・緋ｰ (・・ｸ ・們・)
         const newMsg = payload.new as any;
         setMessages(prev => {
           if (prev.some(m => m.id === newMsg.id)) return prev;
-          // payload에 profiles 정보가 없으므로 임시 추가
+          // payload・・profiles ・簿ｳｴ・ ・・愍・・・・・亨 ・緋ｰ
           const msgWithProfile = {
             ...newMsg,
             is_read: newMsg.is_read ?? false,
-            profiles: { display_name: '' } // 임시
+            profiles: { display_name: '' } // ・・亨
           };
           lastMessageTimeRef.current = newMsg.created_at;
           return [...prev, msgWithProfile];
         });
 
-        // 그 다음 full data를 가져와서 업데이트
+        // ・ｸ ・､・・full data・ｼ ・・ｸ・・・・・魂・ｴ孖ｸ
         const { data } = await supabase
           .from('chat_messages')
           .select(`
@@ -233,7 +235,7 @@ export const ChatRoomPage = () => {
             prev.map(m => m.id === data.id ? (data as any) : m)
           );
 
-          // 상대방 메시지면 읽음 처리 (에러 무시)
+          // ・・劇・ｩ ・肥亨・・ｴ ・ｽ・・・俯ｦｬ (・尖洳 ・ｴ・・
           if (data.sender_id !== user.id) {
             supabase
               .from('chat_messages')
@@ -261,12 +263,12 @@ export const ChatRoomPage = () => {
       .subscribe((status, err) => {
         console.log(`[Realtime] Message channel status: ${status}`, err || '');
         if (status === 'SUBSCRIBED') {
-          console.log('[Realtime] ✅ Successfully subscribed to messages');
+          console.log('[Realtime] 笨・Successfully subscribed to messages');
           setRealtimeConnected(true);
-          // Realtime 성공하면 polling 중지
+          // Realtime ・ｱ・ｵ﨑俯ｩｴ polling ・卓ｧ
           stopPolling();
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.warn('[Realtime] ❌ Subscription failed, keeping polling active');
+          console.warn('[Realtime] 笶・Subscription failed, keeping polling active');
           setRealtimeConnected(false);
           startPolling();
         } else if (status === 'CLOSED') {
@@ -275,7 +277,7 @@ export const ChatRoomPage = () => {
         }
       });
 
-    // 2) Presence channel (타이핑 인디케이터)
+    // 2) Presence channel (夋・ｴ﨑・・ｸ・肥ｼ・ｴ奓ｰ)
     const presenceChannel = supabase.channel(`presence:${roomId}`);
     presenceChannelRef.current = presenceChannel;
 
@@ -293,7 +295,7 @@ export const ChatRoomPage = () => {
         }
       });
 
-    // ★ Cleanup
+    // 笘・Cleanup
     return () => {
       supabase.removeChannel(messageChannel);
       supabase.removeChannel(presenceChannel);
@@ -302,19 +304,19 @@ export const ChatRoomPage = () => {
     };
   }, [user, roomId, fetchRoomAndMessages, startPolling, stopPolling, fetchNewMessages]);
 
-  // ─── Mark as read when room loads ─────────────────────────
+  // 笏笏笏 Mark as read when room loads 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
   useEffect(() => {
     if (!loading && room && messages.length > 0) {
       markMessagesAsRead();
     }
   }, [loading, room, messages.length, markMessagesAsRead]);
 
-  // ─── Auto scroll ──────────────────────────────────────────
+  // 笏笏笏 Auto scroll 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isPartnerTyping]);
 
-  // ─── Scroll detection ─────────────────────────────────────
+  // 笏笏笏 Scroll detection 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
   const handleScroll = () => {
     const container = messagesContainerRef.current;
     if (!container) return;
@@ -335,7 +337,7 @@ export const ChatRoomPage = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showHeaderMenu]);
 
-  // ─── Typing broadcast ─────────────────────────────────────
+  // 笏笏笏 Typing broadcast 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
 
@@ -349,14 +351,32 @@ export const ChatRoomPage = () => {
     }
   };
 
-  // ─── Image Upload ─────────────────────────────────────────
+  const closeAppointmentModal = () => {
+    setIsAppointmentModalOpen(false);
+    setEditingAppointmentId(null);
+    setAppointmentDraft(null);
+  };
+
+  const openNewAppointmentModal = () => {
+    setEditingAppointmentId(null);
+    setAppointmentDraft(null);
+    setIsAppointmentModalOpen(true);
+  };
+
+  const openEditAppointmentModal = (messageId: string, data: { date: string; location: string }) => {
+    setEditingAppointmentId(messageId);
+    setAppointmentDraft(data);
+    setIsAppointmentModalOpen(true);
+  };
+
+  // 笏笏笏 Image Upload 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     let file = e.target.files?.[0];
     if (!file || !user || !roomId) return;
     
     setUploadingImage(true);
     try {
-      // 1. 브라우저 단 이미지 압축 적용 (1MB 이하로)
+      // 1. ・誤攵・ｰ・ ・ｨ ・ｴ・ｸ・ ・菩ｶ・・・圸 (1MB ・ｴ﨑俯｡・
       if (file.type.startsWith('image/')) {
         try {
           const options = {
@@ -366,7 +386,7 @@ export const ChatRoomPage = () => {
           };
           file = await imageCompression(file, options);
         } catch (compError) {
-          console.error('채팅 이미지 압축 실패:', compError);
+          console.error('・・桁 ・ｴ・ｸ・ ・菩ｶ・・､甯ｨ:', compError);
         }
       }
 
@@ -384,7 +404,7 @@ export const ChatRoomPage = () => {
         .from('chat-images')
         .getPublicUrl(filePath);
 
-      // 낙관적 UI
+      // ・呟ｴ・・UI
       const optimisticId = `optimistic-img-${Date.now()}`;
       const optimisticMsg: ChatMessage = {
         id: optimisticId,
@@ -398,7 +418,7 @@ export const ChatRoomPage = () => {
       };
       setMessages(prev => [...prev, optimisticMsg]);
 
-      // DB 저장
+      // DB ・・･
       const { data, error } = await supabase
         .from('chat_messages')
         .insert({
@@ -427,12 +447,12 @@ export const ChatRoomPage = () => {
     }
   };
 
-  // ─── Status Change ────────────────────────────────────────
+  // 笏笏笏 Status Change 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
   const handleStatusChange = async (newStatus: PostStatus) => {
     if (!room || !roomId) return;
     setShowStatusMenu(false);
     
-    // 낙관적 업데이트
+    // ・呟ｴ・・・・魂・ｴ孖ｸ
     setRoom(prev => prev ? { ...prev, posts: { ...prev.posts, status: newStatus } } : null);
     
     const { error } = await supabase
@@ -444,7 +464,7 @@ export const ChatRoomPage = () => {
       alert('状態変更に失敗しました: ' + error.message);
       setRoom(prev => prev ? { ...prev, posts: { ...prev.posts, status: room.posts.status } } : null);
     } else {
-      // 거래 완료(Given)로 변경 시 리뷰 모달 표시
+      // ・ｰ・・・・｣・Given)・・・・ｽ ・・・ｬ・ｰ ・ｨ・ｬ 岺懍亨
       if (newStatus === 'Given') {
         setReviewTargetUserId(isSeller ? room.buyer_id : room.seller_id);
         setShowReviewModal(true);
@@ -452,7 +472,7 @@ export const ChatRoomPage = () => {
     }
   };
 
-  // ─── Send message (낙관적 업데이트) ───────────────────────
+  // 笏笏笏 Send message (・呟ｴ・・・・魂・ｴ孖ｸ) 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !user || !roomId) return;
@@ -465,7 +485,7 @@ export const ChatRoomPage = () => {
       presenceChannelRef.current.track({ user_id: user.id, is_typing: false });
     }
 
-    // ★ 낙관적 업데이트: INSERT 전에 UI에 먼저 표시
+    // 笘・・呟ｴ・・・・魂・ｴ孖ｸ: INSERT ・・乱 UI・・・ｼ・ 岺懍亨
     const optimisticId = `optimistic-${Date.now()}`;
     const optimisticMsg: ChatMessage = {
       id: optimisticId,
@@ -492,16 +512,16 @@ export const ChatRoomPage = () => {
       .single();
 
     if (error) {
-      // 실패 시 낙관적 메시지 제거 + 입력 복원
+      // ・､甯ｨ ・・・呟ｴ・・・肥亨・ ・懋ｱｰ + ・・･ ・ｵ・・
       setMessages(prev => prev.filter(m => m.id !== optimisticId));
       setNewMessage(messageText);
       alert(error.message);
     } else if (data) {
-      // 성공 시 낙관적 메시지를 실제 데이터로 교체
+      // ・ｱ・ｵ ・・・呟ｴ・・・肥亨・・ｼ ・､・・・ｰ・ｴ奓ｰ・・・川ｲｴ
       lastMessageTimeRef.current = data.created_at;
       setMessages(prev =>
         prev.map(m => m.id === optimisticId ? (data as any) : m)
-          // Realtime이 먼저 도착한 경우 중복 제거
+          // Realtime・ｴ ・ｼ・ ・・ｰｩ﨑・・ｽ・ｰ ・瀧ｳｵ ・懋ｱｰ
           .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
       );
     }
@@ -511,8 +531,67 @@ export const ChatRoomPage = () => {
     if (!user || !roomId) return;
 
     const msgText = '取引の約束を提案しました。';
+
+    if (editingAppointmentId) {
+      const originalMessage = messages.find(m => m.id === editingAppointmentId);
+      if (!originalMessage?.appointment_data) return;
+
+      const originalAppointment = originalMessage.appointment_data;
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === editingAppointmentId
+            ? {
+                ...m,
+                text: msgText,
+                appointment_data: {
+                  ...m.appointment_data!,
+                  date: data.date,
+                  location: data.location,
+                  status: 'proposed',
+                },
+              }
+            : m
+        )
+      );
+
+      try {
+        const { error } = await supabase
+          .from('chat_messages')
+          .update({
+            text: msgText,
+            appointment_data: {
+              ...originalAppointment,
+              date: data.date,
+              location: data.location,
+              status: 'proposed',
+            },
+          })
+          .eq('id', editingAppointmentId);
+
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error editing appointment:', error);
+        alert('予定の更新に失敗しました。');
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === editingAppointmentId
+              ? {
+                  ...m,
+                  text: originalMessage.text,
+                  appointment_data: originalAppointment,
+                }
+              : m
+          )
+        );
+      } finally {
+        setEditingAppointmentId(null);
+        setAppointmentDraft(null);
+      }
+
+      return;
+    }
     
-    // 낙관적 UI
+    // ・呟ｴ・・UI
     const optimisticId = `optimistic-appt-${Date.now()}`;
     const optimisticMsg: ChatMessage = {
       id: optimisticId,
@@ -559,6 +638,9 @@ export const ChatRoomPage = () => {
       console.error('Error creating appointment:', error);
       alert('約束の提案に失敗しました。');
       setMessages(prev => prev.filter(m => m.id !== optimisticId));
+    } finally {
+      setEditingAppointmentId(null);
+      setAppointmentDraft(null);
     }
   };
 
@@ -568,7 +650,7 @@ export const ChatRoomPage = () => {
     const msg = messages.find(m => m.id === msgId);
     if (!msg || !msg.appointment_data) return;
 
-    // 낙관적 UI
+    // ・呟ｴ・・UI
     setMessages(prev => prev.map(m => 
       m.id === msgId 
         ? { ...m, appointment_data: { ...m.appointment_data!, status: newStatus } } 
@@ -590,7 +672,7 @@ export const ChatRoomPage = () => {
     } catch (error) {
       console.error('Error updating appointment:', error);
       alert('状態の更新に失敗しました。');
-      // 롤백
+      // ・､・ｱ
       setMessages(prev => prev.map(m => 
         m.id === msgId 
           ? { ...m, appointment_data: { ...m.appointment_data!, status: msg.appointment_data!.status } } 
@@ -599,7 +681,7 @@ export const ChatRoomPage = () => {
     }
   };
 
-  // ─── Loading State ────────────────────────────────────────
+  // 笏笏笏 Loading State 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
   if (loading) return (
     <div className="fixed inset-0 w-full flex justify-center bg-[#8ECBAF] z-[100]">
       <div className="flex flex-col h-[100dvh] w-full max-w-2xl relative overflow-hidden shadow-2xl bg-[#8ECBAF]">
@@ -626,7 +708,7 @@ export const ChatRoomPage = () => {
     <div className="fixed inset-0 w-full flex justify-center bg-[#8ECBAF] z-[100]">
       <div className="flex flex-col h-[100dvh] w-full max-w-2xl relative overflow-hidden shadow-2xl" style={{ background: 'linear-gradient(180deg, #8ECBAF 0%, #7BBBA0 100%)' }}>
 
-      {/* ═══ LINE-style Header ═══ */}
+      {/* 笊絶武笊・LINE-style Header 笊絶武笊・*/}
       <header className="bg-[#06C755] text-white px-4 py-3 flex items-center gap-3 shrink-0 shadow-md z-20">
         <button 
           onClick={() => navigate(-1)} 
@@ -640,7 +722,7 @@ export const ChatRoomPage = () => {
           {!realtimeConnected && (
             <div className="flex items-center justify-center gap-1 mt-0.5">
               <WifiOff size={10} className="text-white/60" />
-              <span className="text-[9px] text-white/60 font-medium">自動更新中</span>
+              <span className="text-[9px] text-white/60 font-medium">接続を確認中</span>
             </div>
           )}
         </div>
@@ -675,7 +757,7 @@ export const ChatRoomPage = () => {
               <button
                 onClick={() => {
                   setShowHeaderMenu(false);
-                  setIsAppointmentModalOpen(true);
+                  openNewAppointmentModal();
                 }}
                 className="w-full px-4 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100"
               >
@@ -686,7 +768,7 @@ export const ChatRoomPage = () => {
         </div>
       </header>
 
-      {/* ═══ Item Card & Status Controller ═══ */}
+      {/* 笊絶武笊・Item Card & Status Controller 笊絶武笊・*/}
       <div className="mx-3 mt-2 mb-1 flex items-center gap-3 p-2.5 bg-white/90 backdrop-blur-md rounded-xl shadow-sm z-10 relative">
         <Link to={`/post/${room?.post_id}`} className="flex-1 flex items-center gap-3 min-w-0 group cursor-pointer">
           <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden shrink-0">
@@ -729,7 +811,7 @@ export const ChatRoomPage = () => {
         )}
       </div>
 
-      {/* ═══ Messages Area ═══ */}
+      {/* 笊絶武笊・Messages Area 笊絶武笊・*/}
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
@@ -749,7 +831,7 @@ export const ChatRoomPage = () => {
 
           return (
             <div key={msg.id}>
-              {/* ─── Date Separator ─── */}
+              {/* 笏笏笏 Date Separator 笏笏笏 */}
               {showDate && (
                 <div className="flex justify-center my-4">
                   <span className="bg-black/20 text-white text-[11px] font-medium px-4 py-1 rounded-full backdrop-blur-sm">
@@ -758,7 +840,7 @@ export const ChatRoomPage = () => {
                 </div>
               )}
 
-              {/* ─── Message Bubble ─── */}
+              {/* 笏笏笏 Message Bubble 笏笏笏 */}
               <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${isLastInGroup ? 'mb-3' : 'mb-0.5'}`}>
                 {/* Other's avatar (only first in group) */}
                 {!isMe && (
@@ -790,7 +872,7 @@ export const ChatRoomPage = () => {
                     >
                       {msg.image_url && (
                         <div className="p-1 cursor-pointer" onClick={() => window.open(msg.image_url, '_blank')}>
-                          <img src={msg.image_url} alt="첨부 이미지" className="max-w-[200px] max-h-[250px] sm:max-w-[240px] rounded-xl object-cover" />
+                          <img src={msg.image_url} alt="送信画像" className="max-w-[200px] max-h-[250px] sm:max-w-[240px] rounded-xl object-cover" />
                         </div>
                       )}
                       
@@ -840,6 +922,38 @@ export const ChatRoomPage = () => {
                               </button>
                             </div>
                           )}
+
+                          {(isMe && msg.appointment_data.status === 'proposed') && (
+                            <button
+                              onClick={() =>
+                                openEditAppointmentModal(msg.id, {
+                                  date: msg.appointment_data!.date,
+                                  location: msg.appointment_data!.location,
+                                })
+                              }
+                              className="mt-2 w-full py-2 bg-white/15 hover:bg-white/25 text-white text-xs font-bold rounded-xl transition-colors"
+                            >
+                              日程を編集する
+                            </button>
+                          )}
+
+                          {msg.appointment_data.status === 'canceled' && (
+                            <button
+                              onClick={() =>
+                                openEditAppointmentModal(msg.id, {
+                                  date: msg.appointment_data!.date,
+                                  location: msg.appointment_data!.location,
+                                })
+                              }
+                              className={`mt-2 w-full py-2 text-xs font-bold rounded-xl transition-colors ${
+                                isMe
+                                  ? 'bg-white/15 hover:bg-white/25 text-white'
+                                  : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+                              }`}
+                            >
+                              再提案する
+                            </button>
+                          )}
                         </div>
                       )}
 
@@ -872,7 +986,7 @@ export const ChatRoomPage = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ═══ Scroll to bottom button ═══ */}
+      {/* 笊絶武笊・Scroll to bottom button 笊絶武笊・*/}
       {showScrollDown && (
         <button
           onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
@@ -882,7 +996,7 @@ export const ChatRoomPage = () => {
         </button>
       )}
 
-      {/* ═══ LINE-style Input Bar ═══ */}
+      {/* 笊絶武笊・LINE-style Input Bar 笊絶武笊・*/}
       <footer className="bg-[#F7F8FA] border-t border-slate-200 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] shrink-0">
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
           <input
@@ -894,7 +1008,7 @@ export const ChatRoomPage = () => {
           />
           <button 
             type="button"
-            onClick={() => setIsAppointmentModalOpen(true)}
+            onClick={openNewAppointmentModal}
             className="w-9 h-9 rounded-full bg-lime-100 flex items-center justify-center text-lime-600 hover:bg-lime-200 active:scale-90 transition-all shrink-0"
             title="取引の約束"
           >
@@ -933,8 +1047,11 @@ export const ChatRoomPage = () => {
       {/* Appointment Modal */}
       <AppointmentModal 
         isOpen={isAppointmentModalOpen}
-        onClose={() => setIsAppointmentModalOpen(false)}
+        onClose={closeAppointmentModal}
         onSubmit={handleCreateAppointment}
+        initialData={appointmentDraft}
+        title={editingAppointmentId ? '取引予定を編集' : '取引予定を作成'}
+        submitLabel={editingAppointmentId ? '変更を送信する' : '予定を送信する'}
       />
 
       {/* Review Modal */}
@@ -952,3 +1069,4 @@ export const ChatRoomPage = () => {
     </div>
   );
 };
+

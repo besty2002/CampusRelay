@@ -1,12 +1,5 @@
 export type PostMode = 'GIVEAWAY' | 'EXCHANGE';
-export type PostCategory = 
-  | 'Uniform' 
-  | 'Textbook' 
-  | 'Digital' 
-  | 'Life' 
-  | 'ArtSport' 
-  | 'Other';
-
+export type PostCategory = 'Uniform' | 'Textbook' | 'Digital' | 'Life' | 'ArtSport' | 'Other';
 export type PostCondition = 'Like New' | 'Good' | 'Used';
 export type PostStatus = 'Available' | 'Reserved' | 'Given' | 'Hidden';
 
@@ -119,8 +112,8 @@ export const MANNER_TAGS_POSITIVE = [
   '時間を守る',
   '丁寧な対応',
   '返信が早い',
-  '商品が綺麗',
-  '説明通り',
+  '受け渡しがスムーズ',
+  '説明がわかりやすい',
   'また取引したい',
 ] as const;
 

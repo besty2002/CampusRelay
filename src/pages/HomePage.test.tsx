@@ -59,6 +59,7 @@ vi.mock('../lib/supabase', () => ({
 
 vi.mock('react-router-dom', () => ({
   Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 
 vi.mock('../components/VerifiedBadge', () => ({

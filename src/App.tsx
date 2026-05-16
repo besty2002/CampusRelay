@@ -87,13 +87,17 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
     const channel = supabase
       .channel('nav-unread')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'chat_rooms',
-      }, () => {
-        fetchUnreadCount();
-      })
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_rooms',
+        },
+        () => {
+          fetchUnreadCount();
+        }
+      )
       .subscribe();
 
     return () => {
@@ -116,9 +120,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
       <OfflineBanner />
-      <div className="max-w-4xl mx-auto">
-        {children}
-      </div>
+      <div className="max-w-4xl mx-auto">{children}</div>
 
       <nav className="fixed bottom-0 w-full bg-white/80 backdrop-blur-lg border-t border-slate-100 px-2 py-3 z-50">
         <div className="max-w-md mx-auto flex justify-between items-center gap-1">
@@ -135,16 +137,14 @@ const Layout = ({ children }: { children: ReactNode }) => {
           <NavLink to="/messages" icon={<MessageCircle size={20} />} label="トーク" active={location.pathname === '/messages'} badge={unreadMessages} />
           <NavLink to="/me" icon={<User size={20} />} label="プロフィール" active={location.pathname === '/me'} />
 
-          {isAdmin && (
-            <NavLink to="/admin" icon={<ShieldCheck size={20} />} label="管理" active={location.pathname === '/admin'} />
-          )}
+          {isAdmin && <NavLink to="/admin" icon={<ShieldCheck size={20} />} label="管理" active={location.pathname === '/admin'} />}
         </div>
       </nav>
     </div>
   );
 };
 
-const NavLink = ({ to, icon, label, active, badge }: { to: string, icon: ReactNode, label: string, active: boolean, badge?: number }) => (
+const NavLink = ({ to, icon, label, active, badge }: { to: string; icon: ReactNode; label: string; active: boolean; badge?: number }) => (
   <Link to={to} className={`flex flex-col items-center gap-1 transition-all flex-1 relative ${active ? 'text-lime-600 scale-110' : 'text-slate-400'}`}>
     <div className="relative">
       {icon}
@@ -170,9 +170,7 @@ const MissingConfigPage = () => (
       <div className="mt-6 rounded-2xl bg-slate-950 p-4 text-sm text-slate-100">
         <pre className="whitespace-pre-wrap font-mono">VITE_SUPABASE_URL=your-project-url{'\n'}VITE_SUPABASE_ANON_KEY=your-anon-key</pre>
       </div>
-      <p className="mt-4 text-xs leading-5 text-slate-500">
-        Missing now: {missingPublicEnvVars.join(', ')}
-      </p>
+      <p className="mt-4 text-xs leading-5 text-slate-500">Missing now: {missingPublicEnvVars.join(', ')}</p>
       <p className="mt-4 text-xs leading-5 text-slate-500">
         You can start from <code className="rounded bg-slate-100 px-1.5 py-0.5">.env.example</code>. Once those values are set, the normal app will load again.
       </p>

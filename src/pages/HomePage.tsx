@@ -1,24 +1,26 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Post, PostCategory, PostCondition } from '../types';
-import { 
-  Search, 
-  Plus, 
-  School, 
-  ArrowRight, 
-  Star, 
-  Book, 
-  Shirt, 
-  LayoutGrid, 
-  Layers, 
+import {
+  Search,
+  Plus,
+  School,
+  ArrowRight,
+  Star,
+  Book,
+  Shirt,
+  LayoutGrid,
+  Layers,
   Heart,
   Cpu,
   Palette,
   Coffee,
   Filter,
   X,
-  Loader2
+  Loader2,
+  ArrowDownWideNarrow,
+  History,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { VerifiedBadge } from '../components/VerifiedBadge';
@@ -27,7 +29,7 @@ import { PostCardSkeleton } from '../components/skeletons/PostCardSkeleton';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { StatusBadge } from '../components/StatusBadge';
 
-export const CATEGORY_MAP: Record<PostCategory, { label: string, icon: any, color: string }> = {
+export const CATEGORY_MAP: Record<PostCategory, { label: string; icon: any; color: string }> = {
   Uniform: { label: '制服・衣類', icon: Shirt, color: 'bg-blue-50 text-blue-600' },
   Textbook: { label: '教科書・書籍', icon: Book, color: 'bg-amber-50 text-amber-600' },
   Digital: { label: 'IT・デジタル', icon: Cpu, color: 'bg-purple-50 text-purple-600' },
@@ -36,7 +38,7 @@ export const CATEGORY_MAP: Record<PostCategory, { label: string, icon: any, colo
   Other: { label: 'その他', icon: Layers, color: 'bg-slate-50 text-slate-600' },
 };
 
-const CATEGORY_LIST: { id: PostCategory | 'All', label: string, icon: any }[] = [
+const CATEGORY_LIST: { id: PostCategory | 'All'; label: string; icon: any }[] = [
   { id: 'All', label: 'すべて', icon: LayoutGrid },
   { id: 'Uniform', label: '制服・衣類', icon: Shirt },
   { id: 'Textbook', label: '教科書・書籍', icon: Book },
@@ -46,37 +48,93 @@ const CATEGORY_LIST: { id: PostCategory | 'All', label: string, icon: any }[] = 
   { id: 'Other', label: 'その他', icon: Layers },
 ];
 
-const CONDITION_LIST: { id: PostCondition | 'All', label: string }[] = [
+const CONDITION_LIST: { id: PostCondition | 'All'; label: string }[] = [
   { id: 'All', label: 'すべて' },
   { id: 'Like New', label: '未使用に近い' },
   { id: 'Good', label: '目立った傷なし' },
   { id: 'Used', label: '使用感あり' },
 ];
 
+const SORT_OPTIONS = [
+  { id: 'newest', label: '新着順' },
+  { id: 'oldest', label: '古い順' },
+] as const;
+
+type SortOption = (typeof SORT_OPTIONS)[number]['id'];
+
 const PAGE_SIZE = 20;
+const RECENT_SEARCHES_KEY = 'campusrelay:home-recent-searches';
 
 export const HomePage = () => {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [posts, setPosts] = useState<Post[]>([]);
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [activeCategory, setActiveCategory] = useState<PostCategory | 'All'>('All');
-  const [activeCondition, setActiveCondition] = useState<PostCondition | 'All'>('All');
-  const [sizeFilter, setSizeFilter] = useState('');
+  const [activeCategory, setActiveCategory] = useState<PostCategory | 'All'>(() => {
+    const category = searchParams.get('category');
+    return CATEGORY_LIST.some(item => item.id === category) ? (category as PostCategory | 'All') : 'All';
+  });
+  const [activeCondition, setActiveCondition] = useState<PostCondition | 'All'>(() => {
+    const condition = searchParams.get('condition');
+    return CONDITION_LIST.some(item => item.id === condition) ? (condition as PostCondition | 'All') : 'All';
+  });
+  const [sizeFilter, setSizeFilter] = useState(() => searchParams.get('size') ?? '');
+  const [sortBy, setSortBy] = useState<SortOption>(() => {
+    const sort = searchParams.get('sort');
+    return SORT_OPTIONS.some(option => option.id === sort) ? (sort as SortOption) : 'newest';
+  });
   const [mySchoolIds, setMySchoolIds] = useState<string[]>([]);
   const [fetchingSchools, setFetchingSchools] = useState(false);
   const [schoolsLoaded, setSchoolsLoaded] = useState(!user);
   const [showFilters, setShowFilters] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   const { page, hasMore, setHasMore, loadingMore, setLoadingMore, sentinelRef, reset } = useInfiniteScroll({ pageSize: PAGE_SIZE });
 
-  // Debounce search input
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 400);
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
     return () => clearTimeout(timer);
   }, [search]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem(RECENT_SEARCHES_KEY);
+    if (!stored) return;
+
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        setRecentSearches(parsed.filter((value): value is string => typeof value === 'string'));
+      }
+    } catch {
+      window.localStorage.removeItem(RECENT_SEARCHES_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+    if (search.trim()) nextParams.set('q', search.trim());
+    if (activeCategory !== 'All') nextParams.set('category', activeCategory);
+    if (activeCondition !== 'All') nextParams.set('condition', activeCondition);
+    if (sizeFilter.trim()) nextParams.set('size', sizeFilter.trim());
+    if (sortBy !== 'newest') nextParams.set('sort', sortBy);
+    setSearchParams(nextParams, { replace: true });
+  }, [search, activeCategory, activeCondition, sizeFilter, sortBy, setSearchParams]);
+
+  useEffect(() => {
+    if (!debouncedSearch) return;
+    if (typeof window === 'undefined') return;
+
+    setRecentSearches((prev) => {
+      const next = [debouncedSearch, ...prev.filter(item => item !== debouncedSearch)].slice(0, 5);
+      window.localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, [debouncedSearch]);
 
   const fetchWishlist = useCallback(async () => {
     const { data } = await supabase.from('wishlists').select('post_id').eq('user_id', user?.id);
@@ -86,85 +144,86 @@ export const HomePage = () => {
   const fetchMySchools = useCallback(async () => {
     setFetchingSchools(true);
     setSchoolsLoaded(false);
-    const { data } = await supabase
-      .from('user_schools')
-      .select('school_id')
-      .eq('user_id', user?.id);
-    
+
+    const { data } = await supabase.from('user_schools').select('school_id').eq('user_id', user?.id);
     const ids = data?.map(d => d.school_id) || [];
+
     setMySchoolIds(ids);
     setFetchingSchools(false);
     setSchoolsLoaded(true);
   }, [user?.id]);
 
-  const fetchPosts = useCallback(async (schoolIds: string[], pageNum: number, isFirstPage: boolean) => {
-    if (isFirstPage) {
-      setLoading(true);
-    } else {
-      setLoadingMore(true);
-    }
-
-    const from = pageNum * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
-
-    let query = supabase
-      .from('posts')
-      .select(`
-        *,
-        profiles (*),
-        schools (name_ja),
-        post_images (storage_path)
-      `)
-      .eq('status', 'Available')
-      .order('created_at', { ascending: false })
-      .range(from, to);
-
-    if (schoolIds.length > 0) {
-      query = query.in('school_id', schoolIds);
-    }
-
-    if (activeCategory !== 'All') {
-      query = query.eq('category', activeCategory);
-    }
-
-    if (activeCondition !== 'All') {
-      query = query.eq('condition', activeCondition);
-    }
-
-    if (sizeFilter.trim()) {
-      query = query.ilike('item_size', `%${sizeFilter}%`);
-    }
-
-    if (debouncedSearch) {
-      query = query.or(`title.ilike.%${debouncedSearch}%,description.ilike.%${debouncedSearch}%`);
-    }
-
-    const { data } = await query;
-    
-    if (data) {
+  const fetchPosts = useCallback(
+    async (schoolIds: string[], pageNum: number, isFirstPage: boolean) => {
       if (isFirstPage) {
-        setPosts(data as any[]);
+        setLoading(true);
       } else {
-        setPosts(prev => {
-          const existingIds = new Set(prev.map(p => p.id));
-          const newPosts = (data as any[]).filter(p => !existingIds.has(p.id));
-          return [...prev, ...newPosts];
-        });
+        setLoadingMore(true);
       }
-      setHasMore(data.length === PAGE_SIZE);
-    } else {
-      setHasMore(false);
-    }
 
-    setLoading(false);
-    setLoadingMore(false);
-  }, [activeCategory, activeCondition, sizeFilter, debouncedSearch, setHasMore, setLoadingMore]);
+      const from = pageNum * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
 
-  // Reset pagination when filters change
+      let query = supabase
+        .from('posts')
+        .select(`
+          *,
+          profiles (*),
+          schools (name_ja),
+          post_images (storage_path, sort_order)
+        `)
+        .eq('status', 'Available')
+        .range(from, to);
+
+      query = query.order('created_at', { ascending: sortBy === 'oldest' });
+
+      if (schoolIds.length > 0) {
+        query = query.in('school_id', schoolIds);
+      }
+
+      if (activeCategory !== 'All') {
+        query = query.eq('category', activeCategory);
+      }
+
+      if (activeCondition !== 'All') {
+        query = query.eq('condition', activeCondition);
+      }
+
+      if (sizeFilter.trim()) {
+        query = query.ilike('item_size', `%${sizeFilter.trim()}%`);
+      }
+
+      if (debouncedSearch) {
+        query = query.or(`title.ilike.%${debouncedSearch}%,description.ilike.%${debouncedSearch}%,schools.name_ja.ilike.%${debouncedSearch}%`);
+      }
+
+      const { data } = await query;
+
+      if (data) {
+        if (isFirstPage) {
+          setPosts(data as any[]);
+        } else {
+          setPosts(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const newPosts = (data as any[]).filter(p => !existingIds.has(p.id));
+            return [...prev, ...newPosts];
+          });
+        }
+        setHasMore(data.length === PAGE_SIZE);
+      } else {
+        setHasMore(false);
+      }
+
+      setLoading(false);
+      setLoadingMore(false);
+    },
+    [activeCategory, activeCondition, sizeFilter, debouncedSearch, sortBy, setHasMore, setLoadingMore]
+  );
+
   useEffect(() => {
     setPosts([]);
     reset();
-  }, [debouncedSearch, activeCategory, activeCondition, sizeFilter, mySchoolIds, reset]);
+  }, [debouncedSearch, activeCategory, activeCondition, sizeFilter, sortBy, mySchoolIds, reset]);
 
   useEffect(() => {
     if (user) {
@@ -177,7 +236,6 @@ export const HomePage = () => {
     }
   }, [user, fetchMySchools, fetchWishlist, fetchPosts]);
 
-  // Fetch posts when page or filters change
   useEffect(() => {
     if (user && !schoolsLoaded) return;
     if (fetchingSchools) return;
@@ -202,7 +260,23 @@ export const HomePage = () => {
   const clearFilters = () => {
     setActiveCondition('All');
     setSizeFilter('');
+    setSortBy('newest');
   };
+
+  const removeRecentSearch = (value: string) => {
+    setRecentSearches((prev) => {
+      const next = prev.filter(item => item !== value);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+      }
+      return next;
+    });
+  };
+
+  const recentSearchChips = useMemo(
+    () => recentSearches.filter(item => item !== search.trim()).slice(0, 4),
+    [recentSearches, search]
+  );
 
   return (
     <div className="max-w-2xl mx-auto p-4 pb-32">
@@ -213,7 +287,7 @@ export const HomePage = () => {
         <p className="text-slate-500 font-medium italic">学校のニュースと出品をひと目で</p>
       </header>
 
-      <div className="flex gap-2 mb-8">
+      <div className="flex gap-2 mb-4">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input
@@ -224,11 +298,11 @@ export const HomePage = () => {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <button 
+        <button
           onClick={() => setShowFilters(!showFilters)}
           className={`px-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold ${
-            showFilters || activeCondition !== 'All' || sizeFilter 
-              ? 'bg-slate-800 text-white border-slate-800 shadow-lg shadow-slate-800/20' 
+            showFilters || activeCondition !== 'All' || sizeFilter || sortBy !== 'newest'
+              ? 'bg-slate-800 text-white border-slate-800 shadow-lg shadow-slate-800/20'
               : 'bg-white text-slate-400 border-slate-100'
           }`}
         >
@@ -237,13 +311,38 @@ export const HomePage = () => {
         </button>
       </div>
 
-      {/* Advanced Filters Panel */}
+      {recentSearchChips.length > 0 && !search.trim() && (
+        <div className="flex flex-wrap items-center gap-2 mb-6">
+          <span className="inline-flex items-center gap-1 text-[11px] font-black text-slate-400 uppercase tracking-widest">
+            <History size={12} /> 最近の検索
+          </span>
+          {recentSearchChips.map((item) => (
+            <button
+              key={item}
+              onClick={() => setSearch(item)}
+              className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full border border-slate-100 text-xs font-bold text-slate-600 hover:border-lime-200 hover:text-lime-600 transition-all"
+            >
+              <span>{item}</span>
+              <span
+                onClick={(event) => {
+                  event.stopPropagation();
+                  removeRecentSearch(item);
+                }}
+                className="text-slate-300 hover:text-red-400"
+              >
+                <X size={12} />
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {showFilters && (
         <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border border-slate-100 mb-8 animate-in slide-in-from-top-2 duration-300">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="font-black text-slate-800">詳細検索</h3>
+            <h3 className="font-black text-slate-800">詳細フィルタ</h3>
             <button onClick={clearFilters} className="text-xs font-black text-slate-400 hover:text-red-500 flex items-center gap-1">
-              <X size={14} /> フィルタ解除
+              <X size={14} /> 条件をリセット
             </button>
           </div>
 
@@ -256,9 +355,7 @@ export const HomePage = () => {
                     key={cond.id}
                     onClick={() => setActiveCondition(cond.id)}
                     className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                      activeCondition === cond.id 
-                        ? 'bg-lime-500 text-white shadow-md shadow-lime-500/20' 
-                        : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                      activeCondition === cond.id ? 'bg-lime-500 text-white shadow-md shadow-lime-500/20' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                     }`}
                   >
                     {cond.label}
@@ -266,9 +363,10 @@ export const HomePage = () => {
                 ))}
               </div>
             </div>
+
             <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">サイズ (例: 140, M, LL)</label>
-              <input 
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">サイズ（例：140、M、LL）</label>
+              <input
                 type="text"
                 value={sizeFilter}
                 onChange={(e) => setSizeFilter(e.target.value)}
@@ -276,30 +374,39 @@ export const HomePage = () => {
                 className="w-full p-3 bg-slate-50 rounded-xl border-none focus:ring-2 focus:ring-lime-500 outline-none font-bold text-sm transition-all"
               />
             </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">並び順</label>
+              <div className="flex flex-wrap gap-2">
+                {SORT_OPTIONS.map(option => (
+                  <button
+                    key={option.id}
+                    onClick={() => setSortBy(option.id)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      sortBy === option.id ? 'bg-slate-800 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    <ArrowDownWideNarrow size={14} />
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Category Quick Menu */}
       <div className="flex gap-4 overflow-x-auto pb-4 mb-8 no-scrollbar -mx-2 px-2">
         {CATEGORY_LIST.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => setActiveCategory(cat.id)}
-            className="flex flex-col items-center gap-2 shrink-0 group"
-          >
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
-              activeCategory === cat.id 
-                ? 'bg-lime-500 text-white shadow-lg shadow-lime-500/30 scale-110' 
-                : 'bg-white text-slate-400 border border-slate-100 hover:border-lime-200 hover:text-lime-500'
-            }`}>
+          <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className="flex flex-col items-center gap-2 shrink-0 group">
+            <div
+              className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
+                activeCategory === cat.id ? 'bg-lime-500 text-white shadow-lg shadow-lime-500/30 scale-110' : 'bg-white text-slate-400 border border-slate-100 hover:border-lime-200 hover:text-lime-500'
+              }`}
+            >
               <cat.icon size={24} />
             </div>
-            <span className={`text-[10px] font-black uppercase tracking-tighter ${
-              activeCategory === cat.id ? 'text-lime-600' : 'text-slate-400'
-            }`}>
-              {cat.label}
-            </span>
+            <span className={`text-[10px] font-black uppercase tracking-tighter ${activeCategory === cat.id ? 'text-lime-600' : 'text-slate-400'}`}>{cat.label}</span>
           </button>
         ))}
       </div>
@@ -308,12 +415,9 @@ export const HomePage = () => {
         <div className="bg-gradient-to-br from-lime-500 to-lime-600 rounded-[2.5rem] p-8 mb-8 text-white shadow-lg shadow-lime-500/30 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-700" />
           <div className="relative z-10">
-            <h3 className="text-xl font-black mb-2">登録された学校がありません！</h3>
+            <h3 className="text-xl font-black mb-2">登録された学校がありません</h3>
             <p className="text-lime-50 font-medium mb-6 opacity-90">学校を追加して、最新の出品情報をチェックしましょう。</p>
-            <Link 
-              to="/schools" 
-              className="inline-flex items-center gap-2 bg-white text-lime-600 px-6 py-3 rounded-xl font-black text-sm hover:shadow-xl active:scale-95 transition-all"
-            >
+            <Link to="/schools" className="inline-flex items-center gap-2 bg-white text-lime-600 px-6 py-3 rounded-xl font-black text-sm hover:shadow-xl active:scale-95 transition-all">
               学校を追加する <ArrowRight size={18} />
             </Link>
           </div>
@@ -321,12 +425,17 @@ export const HomePage = () => {
       )}
 
       <div className="flex items-center justify-between mb-6 px-2">
-        <h2 className="text-2xl font-black text-slate-800">
-          {user && mySchoolIds.length > 0 ? '学校の出品情報' : '最新の出品フィード'}
-        </h2>
+        <div>
+          <h2 className="text-2xl font-black text-slate-800">{user && mySchoolIds.length > 0 ? '学校の出品フィード' : '最新の出品フィード'}</h2>
+          {(debouncedSearch || sortBy !== 'newest') && (
+            <p className="mt-1 text-xs font-bold text-slate-400">
+              {debouncedSearch ? `「${debouncedSearch}」の検索結果` : '絞り込み結果'} ・ {SORT_OPTIONS.find(option => option.id === sortBy)?.label}
+            </p>
+          )}
+        </div>
         {user && mySchoolIds.length > 0 && (
           <Link to="/schools" className="text-sm font-bold text-lime-600 flex items-center gap-1 hover:underline">
-            <Plus size={16} /> 学校追加
+            <Plus size={16} /> 学校を追加
           </Link>
         )}
       </div>
@@ -340,19 +449,19 @@ export const HomePage = () => {
           <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-200">
             <School size={40} />
           </div>
-          <p className="text-slate-400 font-black text-lg">表示するアイテムがありません。</p>
-          <p className="text-slate-300 text-sm mt-1 font-medium">検索ワードを変えるか、別のカテゴリーを選択してみてください！</p>
+          <p className="text-slate-400 font-black text-lg">表示できるアイテムがありません。</p>
+          <p className="text-slate-300 text-sm mt-1 font-medium">検索ワードや条件を変えて、もう一度探してみてください。</p>
         </div>
       ) : (
         <div className="grid gap-6">
           {posts.map((post) => {
-            const thumbnail = post.post_images?.sort((a,b) => a.sort_order - b.sort_order)[0]?.storage_path;
+            const thumbnail = post.post_images?.sort((a, b) => a.sort_order - b.sort_order)[0]?.storage_path;
             const isWishlisted = wishlistIds.includes(post.id);
             const categoryInfo = CATEGORY_MAP[post.category];
 
             return (
               <div key={post.id} className="relative">
-                <Link 
+                <Link
                   to={`/post/${post.id}`}
                   className="group bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-2xl hover:shadow-slate-200/50 transition-all flex gap-5 active:scale-[0.98] relative"
                 >
@@ -369,14 +478,10 @@ export const HomePage = () => {
                   <div className="flex-1 min-w-0 flex flex-col justify-between py-1 text-left">
                     <div>
                       <div className="flex flex-wrap items-center gap-2 mb-1.5 pr-8">
-                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
-                          post.mode === 'GIVEAWAY' ? 'bg-lime-50 text-lime-600' : 'bg-purple-50 text-purple-600'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${post.mode === 'GIVEAWAY' ? 'bg-lime-50 text-lime-600' : 'bg-purple-50 text-purple-600'}`}>
                           {post.mode}
                         </span>
-                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${categoryInfo?.color || 'bg-slate-100'}`}>
-                          {categoryInfo?.label}
-                        </span>
+                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${categoryInfo?.color || 'bg-slate-100'}`}>{categoryInfo?.label}</span>
                         {post.item_size && (
                           <span className="px-2 py-0.5 bg-slate-800 text-white rounded-md text-[9px] font-black uppercase tracking-wider">
                             Size: {post.item_size}
@@ -384,17 +489,11 @@ export const HomePage = () => {
                         )}
                         <span className="text-[10px] font-bold text-slate-400 truncate">{post.schools?.name_ja}</span>
                       </div>
-                      <h2 className="text-xl font-black text-slate-800 truncate group-hover:text-lime-600 transition-colors mb-1">
-                        {post.title}
-                      </h2>
+                      <h2 className="text-xl font-black text-slate-800 truncate group-hover:text-lime-600 transition-colors mb-1">{post.title}</h2>
                       <p className="text-slate-500 text-xs line-clamp-1 font-medium">{post.description}</p>
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-                      <Link 
-                        to={`/user/${post.user_id}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-2 hover:text-lime-600 transition-colors"
-                      >
+                      <Link to={`/user/${post.user_id}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-2 hover:text-lime-600 transition-colors">
                         <div className="w-6 h-6 bg-sky-50 rounded-full flex items-center justify-center text-sky-600 font-black text-[10px]">
                           {post.profiles.display_name[0]}
                         </div>
@@ -404,19 +503,16 @@ export const HomePage = () => {
                       <div className="flex items-center gap-2">
                         <MannerTempGauge temp={(post.profiles as any).manner_temp ?? 36.5} size="sm" />
                         <div className="flex items-center gap-1 text-[10px] font-black text-slate-400">
-                          <Star size={12} className="fill-amber-400 text-amber-400" /> 
+                          <Star size={12} className="fill-amber-400 text-amber-400" />
                           <span className="text-slate-700">{post.profiles.avg_rating}</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 </Link>
-                {/* Wishlist Button */}
-                <button 
+                <button
                   onClick={(e) => toggleWishlist(e, post.id)}
-                  className={`absolute top-4 right-4 p-2 rounded-xl transition-all z-10 ${
-                    isWishlisted ? 'bg-pink-50 text-pink-500' : 'bg-slate-50 text-slate-300 hover:text-pink-400'
-                  }`}
+                  className={`absolute top-4 right-4 p-2 rounded-xl transition-all z-10 ${isWishlisted ? 'bg-pink-50 text-pink-500' : 'bg-slate-50 text-slate-300 hover:text-pink-400'}`}
                 >
                   <Heart size={18} fill={isWishlisted ? 'currentColor' : 'none'} />
                 </button>
@@ -424,7 +520,6 @@ export const HomePage = () => {
             );
           })}
 
-          {/* Infinite Scroll Sentinel */}
           <div ref={sentinelRef} className="py-2">
             {loadingMore && (
               <div className="flex items-center justify-center gap-3 py-6">

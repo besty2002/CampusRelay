@@ -1,35 +1,63 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Post } from '../types';
-import { Plus, Loader2, ArrowLeft, Package, Star, Search, Filter, Clock } from 'lucide-react';
+import { Plus, Loader2, ArrowLeft, Package, Star, Search, Filter, Clock, ArrowDownWideNarrow } from 'lucide-react';
 import { CATEGORY_MAP } from './HomePage';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
 const PAGE_SIZE = 20;
 
+const STATUS_OPTIONS = [
+  { id: 'ALL', label: 'すべて' },
+  { id: 'Available', label: '受付中' },
+  { id: 'Reserved', label: '予約済み' },
+  { id: 'Given', label: '譲渡済み' },
+] as const;
+
+const SORT_OPTIONS = [
+  { id: 'newest', label: '新着順', icon: <Clock size={14} /> },
+  { id: 'oldest', label: '古い順', icon: <Clock size={14} /> },
+] as const;
+
+type FeedStatus = (typeof STATUS_OPTIONS)[number]['id'];
+type FeedSort = (typeof SORT_OPTIONS)[number]['id'];
+
 export const FeedPage = () => {
   const { schoolId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [schoolName, setSchoolName] = useState('');
-  
-  // --- Search & Filter States ---
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') ?? '');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'Available' | 'Reserved' | 'Given'>('Available');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
+  const [statusFilter, setStatusFilter] = useState<FeedStatus>(() => {
+    const status = searchParams.get('status');
+    return STATUS_OPTIONS.some(option => option.id === status) ? (status as FeedStatus) : 'Available';
+  });
+  const [sortBy, setSortBy] = useState<FeedSort>(() => {
+    const sort = searchParams.get('sort');
+    return SORT_OPTIONS.some(option => option.id === sort) ? (sort as FeedSort) : 'newest';
+  });
   const [showFilters, setShowFilters] = useState(false);
 
   const { page, hasMore, setHasMore, loadingMore, setLoadingMore, sentinelRef, reset } = useInfiniteScroll({ pageSize: PAGE_SIZE });
 
-  // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
+      setDebouncedQuery(searchQuery.trim());
     }, 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+    if (searchQuery.trim()) nextParams.set('q', searchQuery.trim());
+    if (statusFilter !== 'Available') nextParams.set('status', statusFilter);
+    if (sortBy !== 'newest') nextParams.set('sort', sortBy);
+    setSearchParams(nextParams, { replace: true });
+  }, [searchQuery, statusFilter, sortBy, setSearchParams]);
 
   const fetchSchoolInfo = useCallback(async () => {
     if (!schoolId) {
@@ -67,31 +95,23 @@ export const FeedPage = () => {
         post_images (storage_path, sort_order)
       `)
       .eq('school_id', schoolId)
-      .range(from, to);
+      .range(from, to)
+      .order('created_at', { ascending: sortBy === 'oldest' });
 
-    // Apply Status Filter
     if (statusFilter !== 'ALL') {
       if (statusFilter === 'Available') {
-        query = query.or(`status.eq.Available,status.is.null`);
+        query = query.or('status.eq.Available,status.is.null');
       } else {
         query = query.eq('status', statusFilter);
       }
     }
 
-    // Apply Search
     if (debouncedQuery) {
-      query = query.ilike('title', `%${debouncedQuery}%`);
-    }
-
-    // Apply Sorting
-    if (sortBy === 'newest') {
-      query = query.order('created_at', { ascending: false });
-    } else if (sortBy === 'oldest') {
-      query = query.order('created_at', { ascending: true });
+      query = query.or(`title.ilike.%${debouncedQuery}%,description.ilike.%${debouncedQuery}%`);
     }
 
     const { data } = await query;
-    
+
     if (data) {
       if (isFirstPage) {
         setPosts(data as any[]);
@@ -115,13 +135,11 @@ export const FeedPage = () => {
     fetchSchoolInfo();
   }, [fetchSchoolInfo]);
 
-  // Reset when filters change
   useEffect(() => {
     setPosts([]);
     reset();
   }, [statusFilter, debouncedQuery, sortBy, reset]);
 
-  // Fetch when page or filters change
   useEffect(() => {
     fetchPosts(page, page === 0);
   }, [page, fetchPosts]);
@@ -130,16 +148,16 @@ export const FeedPage = () => {
     <div className="max-w-4xl mx-auto p-4 pb-32">
       <header className="pt-8 mb-6">
         <Link to="/schools" className="flex items-center gap-2 text-slate-400 font-bold text-sm mb-4 hover:text-lime-600 transition-colors">
-          <ArrowLeft size={16} /> 学校選択に戻る
+          <ArrowLeft size={16} /> 学校一覧に戻る
         </Link>
-        <div className="flex justify-between items-end">
+        <div className="flex justify-between items-end gap-4">
           <div>
             <h1 className="text-3xl font-black text-slate-800 tracking-tight">{schoolName}</h1>
-            <p className="text-slate-500 font-medium mt-1 italic">学校のリアルタイム出品フィード</p>
+            <p className="text-slate-500 font-medium mt-1 italic">学校ごとのリアルタイム出品フィード</p>
           </div>
-          <Link 
+          <Link
             to={`/post/new?schoolId=${schoolId}`}
-            className="bg-lime-500 text-white px-6 py-3 rounded-2xl font-black shadow-lg shadow-lime-500/30 hover:bg-lime-600 active:scale-95 transition-all flex items-center gap-2"
+            className="bg-lime-500 text-white px-6 py-3 rounded-2xl font-black shadow-lg shadow-lime-500/30 hover:bg-lime-600 active:scale-95 transition-all flex items-center gap-2 shrink-0"
           >
             <Plus size={20} />
             出品する
@@ -147,7 +165,6 @@ export const FeedPage = () => {
         </div>
       </header>
 
-      {/* ─── Search & Filters Bar ─── */}
       <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 mb-8 space-y-4">
         <div className="flex gap-3">
           <div className="flex-1 relative">
@@ -162,36 +179,28 @@ export const FeedPage = () => {
               className="w-full pl-12 pr-4 py-3.5 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-medium text-slate-700"
             />
           </div>
-          <button 
+          <button
             onClick={() => setShowFilters(!showFilters)}
             className={`px-4 py-3.5 rounded-2xl font-bold flex items-center gap-2 transition-all ${
               showFilters ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
             <Filter size={18} />
-            <span className="hidden sm:inline">フィルター</span>
+            <span className="hidden sm:inline">フィルタ</span>
           </button>
         </div>
 
-        {/* Expanded Filters */}
         {showFilters && (
           <div className="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-top-2 opacity-0 fade-in duration-200 fill-mode-forwards">
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">取引ステータス</label>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">投稿ステータス</label>
               <div className="flex flex-wrap gap-2">
-                {[
-                  { id: 'ALL', label: 'すべて' },
-                  { id: 'Available', label: '受付中' },
-                  { id: 'Reserved', label: '予約済み' },
-                  { id: 'Given', label: '譲渡済み' }
-                ].map(status => (
+                {STATUS_OPTIONS.map(status => (
                   <button
                     key={status.id}
-                    onClick={() => setStatusFilter(status.id as any)}
+                    onClick={() => setStatusFilter(status.id)}
                     className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
-                      statusFilter === status.id 
-                        ? 'bg-lime-500 text-white shadow-md shadow-lime-500/20' 
-                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                      statusFilter === status.id ? 'bg-lime-500 text-white shadow-md shadow-lime-500/20' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
                     }`}
                   >
                     {status.label}
@@ -201,22 +210,17 @@ export const FeedPage = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">並び替え</label>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">並び順</label>
               <div className="flex flex-wrap gap-2">
-                {[
-                  { id: 'newest', label: '新着順', icon: <Clock size={14} /> },
-                  { id: 'oldest', label: '古い順', icon: <Clock size={14} /> }
-                ].map(sort => (
+                {SORT_OPTIONS.map(sort => (
                   <button
                     key={sort.id}
-                    onClick={() => setSortBy(sort.id as any)}
+                    onClick={() => setSortBy(sort.id)}
                     className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-1.5 transition-all ${
-                      sortBy === sort.id 
-                        ? 'bg-slate-800 text-white shadow-md' 
-                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                      sortBy === sort.id ? 'bg-slate-800 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
                     }`}
                   >
-                    {sort.icon}
+                    <ArrowDownWideNarrow size={14} />
                     {sort.label}
                   </button>
                 ))}
@@ -226,11 +230,16 @@ export const FeedPage = () => {
         )}
       </div>
 
-      {/* ─── Feed Content ─── */}
+      {!loading && (debouncedQuery || statusFilter !== 'Available' || sortBy !== 'newest') && (
+        <div className="mb-6 px-1 text-xs font-bold text-slate-400">
+          {debouncedQuery ? `「${debouncedQuery}」の検索結果` : '絞り込み結果'} ・ {SORT_OPTIONS.find(option => option.id === sortBy)?.label}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex flex-col items-center justify-center py-24">
           <Loader2 className="animate-spin text-lime-500 mb-4" size={40} />
-          <p className="text-slate-400 font-bold">アイテムを検索中...</p>
+          <p className="text-slate-400 font-bold">アイテムを読み込み中...</p>
         </div>
       ) : posts.length === 0 ? (
         <div className="text-center py-24 bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
@@ -238,18 +247,18 @@ export const FeedPage = () => {
             <Package className="text-slate-200" size={40} />
           </div>
           <p className="text-slate-400 font-bold text-lg mb-2">アイテムが見つかりませんでした。</p>
-          <p className="text-slate-400 text-sm">検索条件を変更して再度お試しください。</p>
+          <p className="text-slate-400 text-sm">検索条件を変更して、もう一度試してみてください。</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {posts.map(post => {
-            const thumbnail = post.post_images?.sort((a,b) => a.sort_order - b.sort_order)[0]?.storage_path;
+            const thumbnail = post.post_images?.sort((a, b) => a.sort_order - b.sort_order)[0]?.storage_path;
             const categoryInfo = CATEGORY_MAP[post.category];
             const isCompleted = post.status === 'Given';
-            
+
             return (
-              <Link 
-                key={post.id} 
+              <Link
+                key={post.id}
                 to={`/post/${post.id}`}
                 className={`group bg-white rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-2xl transition-all overflow-hidden flex flex-col ${
                   isCompleted ? 'opacity-60 grayscale-[30%]' : ''
@@ -281,7 +290,7 @@ export const FeedPage = () => {
                     )}
                   </div>
                 </div>
-                
+
                 <div className="p-6 flex-1 flex flex-col">
                   <div className="flex justify-between items-start mb-2">
                     <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter ${categoryInfo?.color || 'bg-slate-100'}`}>
@@ -289,10 +298,10 @@ export const FeedPage = () => {
                     </span>
                     <span className="text-[10px] font-bold text-slate-300">{new Date(post.created_at).toLocaleDateString()}</span>
                   </div>
-                  
+
                   <h2 className="text-xl font-black text-slate-800 mb-3 group-hover:text-lime-600 transition-colors line-clamp-1">{post.title}</h2>
                   <p className="text-slate-500 text-sm mb-6 line-clamp-2 font-medium flex-1">{post.description}</p>
-                  
+
                   <div className="flex items-center justify-between pt-4 border-t border-slate-50">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 bg-sky-50 rounded-full flex items-center justify-center text-sky-600 font-black text-xs">
@@ -310,7 +319,6 @@ export const FeedPage = () => {
             );
           })}
 
-          {/* Infinite Scroll Sentinel */}
           <div ref={sentinelRef} className="col-span-full py-2">
             {loadingMore && (
               <div className="flex items-center justify-center gap-3 py-6">
