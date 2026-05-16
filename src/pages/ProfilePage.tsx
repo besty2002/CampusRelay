@@ -73,7 +73,7 @@ export const ProfilePage = () => {
             *,
             post_images (storage_path),
             schools (name_ja),
-            profiles (display_name, completed_count, avg_rating)
+            profiles!user_id (display_name, completed_count, avg_rating)
           )
         `)
         .eq('user_id', user?.id)

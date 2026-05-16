@@ -128,7 +128,7 @@ export const PostDetailPage = () => {
       .from('posts')
       .select(`
         *,
-        profiles (*),
+        profiles!user_id (*),
         post_images (id, storage_path, sort_order)
       `)
       .eq('id', postId)
@@ -150,7 +150,7 @@ export const PostDetailPage = () => {
       .from('comments')
       .select(`
         *,
-        profiles (display_name)
+        profiles!user_id (display_name)
       `)
       .eq('post_id', postId)
       .order('created_at', { ascending: true });
@@ -158,7 +158,7 @@ export const PostDetailPage = () => {
 
     const { data: approvedData } = await supabase
       .from('post_requests')
-      .select('*, profiles(*)')
+      .select('*, profiles!requester_id(*)')
       .eq('post_id', postId)
       .eq('status', 'Approved')
       .maybeSingle();
@@ -167,7 +167,7 @@ export const PostDetailPage = () => {
     if (user?.id === postData.user_id) {
       const { data: requestData } = await supabase
         .from('post_requests')
-        .select('*, profiles(*)')
+        .select('*, profiles!requester_id(*)')
         .eq('post_id', postId)
         .order('created_at', { ascending: true });
 
@@ -176,7 +176,7 @@ export const PostDetailPage = () => {
     } else if (user?.id) {
       const { data: ownRequestData } = await supabase
         .from('post_requests')
-        .select('*, profiles(*)')
+        .select('*, profiles!requester_id(*)')
         .eq('post_id', postId)
         .eq('requester_id', user.id)
         .order('created_at', { ascending: false })
@@ -263,12 +263,7 @@ export const PostDetailPage = () => {
 
   const handleApprove = async (reqId: string) => {
     await supabase.from('post_requests').update({ status: 'Approved' }).eq('id', reqId);
-    await supabase
-      .from('post_requests')
-      .update({ status: 'Rejected' })
-      .eq('post_id', postId)
-      .neq('id', reqId)
-      .eq('status', 'Pending');
+    await supabase.from('post_requests').update({ status: 'Rejected' }).eq('post_id', postId).neq('id', reqId).eq('status', 'Pending');
     await supabase.from('posts').update({ status: 'Reserved' }).eq('id', postId);
     fetchDetail();
   };
@@ -377,7 +372,7 @@ export const PostDetailPage = () => {
     }
   };
 
-  const openReview = async () => {
+  const openReview = () => {
     if (!post || !user) return;
 
     const targetUserId = isOwner ? approvedRequest?.requester_id : post.user_id;
@@ -405,10 +400,7 @@ export const PostDetailPage = () => {
   return (
     <div className="max-w-2xl mx-auto p-4 pt-12 pb-32 relative">
       <div className="flex justify-between items-center mb-8">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1 text-slate-400 font-bold hover:text-lime-600 transition-colors"
-        >
+        <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-slate-400 font-bold hover:text-lime-600 transition-colors">
           <ArrowLeft size={20} />
           戻る
         </button>
@@ -417,9 +409,7 @@ export const PostDetailPage = () => {
           <button
             onClick={toggleWishlist}
             className={`p-2 rounded-xl shadow-sm border transition-all ${
-              isWishlisted
-                ? 'bg-pink-50 border-pink-100 text-pink-500'
-                : 'bg-white border-slate-100 text-slate-400 hover:text-pink-400'
+              isWishlisted ? 'bg-pink-50 border-pink-100 text-pink-500' : 'bg-white border-slate-100 text-slate-400 hover:text-pink-400'
             }`}
             aria-label={isWishlisted ? 'お気に入りから外す' : 'お気に入りに追加する'}
           >
@@ -475,10 +465,7 @@ export const PostDetailPage = () => {
             {sortedImages.length > 1 && (
               <div className="flex justify-center gap-1.5 py-3 bg-white">
                 {sortedImages.map((_, index) => (
-                  <div
-                    key={index}
-                    className={`rounded-full transition-all ${index === 0 ? 'w-5 h-1.5 bg-lime-500' : 'w-1.5 h-1.5 bg-slate-200'}`}
-                  />
+                  <div key={index} className={`rounded-full transition-all ${index === 0 ? 'w-5 h-1.5 bg-lime-500' : 'w-1.5 h-1.5 bg-slate-200'}`} />
                 ))}
               </div>
             )}
@@ -494,9 +481,7 @@ export const PostDetailPage = () => {
         <div className="p-8 md:p-12">
           <div className="flex justify-between items-start mb-6">
             <StatusBadge status={post.status} className="!px-3 !py-1" />
-            <span className="text-[10px] font-black text-slate-300 uppercase tracking-tighter">
-              {new Date(post.created_at).toLocaleDateString()}
-            </span>
+            <span className="text-[10px] font-black text-slate-300 uppercase tracking-tighter">{new Date(post.created_at).toLocaleDateString()}</span>
           </div>
 
           <h1 className="text-4xl font-black text-slate-800 mb-4 leading-tight">{post.title}</h1>
@@ -505,26 +490,20 @@ export const PostDetailPage = () => {
             <span className="bg-slate-50 text-slate-500 px-3 py-1 rounded-lg text-[10px] font-black uppercase">{post.category}</span>
             <span className="bg-slate-50 text-slate-500 px-3 py-1 rounded-lg text-[10px] font-black uppercase">{post.condition}</span>
             {post.mode === 'EXCHANGE' && (
-              <span className="bg-purple-50 text-purple-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase">
-                交換
-              </span>
+              <span className="bg-purple-50 text-purple-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase">交換</span>
             )}
           </div>
 
           <div className="mb-8 rounded-[2rem] border border-lime-100 bg-lime-50/70 p-6">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-lime-600 mb-2">取引ステータス</p>
             <h2 className="text-xl font-black text-slate-800 mb-2">{tradeCopy?.title}</h2>
-            <p className="text-sm font-medium leading-relaxed text-slate-600">
-              {isOwner ? tradeCopy?.ownerDescription : tradeCopy?.visitorDescription}
-            </p>
+            <p className="text-sm font-medium leading-relaxed text-slate-600">{isOwner ? tradeCopy?.ownerDescription : tradeCopy?.visitorDescription}</p>
 
             {myRequestStatus && !isOwner && (
               <div className="mt-4 rounded-2xl bg-white px-4 py-3 border border-slate-100">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-black text-slate-700">あなたの申請状況</span>
-                  <span className={`rounded-full px-3 py-1 text-[11px] font-black ${myRequestStatus.className}`}>
-                    {myRequestStatus.label}
-                  </span>
+                  <span className={`rounded-full px-3 py-1 text-[11px] font-black ${myRequestStatus.className}`}>{myRequestStatus.label}</span>
                 </div>
                 <p className="mt-2 text-sm text-slate-500">{myRequestStatus.description}</p>
               </div>
@@ -533,10 +512,7 @@ export const PostDetailPage = () => {
             {approvedRequest && (post.status === 'Reserved' || post.status === 'Given') && (
               <div className="mt-4 rounded-2xl bg-white px-4 py-3 border border-slate-100">
                 <p className="text-sm font-black text-slate-700 mb-1">現在の取引相手</p>
-                <Link
-                  to={`/user/${approvedRequest.requester_id}`}
-                  className="text-sm font-bold text-lime-700 hover:text-lime-800"
-                >
+                <Link to={`/user/${approvedRequest.requester_id}`} className="text-sm font-bold text-lime-700 hover:text-lime-800">
                   {approvedRequest.profiles?.display_name ?? '取引相手を見る'}
                 </Link>
               </div>
@@ -553,10 +529,7 @@ export const PostDetailPage = () => {
           )}
 
           <div className="flex items-center gap-4 p-6 bg-slate-50 rounded-[2rem]">
-            <Link
-              to={`/user/${post.user_id}`}
-              className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-sm text-lime-500 hover:scale-105 transition-transform"
-            >
+            <Link to={`/user/${post.user_id}`} className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-sm text-lime-500 hover:scale-105 transition-transform">
               <User size={28} />
             </Link>
             <div className="flex-1">
@@ -564,15 +537,10 @@ export const PostDetailPage = () => {
                 <Link to={`/user/${post.user_id}`} className="font-black text-slate-800 text-lg hover:text-lime-600 transition-colors">
                   {post.profiles.display_name}
                 </Link>
-                <VerifiedBadge
-                  verified={(post.profiles as any).email_verified}
-                  domain={(post.profiles as any).verified_school_domain}
-                />
+                <VerifiedBadge verified={(post.profiles as any).email_verified} domain={(post.profiles as any).verified_school_domain} />
               </div>
               <div className="flex items-center gap-3 mt-0.5">
-                <span className="bg-lime-500 text-white px-2 py-0.5 rounded-md text-[10px] font-black uppercase">
-                  取引完了 {post.profiles.completed_count}回
-                </span>
+                <span className="bg-lime-500 text-white px-2 py-0.5 rounded-md text-[10px] font-black uppercase">取引完了 {post.profiles.completed_count}回</span>
                 <span className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase">
                   <Star size={12} className="fill-amber-400 text-amber-400" />
                   {post.profiles.avg_rating} ({post.profiles.rating_count})
@@ -621,31 +589,21 @@ export const PostDetailPage = () => {
                   {requests.map((request) => {
                     const requestStatus = REQUEST_STATUS_COPY[request.status];
                     return (
-                      <div
-                        key={request.id}
-                        className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-                      >
+                      <div key={request.id} className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-3">
-                          <Link
-                            to={`/user/${request.requester_id}`}
-                            className="w-10 h-10 bg-sky-50 rounded-full flex items-center justify-center text-sky-500 font-black"
-                          >
+                          <Link to={`/user/${request.requester_id}`} className="w-10 h-10 bg-sky-50 rounded-full flex items-center justify-center text-sky-500 font-black">
                             {request.profiles.display_name[0]}
                           </Link>
                           <div>
                             <Link to={`/user/${request.requester_id}`} className="font-bold text-slate-700 hover:text-sky-600">
                               {request.profiles.display_name}
                             </Link>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
-                              取引完了 {request.profiles.completed_count}回
-                            </p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">取引完了 {request.profiles.completed_count}回</p>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-2 self-end sm:self-auto">
-                          <span className={`rounded-full px-3 py-1 text-[11px] font-black ${requestStatus.className}`}>
-                            {requestStatus.label}
-                          </span>
+                          <span className={`rounded-full px-3 py-1 text-[11px] font-black ${requestStatus.className}`}>{requestStatus.label}</span>
                           {request.status === 'Pending' && (
                             <button
                               onClick={() => handleApprove(request.id)}
@@ -667,9 +625,7 @@ export const PostDetailPage = () => {
             <div className="space-y-4">
               <div className="rounded-[2rem] bg-white p-5 border border-slate-100">
                 <p className="text-sm font-black text-slate-700 mb-1">次のステップ</p>
-                <p className="text-sm text-slate-500">
-                  チャットで待ち合わせ日時と場所を確定したら、取引完了ボタンでステータスを更新してください。
-                </p>
+                <p className="text-sm text-slate-500">チャットで待ち合わせ日時と場所を確定したら、取引完了ボタンでステータスを更新してください。</p>
               </div>
               <button
                 onClick={handleComplete}
@@ -708,9 +664,7 @@ export const PostDetailPage = () => {
 
         <div className="space-y-6 mb-10">
           {comments.length === 0 ? (
-            <p className="text-center text-slate-400 font-bold py-4 italic">
-              まだコメントはありません。気になることがあれば書き込んでみましょう。
-            </p>
+            <p className="text-center text-slate-400 font-bold py-4 italic">まだコメントはありません。気になることがあれば書き込んでみましょう。</p>
           ) : (
             comments.map((comment) => (
               <div key={comment.id} className="flex gap-4 group">
@@ -720,13 +674,9 @@ export const PostDetailPage = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center mb-1">
                     <span className="font-black text-slate-700 text-sm">{comment.profiles?.display_name ?? 'ユーザー'}</span>
-                    <span className="text-[10px] font-bold text-slate-300 uppercase">
-                      {new Date(comment.created_at).toLocaleDateString()}
-                    </span>
+                    <span className="text-[10px] font-bold text-slate-300 uppercase">{new Date(comment.created_at).toLocaleDateString()}</span>
                   </div>
-                  <p className="text-slate-600 text-sm font-medium leading-relaxed bg-slate-50/50 p-4 rounded-2xl rounded-tl-none border border-slate-50">
-                    {comment.content}
-                  </p>
+                  <p className="text-slate-600 text-sm font-medium leading-relaxed bg-slate-50/50 p-4 rounded-2xl rounded-tl-none border border-slate-50">{comment.content}</p>
                   {(user?.id === comment.user_id || isOwner) && (
                     <button
                       onClick={() => handleDeleteComment(comment.id)}
@@ -774,9 +724,7 @@ export const PostDetailPage = () => {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 duration-200">
             <h2 className="text-2xl font-black text-slate-800 mb-2">出品を通報する</h2>
-            <p className="text-slate-500 text-sm font-medium mb-6">
-              危険な内容や不適切な利用がある場合は、理由を添えてお知らせください。
-            </p>
+            <p className="text-slate-500 text-sm font-medium mb-6">危険な内容や不適切な利用がある場合は、理由を添えてお知らせください。</p>
 
             <textarea
               className="w-full p-4 bg-slate-50 rounded-2xl mb-6 border-none focus:ring-2 focus:ring-red-500 outline-none font-medium h-32"

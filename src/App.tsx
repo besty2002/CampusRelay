@@ -7,22 +7,30 @@ import { useAuth } from './hooks/useAuth';
 import { isSupabaseConfigured, missingPublicEnvVars } from './lib/env';
 import { supabase } from './lib/supabase';
 
-const AuthPage = lazy(() => import('./pages/AuthPage').then(module => ({ default: module.AuthPage })));
-const SchoolSelectPage = lazy(() => import('./pages/SchoolSelectPage').then(module => ({ default: module.SchoolSelectPage })));
-const FeedPage = lazy(() => import('./pages/FeedPage').then(module => ({ default: module.FeedPage })));
-const CreatePostPage = lazy(() => import('./pages/CreatePostPage').then(module => ({ default: module.CreatePostPage })));
-const PostDetailPage = lazy(() => import('./pages/PostDetailPage').then(module => ({ default: module.PostDetailPage })));
-const ProfilePage = lazy(() => import('./pages/ProfilePage').then(module => ({ default: module.ProfilePage })));
-const HomePage = lazy(() => import('./pages/HomePage').then(module => ({ default: module.HomePage })));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
-const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then(module => ({ default: module.NotificationsPage })));
-const NotificationSettingsPage = lazy(() => import('./pages/NotificationSettingsPage').then(module => ({ default: module.NotificationSettingsPage })));
-const SettingsPage = lazy(() => import('./pages/SettingsPage').then(module => ({ default: module.SettingsPage })));
-const UserPublicProfilePage = lazy(() => import('./pages/UserPublicProfilePage').then(module => ({ default: module.UserPublicProfilePage })));
-const ActivityDashboardPage = lazy(() => import('./pages/ActivityDashboardPage').then(module => ({ default: module.ActivityDashboardPage })));
-const ChatListPage = lazy(() => import('./pages/ChatListPage').then(module => ({ default: module.ChatListPage })));
-const ChatRoomPage = lazy(() => import('./pages/ChatRoomPage').then(module => ({ default: module.ChatRoomPage })));
-const SchoolVerificationPage = lazy(() => import('./pages/SchoolVerificationPage').then(module => ({ default: module.SchoolVerificationPage })));
+const AuthPage = lazy(() => import('./pages/AuthPage').then((module) => ({ default: module.AuthPage })));
+const SchoolSelectPage = lazy(() => import('./pages/SchoolSelectPage').then((module) => ({ default: module.SchoolSelectPage })));
+const FeedPage = lazy(() => import('./pages/FeedPage').then((module) => ({ default: module.FeedPage })));
+const CreatePostPage = lazy(() => import('./pages/CreatePostPage').then((module) => ({ default: module.CreatePostPage })));
+const PostDetailPage = lazy(() => import('./pages/PostDetailPage').then((module) => ({ default: module.PostDetailPage })));
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then((module) => ({ default: module.ProfilePage })));
+const HomePage = lazy(() => import('./pages/HomePage').then((module) => ({ default: module.HomePage })));
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout').then((module) => ({ default: module.AdminLayout })));
+const AdminOverviewPage = lazy(() => import('./pages/admin/AdminOverviewPage').then((module) => ({ default: module.AdminOverviewPage })));
+const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then((module) => ({ default: module.AdminUsersPage })));
+const AdminReportsPage = lazy(() => import('./pages/admin/AdminReportsPage').then((module) => ({ default: module.AdminReportsPage })));
+const AdminPostsPage = lazy(() => import('./pages/admin/AdminPostsPage').then((module) => ({ default: module.AdminPostsPage })));
+const AdminCommentsPage = lazy(() => import('./pages/admin/AdminCommentsPage').then((module) => ({ default: module.AdminCommentsPage })));
+const AdminAuditLogPage = lazy(() => import('./pages/admin/AdminAuditLogPage').then((module) => ({ default: module.AdminAuditLogPage })));
+const AdminInvitesPage = lazy(() => import('./pages/admin/AdminInvitesPage').then((module) => ({ default: module.AdminInvitesPage })));
+const AdminAuthPage = lazy(() => import('./pages/admin/AdminAuthPage').then((module) => ({ default: module.AdminAuthPage })));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then((module) => ({ default: module.NotificationsPage })));
+const NotificationSettingsPage = lazy(() => import('./pages/NotificationSettingsPage').then((module) => ({ default: module.NotificationSettingsPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage })));
+const UserPublicProfilePage = lazy(() => import('./pages/UserPublicProfilePage').then((module) => ({ default: module.UserPublicProfilePage })));
+const ActivityDashboardPage = lazy(() => import('./pages/ActivityDashboardPage').then((module) => ({ default: module.ActivityDashboardPage })));
+const ChatListPage = lazy(() => import('./pages/ChatListPage').then((module) => ({ default: module.ChatListPage })));
+const ChatRoomPage = lazy(() => import('./pages/ChatRoomPage').then((module) => ({ default: module.ChatRoomPage })));
+const SchoolVerificationPage = lazy(() => import('./pages/SchoolVerificationPage').then((module) => ({ default: module.SchoolVerificationPage })));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -105,10 +113,11 @@ const Layout = ({ children }: { children: ReactNode }) => {
     };
   }, [user, fetchUnreadCount, checkAdmin]);
 
-  const isAuthPage = location.pathname === '/auth';
+  const isAuthPage = location.pathname === '/auth' || location.pathname === '/admin/auth';
   const isChatRoom = location.pathname.startsWith('/chat/');
+  const isActivityPage = location.pathname === '/activity';
 
-  if (isAuthPage || isChatRoom) {
+  if (isAuthPage || isChatRoom || isActivityPage) {
     return (
       <>
         <OfflineBanner />
@@ -134,18 +143,48 @@ const Layout = ({ children }: { children: ReactNode }) => {
             <PlusSquare size={24} />
           </Link>
 
-          <NavLink to="/messages" icon={<MessageCircle size={20} />} label="トーク" active={location.pathname === '/messages'} badge={unreadMessages} />
+          <NavLink
+            to="/messages"
+            icon={<MessageCircle size={20} />}
+            label="トーク"
+            active={location.pathname === '/messages'}
+            badge={unreadMessages}
+          />
           <NavLink to="/me" icon={<User size={20} />} label="プロフィール" active={location.pathname === '/me'} />
 
-          {isAdmin && <NavLink to="/admin" icon={<ShieldCheck size={20} />} label="管理" active={location.pathname === '/admin'} />}
+          {isAdmin && (
+            <NavLink
+              to="/admin"
+              icon={<ShieldCheck size={20} />}
+              label="管理"
+              active={location.pathname.startsWith('/admin')}
+            />
+          )}
         </div>
       </nav>
     </div>
   );
 };
 
-const NavLink = ({ to, icon, label, active, badge }: { to: string; icon: ReactNode; label: string; active: boolean; badge?: number }) => (
-  <Link to={to} className={`flex flex-col items-center gap-1 transition-all flex-1 relative ${active ? 'text-lime-600 scale-110' : 'text-slate-400'}`}>
+const NavLink = ({
+  to,
+  icon,
+  label,
+  active,
+  badge,
+}: {
+  to: string;
+  icon: ReactNode;
+  label: string;
+  active: boolean;
+  badge?: number;
+}) => (
+  <Link
+    to={to}
+    className={`flex flex-col items-center gap-1 transition-all flex-1 relative ${
+      active ? 'text-lime-600 scale-110' : 'text-slate-400'
+    }`}
+  >
     <div className="relative">
       {icon}
       {badge !== undefined && badge > 0 && (
@@ -206,7 +245,16 @@ function App() {
             <Route path="/verify" element={<ProtectedRoute><SchoolVerificationPage /></ProtectedRoute>} />
             <Route path="/messages" element={<ProtectedRoute><ChatListPage /></ProtectedRoute>} />
             <Route path="/chat/:roomId" element={<ProtectedRoute><ChatRoomPage /></ProtectedRoute>} />
-            <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/auth" element={<AdminAuthPage />} />
+            <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
+              <Route index element={<AdminOverviewPage />} />
+              <Route path="users" element={<AdminUsersPage />} />
+              <Route path="reports" element={<AdminReportsPage />} />
+              <Route path="posts" element={<AdminPostsPage />} />
+              <Route path="comments" element={<AdminCommentsPage />} />
+              <Route path="audit" element={<AdminAuditLogPage />} />
+              <Route path="invites" element={<AdminInvitesPage />} />
+            </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

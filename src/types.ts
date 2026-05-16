@@ -14,6 +14,10 @@ export interface Profile {
   manner_temp: number;
   email_verified: boolean;
   verified_school_domain?: string;
+  is_banned?: boolean;
+  banned_at?: string;
+  ban_reason?: string;
+  created_at?: string;
 }
 
 export interface School {

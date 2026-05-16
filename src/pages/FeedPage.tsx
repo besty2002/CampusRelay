@@ -91,7 +91,7 @@ export const FeedPage = () => {
       .from('posts')
       .select(`
         *,
-        profiles (display_name, completed_count, avg_rating, rating_count),
+        profiles!user_id (display_name, completed_count, avg_rating, rating_count),
         post_images (storage_path, sort_order)
       `)
       .eq('school_id', schoolId)

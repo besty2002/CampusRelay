@@ -155,3 +155,39 @@ Stores additional user information.
    - 채팅 메시지 내 약속 카드 UI 렌더링 (`proposed`, `accepted`, `canceled` 상태별 표시)
    - 상대방이 받은 약속 제안에 대해 `承諾する(승낙)`, `断る(거절)` 상호작용 액션 추가
    - 낙관적 업데이트(Optimistic UI) 완벽 지원
+
+### Admin System (2026-05-13) ✅
+1. **Phase 1 — 管理者ダッシュボード統計:**
+   - `AdminLayout.tsx`: サイドバータブナビ、school_admin/super_admin権限分岐
+   - `AdminOverviewPage.tsx`: 7統計カード(ユーザー数, 新規登録, 出品中, 通報, メッセージ数, 認証済, BAN中)
+   - `StatCard.tsx`: 再利用可能な統計カード (6色テーマ, トレンド表示)
+   - Recharts: 直近7日間の新規投稿 棒グラフ + カテゴリ分布 円グラフ
+2. **Phase 2 — ユーザー管理:**
+   - `AdminUsersPage.tsx`: ユーザー一覧 (検索, ロールフィルター, BANフィルター, ページネーション)
+   - BAN/UNBAN: プロフィール更新 + 全投稿非表示連動 + 通知送信 + 監査ログ
+   - ロール変更: super_adminのみ (user ↔ school_admin ↔ super_admin)
+   - 学校認証の手動付与/取消
+   - DB: `is_banned`, `banned_at`, `ban_reason` カラム追加 (profiles)
+3. **Phase 3 — 通報管理強化:**
+   - `AdminReportsPage.tsx`: 通報一覧 (ステータス/種別フィルター, ページネーション)
+   - 対応モーダル: 投稿非表示 / コメント非表示 / 警告送信 / BAN (super_adminのみ)
+   - 管理者メモ、対応者・対応日時の記録
+   - DB: target_type, category, resolved_by, resolved_at, admin_note 追加 (reports)
+4. **Phase 4 — コンテンツ管理:**
+   - `AdminPostsPage.tsx`: 全投稿管理 (検索, ステータス/カテゴリフィルター)
+   - 投稿アクション: 非表示 / 復元 / 完全削除(super_adminのみ)
+   - `AdminCommentsPage.tsx`: コメント管理 (非表示/復元/削除)
+   - DB: comments に is_hidden, hidden_by, hidden_at 追加
+   - DB: posts に admin_note, hidden_by, hidden_at 追加
+5. **Phase 5 — 操作ログ (Audit Log):**
+   - `AdminAuditLogPage.tsx`: 全操作ログテーブル (アクション/対象フィルター)
+   - 12種類のアクション記録 (post_hide, user_ban, report_resolve, etc.)
+   - DB: `admin_audit_logs` テーブル新規作成
+6. **権限差別化:**
+   - `super_admin`: 全機能アクセス (ユーザー管理, ロール変更, 完全削除, 監査ログ)
+   - `school_admin`: 概要, 通報, 投稿/コメント管理のみ (ユーザー管理・ログ閲覧不可)
+7. **BAN/コンテンツ非表示通知:**
+   - `admin_notifications` テーブル新規作成
+   - BAN/UNBAN/投稿非表示/コメント非表示/警告時に対象ユーザーへ通知自動送信
+   - ⚠️ `supabase/admin_system.sql` をSupabase Dashboardで実行が必要
+

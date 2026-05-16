@@ -30,20 +30,20 @@ import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { StatusBadge } from '../components/StatusBadge';
 
 export const CATEGORY_MAP: Record<PostCategory, { label: string; icon: any; color: string }> = {
-  Uniform: { label: '制服・衣類', icon: Shirt, color: 'bg-blue-50 text-blue-600' },
+  Uniform: { label: '制服・体操服', icon: Shirt, color: 'bg-blue-50 text-blue-600' },
   Textbook: { label: '教科書・書籍', icon: Book, color: 'bg-amber-50 text-amber-600' },
   Digital: { label: 'IT・デジタル', icon: Cpu, color: 'bg-purple-50 text-purple-600' },
-  ArtSport: { label: '芸術・体育', icon: Palette, color: 'bg-rose-50 text-rose-600' },
+  ArtSport: { label: '芸術・スポーツ', icon: Palette, color: 'bg-rose-50 text-rose-600' },
   Life: { label: '生活用品', icon: Coffee, color: 'bg-emerald-50 text-emerald-600' },
   Other: { label: 'その他', icon: Layers, color: 'bg-slate-50 text-slate-600' },
 };
 
 const CATEGORY_LIST: { id: PostCategory | 'All'; label: string; icon: any }[] = [
   { id: 'All', label: 'すべて', icon: LayoutGrid },
-  { id: 'Uniform', label: '制服・衣類', icon: Shirt },
+  { id: 'Uniform', label: '制服・体操服', icon: Shirt },
   { id: 'Textbook', label: '教科書・書籍', icon: Book },
   { id: 'Digital', label: 'IT・デジタル', icon: Cpu },
-  { id: 'ArtSport', label: '芸術・体育', icon: Palette },
+  { id: 'ArtSport', label: '芸術・スポーツ', icon: Palette },
   { id: 'Life', label: '生活用品', icon: Coffee },
   { id: 'Other', label: 'その他', icon: Layers },
 ];
@@ -76,16 +76,16 @@ export const HomePage = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<PostCategory | 'All'>(() => {
     const category = searchParams.get('category');
-    return CATEGORY_LIST.some(item => item.id === category) ? (category as PostCategory | 'All') : 'All';
+    return CATEGORY_LIST.some((item) => item.id === category) ? (category as PostCategory | 'All') : 'All';
   });
   const [activeCondition, setActiveCondition] = useState<PostCondition | 'All'>(() => {
     const condition = searchParams.get('condition');
-    return CONDITION_LIST.some(item => item.id === condition) ? (condition as PostCondition | 'All') : 'All';
+    return CONDITION_LIST.some((item) => item.id === condition) ? (condition as PostCondition | 'All') : 'All';
   });
   const [sizeFilter, setSizeFilter] = useState(() => searchParams.get('size') ?? '');
   const [sortBy, setSortBy] = useState<SortOption>(() => {
     const sort = searchParams.get('sort');
-    return SORT_OPTIONS.some(option => option.id === sort) ? (sort as SortOption) : 'newest';
+    return SORT_OPTIONS.some((option) => option.id === sort) ? (sort as SortOption) : 'newest';
   });
   const [mySchoolIds, setMySchoolIds] = useState<string[]>([]);
   const [fetchingSchools, setFetchingSchools] = useState(false);
@@ -93,7 +93,9 @@ export const HomePage = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
-  const { page, hasMore, setHasMore, loadingMore, setLoadingMore, sentinelRef, reset } = useInfiniteScroll({ pageSize: PAGE_SIZE });
+  const { page, hasMore, setHasMore, loadingMore, setLoadingMore, sentinelRef, reset } = useInfiniteScroll({
+    pageSize: PAGE_SIZE,
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
@@ -126,11 +128,10 @@ export const HomePage = () => {
   }, [search, activeCategory, activeCondition, sizeFilter, sortBy, setSearchParams]);
 
   useEffect(() => {
-    if (!debouncedSearch) return;
-    if (typeof window === 'undefined') return;
+    if (!debouncedSearch || typeof window === 'undefined') return;
 
     setRecentSearches((prev) => {
-      const next = [debouncedSearch, ...prev.filter(item => item !== debouncedSearch)].slice(0, 5);
+      const next = [debouncedSearch, ...prev.filter((item) => item !== debouncedSearch)].slice(0, 5);
       window.localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
       return next;
     });
@@ -138,7 +139,7 @@ export const HomePage = () => {
 
   const fetchWishlist = useCallback(async () => {
     const { data } = await supabase.from('wishlists').select('post_id').eq('user_id', user?.id);
-    if (data) setWishlistIds(data.map(d => d.post_id));
+    if (data) setWishlistIds(data.map((item) => item.post_id));
   }, [user?.id]);
 
   const fetchMySchools = useCallback(async () => {
@@ -146,9 +147,8 @@ export const HomePage = () => {
     setSchoolsLoaded(false);
 
     const { data } = await supabase.from('user_schools').select('school_id').eq('user_id', user?.id);
-    const ids = data?.map(d => d.school_id) || [];
+    setMySchoolIds(data?.map((item) => item.school_id) ?? []);
 
-    setMySchoolIds(ids);
     setFetchingSchools(false);
     setSchoolsLoaded(true);
   }, [user?.id]);
@@ -168,14 +168,13 @@ export const HomePage = () => {
         .from('posts')
         .select(`
           *,
-          profiles (*),
+          profiles!user_id (*),
           schools (name_ja),
           post_images (storage_path, sort_order)
         `)
         .eq('status', 'Available')
+        .order('created_at', { ascending: sortBy === 'oldest' })
         .range(from, to);
-
-      query = query.order('created_at', { ascending: sortBy === 'oldest' });
 
       if (schoolIds.length > 0) {
         query = query.in('school_id', schoolIds);
@@ -194,18 +193,23 @@ export const HomePage = () => {
       }
 
       if (debouncedSearch) {
-        query = query.or(`title.ilike.%${debouncedSearch}%,description.ilike.%${debouncedSearch}%,schools.name_ja.ilike.%${debouncedSearch}%`);
+        query = query.or(
+          `title.ilike.%${debouncedSearch}%,description.ilike.%${debouncedSearch}%,schools.name_ja.ilike.%${debouncedSearch}%`
+        );
       }
 
-      const { data } = await query;
+      const { data, error } = await query;
 
-      if (data) {
+      if (error) {
+        console.error('Error fetching posts:', error);
+        setHasMore(false);
+      } else if (data) {
         if (isFirstPage) {
-          setPosts(data as any[]);
+          setPosts(data as Post[]);
         } else {
-          setPosts(prev => {
-            const existingIds = new Set(prev.map(p => p.id));
-            const newPosts = (data as any[]).filter(p => !existingIds.has(p.id));
+          setPosts((prev) => {
+            const existingIds = new Set(prev.map((post) => post.id));
+            const newPosts = (data as Post[]).filter((post) => !existingIds.has(post.id));
             return [...prev, ...newPosts];
           });
         }
@@ -239,22 +243,28 @@ export const HomePage = () => {
   useEffect(() => {
     if (user && !schoolsLoaded) return;
     if (fetchingSchools) return;
+
     fetchPosts(mySchoolIds, page, page === 0);
   }, [page, mySchoolIds, fetchingSchools, schoolsLoaded, user, fetchPosts]);
 
-  const toggleWishlist = async (e: React.MouseEvent, postId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!user) return alert('ログインが必要です。');
+  const toggleWishlist = async (event: React.MouseEvent, postId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!user) {
+      alert('お気に入りを使うにはログインが必要です。');
+      return;
+    }
 
     const isWishlisted = wishlistIds.includes(postId);
     if (isWishlisted) {
       const { error } = await supabase.from('wishlists').delete().eq('user_id', user.id).eq('post_id', postId);
-      if (!error) setWishlistIds(prev => prev.filter(id => id !== postId));
-    } else {
-      const { error } = await supabase.from('wishlists').insert({ user_id: user.id, post_id: postId });
-      if (!error) setWishlistIds(prev => [...prev, postId]);
+      if (!error) setWishlistIds((prev) => prev.filter((id) => id !== postId));
+      return;
     }
+
+    const { error } = await supabase.from('wishlists').insert({ user_id: user.id, post_id: postId });
+    if (!error) setWishlistIds((prev) => [...prev, postId]);
   };
 
   const clearFilters = () => {
@@ -265,7 +275,7 @@ export const HomePage = () => {
 
   const removeRecentSearch = (value: string) => {
     setRecentSearches((prev) => {
-      const next = prev.filter(item => item !== value);
+      const next = prev.filter((item) => item !== value);
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
       }
@@ -274,7 +284,7 @@ export const HomePage = () => {
   };
 
   const recentSearchChips = useMemo(
-    () => recentSearches.filter(item => item !== search.trim()).slice(0, 4),
+    () => recentSearches.filter((item) => item !== search.trim()).slice(0, 4),
     [recentSearches, search]
   );
 
@@ -284,7 +294,7 @@ export const HomePage = () => {
         <h1 className="text-4xl font-black text-slate-800 tracking-tight mb-2">
           Campus<span className="text-lime-500">Relay</span>
         </h1>
-        <p className="text-slate-500 font-medium italic">学校のニュースと出品をひと目で</p>
+        <p className="text-slate-500 font-medium italic">学校のニーズと出品をひとつに</p>
       </header>
 
       <div className="flex gap-2 mb-4">
@@ -295,7 +305,7 @@ export const HomePage = () => {
             placeholder="アイテムや学校名を検索"
             className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl shadow-sm border border-slate-100 font-bold focus:ring-4 focus:ring-lime-500/10 focus:border-lime-500 outline-none transition-all"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
           />
         </div>
         <button
@@ -314,7 +324,8 @@ export const HomePage = () => {
       {recentSearchChips.length > 0 && !search.trim() && (
         <div className="flex flex-wrap items-center gap-2 mb-6">
           <span className="inline-flex items-center gap-1 text-[11px] font-black text-slate-400 uppercase tracking-widest">
-            <History size={12} /> 最近の検索
+            <History size={12} />
+            最近の検索
           </span>
           {recentSearchChips.map((item) => (
             <button
@@ -341,8 +352,12 @@ export const HomePage = () => {
         <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border border-slate-100 mb-8 animate-in slide-in-from-top-2 duration-300">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-black text-slate-800">詳細フィルタ</h3>
-            <button onClick={clearFilters} className="text-xs font-black text-slate-400 hover:text-red-500 flex items-center gap-1">
-              <X size={14} /> 条件をリセット
+            <button
+              onClick={clearFilters}
+              className="text-xs font-black text-slate-400 hover:text-red-500 flex items-center gap-1"
+            >
+              <X size={14} />
+              条件をリセット
             </button>
           </div>
 
@@ -350,26 +365,30 @@ export const HomePage = () => {
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">状態</label>
               <div className="flex flex-wrap gap-2">
-                {CONDITION_LIST.map(cond => (
+                {CONDITION_LIST.map((condition) => (
                   <button
-                    key={cond.id}
-                    onClick={() => setActiveCondition(cond.id)}
+                    key={condition.id}
+                    onClick={() => setActiveCondition(condition.id)}
                     className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                      activeCondition === cond.id ? 'bg-lime-500 text-white shadow-md shadow-lime-500/20' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                      activeCondition === condition.id
+                        ? 'bg-lime-500 text-white shadow-md shadow-lime-500/20'
+                        : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                     }`}
                   >
-                    {cond.label}
+                    {condition.label}
                   </button>
                 ))}
               </div>
             </div>
 
             <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">サイズ（例：140、M、LL）</label>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
+                サイズ（例：140、M、LL）
+              </label>
               <input
                 type="text"
                 value={sizeFilter}
-                onChange={(e) => setSizeFilter(e.target.value)}
+                onChange={(event) => setSizeFilter(event.target.value)}
                 placeholder="サイズを入力..."
                 className="w-full p-3 bg-slate-50 rounded-xl border-none focus:ring-2 focus:ring-lime-500 outline-none font-bold text-sm transition-all"
               />
@@ -378,7 +397,7 @@ export const HomePage = () => {
             <div className="sm:col-span-2">
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">並び順</label>
               <div className="flex flex-wrap gap-2">
-                {SORT_OPTIONS.map(option => (
+                {SORT_OPTIONS.map((option) => (
                   <button
                     key={option.id}
                     onClick={() => setSortBy(option.id)}
@@ -397,16 +416,20 @@ export const HomePage = () => {
       )}
 
       <div className="flex gap-4 overflow-x-auto pb-4 mb-8 no-scrollbar -mx-2 px-2">
-        {CATEGORY_LIST.map((cat) => (
-          <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className="flex flex-col items-center gap-2 shrink-0 group">
+        {CATEGORY_LIST.map((category) => (
+          <button key={category.id} onClick={() => setActiveCategory(category.id)} className="flex flex-col items-center gap-2 shrink-0 group">
             <div
               className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
-                activeCategory === cat.id ? 'bg-lime-500 text-white shadow-lg shadow-lime-500/30 scale-110' : 'bg-white text-slate-400 border border-slate-100 hover:border-lime-200 hover:text-lime-500'
+                activeCategory === category.id
+                  ? 'bg-lime-500 text-white shadow-lg shadow-lime-500/30 scale-110'
+                  : 'bg-white text-slate-400 border border-slate-100 hover:border-lime-200 hover:text-lime-500'
               }`}
             >
-              <cat.icon size={24} />
+              <category.icon size={24} />
             </div>
-            <span className={`text-[10px] font-black uppercase tracking-tighter ${activeCategory === cat.id ? 'text-lime-600' : 'text-slate-400'}`}>{cat.label}</span>
+            <span className={`text-[10px] font-black uppercase tracking-tighter ${activeCategory === category.id ? 'text-lime-600' : 'text-slate-400'}`}>
+              {category.label}
+            </span>
           </button>
         ))}
       </div>
@@ -416,9 +439,15 @@ export const HomePage = () => {
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-700" />
           <div className="relative z-10">
             <h3 className="text-xl font-black mb-2">登録された学校がありません</h3>
-            <p className="text-lime-50 font-medium mb-6 opacity-90">学校を追加して、最新の出品情報をチェックしましょう。</p>
-            <Link to="/schools" className="inline-flex items-center gap-2 bg-white text-lime-600 px-6 py-3 rounded-xl font-black text-sm hover:shadow-xl active:scale-95 transition-all">
-              学校を追加する <ArrowRight size={18} />
+            <p className="text-lime-50 font-medium mb-6 opacity-90">
+              学校を追加して、校内の最新出品や募集をチェックしましょう。
+            </p>
+            <Link
+              to="/schools"
+              className="inline-flex items-center gap-2 bg-white text-lime-600 px-6 py-3 rounded-xl font-black text-sm hover:shadow-xl active:scale-95 transition-all"
+            >
+              学校を追加する
+              <ArrowRight size={18} />
             </Link>
           </div>
         </div>
@@ -429,20 +458,23 @@ export const HomePage = () => {
           <h2 className="text-2xl font-black text-slate-800">{user && mySchoolIds.length > 0 ? '学校の出品フィード' : '最新の出品フィード'}</h2>
           {(debouncedSearch || sortBy !== 'newest') && (
             <p className="mt-1 text-xs font-bold text-slate-400">
-              {debouncedSearch ? `「${debouncedSearch}」の検索結果` : '絞り込み結果'} ・ {SORT_OPTIONS.find(option => option.id === sortBy)?.label}
+              {debouncedSearch ? `「${debouncedSearch}」の検索結果` : '並び替え中'} ・ {SORT_OPTIONS.find((option) => option.id === sortBy)?.label}
             </p>
           )}
         </div>
         {user && mySchoolIds.length > 0 && (
           <Link to="/schools" className="text-sm font-bold text-lime-600 flex items-center gap-1 hover:underline">
-            <Plus size={16} /> 学校を追加
+            <Plus size={16} />
+            学校を追加
           </Link>
         )}
       </div>
 
       {loading || fetchingSchools ? (
         <div className="grid gap-6">
-          {[1, 2, 3, 4].map(n => <PostCardSkeleton key={n} />)}
+          {[1, 2, 3, 4].map((item) => (
+            <PostCardSkeleton key={item} />
+          ))}
         </div>
       ) : posts.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-100 p-8">
@@ -455,7 +487,7 @@ export const HomePage = () => {
       ) : (
         <div className="grid gap-6">
           {posts.map((post) => {
-            const thumbnail = post.post_images?.sort((a, b) => a.sort_order - b.sort_order)[0]?.storage_path;
+            const thumbnail = post.post_images?.slice().sort((a, b) => a.sort_order - b.sort_order)[0]?.storage_path;
             const isWishlisted = wishlistIds.includes(post.id);
             const categoryInfo = CATEGORY_MAP[post.category];
 
@@ -475,13 +507,20 @@ export const HomePage = () => {
                       </div>
                     )}
                   </div>
+
                   <div className="flex-1 min-w-0 flex flex-col justify-between py-1 text-left">
                     <div>
                       <div className="flex flex-wrap items-center gap-2 mb-1.5 pr-8">
-                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${post.mode === 'GIVEAWAY' ? 'bg-lime-50 text-lime-600' : 'bg-purple-50 text-purple-600'}`}>
-                          {post.mode}
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
+                            post.mode === 'GIVEAWAY' ? 'bg-lime-50 text-lime-600' : 'bg-purple-50 text-purple-600'
+                          }`}
+                        >
+                          {post.mode === 'GIVEAWAY' ? '無料譲渡' : '交換'}
                         </span>
-                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${categoryInfo?.color || 'bg-slate-100'}`}>{categoryInfo?.label}</span>
+                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${categoryInfo?.color || 'bg-slate-100'}`}>
+                          {categoryInfo?.label}
+                        </span>
                         {post.item_size && (
                           <span className="px-2 py-0.5 bg-slate-800 text-white rounded-md text-[9px] font-black uppercase tracking-wider">
                             Size: {post.item_size}
@@ -492,14 +531,20 @@ export const HomePage = () => {
                       <h2 className="text-xl font-black text-slate-800 truncate group-hover:text-lime-600 transition-colors mb-1">{post.title}</h2>
                       <p className="text-slate-500 text-xs line-clamp-1 font-medium">{post.description}</p>
                     </div>
+
                     <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-                      <Link to={`/user/${post.user_id}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-2 hover:text-lime-600 transition-colors">
+                      <Link
+                        to={`/user/${post.user_id}`}
+                        onClick={(event) => event.stopPropagation()}
+                        className="flex items-center gap-2 hover:text-lime-600 transition-colors"
+                      >
                         <div className="w-6 h-6 bg-sky-50 rounded-full flex items-center justify-center text-sky-600 font-black text-[10px]">
                           {post.profiles.display_name[0]}
                         </div>
                         <span className="text-xs font-bold">{post.profiles.display_name}</span>
                         <VerifiedBadge verified={(post.profiles as any).email_verified} size="sm" showTooltip={false} />
                       </Link>
+
                       <div className="flex items-center gap-2">
                         <MannerTempGauge temp={(post.profiles as any).manner_temp ?? 36.5} size="sm" />
                         <div className="flex items-center gap-1 text-[10px] font-black text-slate-400">
@@ -510,9 +555,12 @@ export const HomePage = () => {
                     </div>
                   </div>
                 </Link>
+
                 <button
-                  onClick={(e) => toggleWishlist(e, post.id)}
-                  className={`absolute top-4 right-4 p-2 rounded-xl transition-all z-10 ${isWishlisted ? 'bg-pink-50 text-pink-500' : 'bg-slate-50 text-slate-300 hover:text-pink-400'}`}
+                  onClick={(event) => toggleWishlist(event, post.id)}
+                  className={`absolute top-4 right-4 p-2 rounded-xl transition-all z-10 ${
+                    isWishlisted ? 'bg-pink-50 text-pink-500' : 'bg-slate-50 text-slate-300 hover:text-pink-400'
+                  }`}
                 >
                   <Heart size={18} fill={isWishlisted ? 'currentColor' : 'none'} />
                 </button>
@@ -527,6 +575,7 @@ export const HomePage = () => {
                 <span className="text-sm font-bold text-slate-400">読み込み中...</span>
               </div>
             )}
+
             {!hasMore && posts.length > 0 && (
               <div className="text-center py-8">
                 <p className="text-slate-300 text-sm font-bold">すべてのアイテムを表示しました</p>
