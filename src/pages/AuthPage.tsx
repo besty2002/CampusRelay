@@ -1,6 +1,34 @@
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { useToast } from '../components/feedback/ToastProvider';
+
+const COPY = {
+  title: 'CampusRelay',
+  displayNameLabel: '表示名',
+  displayNamePlaceholder: '表示名を入力',
+  emailLabel: 'メールアドレス',
+  passwordLabel: 'パスワード',
+  passwordPlaceholder: '8文字以上で入力',
+  loading: '処理中...',
+  login: 'ログイン',
+  signup: '新規登録',
+  googleLogin: 'Googleで続ける',
+  switchToSignup: 'アカウントをお持ちでない場合は新規登録へ',
+  switchToLogin: 'すでにアカウントをお持ちの場合はログインへ',
+  signupSuccess: '新規登録が完了しました',
+  signupDescription: '確認メールを送信しました。メールを確認してからログインしてください。',
+  authError: '認証に失敗しました',
+  fallbackError: '時間をおいてもう一度お試しください。',
+} as const;
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+    return error.message;
+  }
+
+  return fallback;
+};
 
 export const AuthPage = () => {
   const [email, setEmail] = useState('');
@@ -9,10 +37,12 @@ export const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAuth = async (event: React.FormEvent) => {
+    event.preventDefault();
     setLoading(true);
+
     try {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -21,96 +51,115 @@ export const AuthPage = () => {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { display_name: displayName } }
+          options: { data: { display_name: displayName } },
         });
         if (error) throw error;
-        alert('会員登録に成功しました！メールを確認するか、ログインしてください。');
+
+        showToast({
+          tone: 'success',
+          title: COPY.signupSuccess,
+          description: COPY.signupDescription,
+        });
       }
+
       navigate('/schools');
-    } catch (err: any) {
-      alert(err.message);
+    } catch (error: unknown) {
+      showToast({
+        tone: 'error',
+        title: COPY.authError,
+        description: getErrorMessage(error, COPY.fallbackError),
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    // GitHub Pagesのベースパスを含めた正確なリダイレクトURL設定
     const redirectTo = window.location.origin + import.meta.env.BASE_URL;
-    console.log('Redirecting to:', redirectTo);
-    
+
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo }
+      options: { redirectTo },
     });
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-      <div className="max-w-md w-full bg-white rounded-[2rem] shadow-xl p-8 border border-slate-100">
-        <h1 className="text-3xl font-black text-center text-slate-800 mb-8">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+      <div className="w-full max-w-md rounded-[2rem] border border-slate-100 bg-white p-8 shadow-xl">
+        <h1 className="mb-8 text-center text-3xl font-black text-slate-800">
           Campus<span className="text-lime-500">Relay</span>
         </h1>
-        
+
         <form onSubmit={handleAuth} className="space-y-4">
           {!isLogin && (
             <div>
-              <label className="block text-sm font-bold text-slate-500 mb-1 ml-1">Display Name</label>
+              <label htmlFor="display-name" className="mb-1 ml-1 block text-sm font-bold text-slate-500">
+                {COPY.displayNameLabel}
+              </label>
               <input
+                id="display-name"
                 required
                 value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all"
-                placeholder="山田太郎"
+                onChange={(event) => setDisplayName(event.target.value)}
+                className="w-full rounded-2xl border-none bg-slate-50 p-4 outline-none transition-all focus:ring-2 focus:ring-lime-500"
+                placeholder={COPY.displayNamePlaceholder}
               />
             </div>
           )}
+
           <div>
-            <label className="block text-sm font-bold text-slate-500 mb-1 ml-1">Email</label>
+            <label htmlFor="email" className="mb-1 ml-1 block text-sm font-bold text-slate-500">
+              {COPY.emailLabel}
+            </label>
             <input
+              id="email"
               required
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all"
+              onChange={(event) => setEmail(event.target.value)}
+              className="w-full rounded-2xl border-none bg-slate-50 p-4 outline-none transition-all focus:ring-2 focus:ring-lime-500"
               placeholder="user@example.com"
             />
           </div>
+
           <div>
-            <label className="block text-sm font-bold text-slate-500 mb-1 ml-1">Password</label>
+            <label htmlFor="password" className="mb-1 ml-1 block text-sm font-bold text-slate-500">
+              {COPY.passwordLabel}
+            </label>
             <input
+              id="password"
               required
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all"
-              placeholder="••••••••"
+              onChange={(event) => setPassword(event.target.value)}
+              className="w-full rounded-2xl border-none bg-slate-50 p-4 outline-none transition-all focus:ring-2 focus:ring-lime-500"
+              placeholder={COPY.passwordPlaceholder}
             />
           </div>
-          
+
           <button
             disabled={loading}
-            className="w-full bg-lime-500 text-white py-4 rounded-2xl font-bold text-lg shadow-lg shadow-lime-500/30 hover:bg-lime-600 active:scale-[0.98] transition-all"
+            className="w-full rounded-2xl bg-lime-500 py-4 text-lg font-bold text-white shadow-lg shadow-lime-500/30 transition-all hover:bg-lime-600 active:scale-[0.98]"
           >
-            {loading ? 'Processing...' : isLogin ? 'Login' : 'Sign Up'}
+            {loading ? COPY.loading : isLogin ? COPY.login : COPY.signup}
           </button>
         </form>
 
         <div className="mt-6">
           <button
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 bg-white border border-slate-200 py-4 rounded-2xl font-bold text-slate-600 hover:bg-slate-50 transition-all"
+            className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white py-4 font-bold text-slate-600 transition-all hover:bg-slate-50"
           >
-            <img src="https://www.google.com/favicon.ico" alt="google" className="w-5 h-5" />
-            Continue with Google
+            <img src="https://www.google.com/favicon.ico" alt="" aria-hidden="true" className="h-5 w-5" />
+            {COPY.googleLogin}
           </button>
         </div>
 
         <button
           onClick={() => setIsLogin(!isLogin)}
-          className="w-full mt-6 text-sm font-bold text-slate-400 hover:text-lime-600 transition-colors"
+          className="mt-6 w-full text-sm font-bold text-slate-400 transition-colors hover:text-lime-600"
         >
-          {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Login"}
+          {isLogin ? COPY.switchToSignup : COPY.switchToLogin}
         </button>
       </div>
     </div>

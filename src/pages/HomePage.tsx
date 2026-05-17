@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import type { Post, PostCategory, PostCondition } from '../types';
 import {
   Search,
   Plus,
@@ -21,29 +19,33 @@ import {
   Loader2,
   ArrowDownWideNarrow,
   History,
+  type LucideIcon,
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import type { Post, PostCategory, PostCondition } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { MannerTempGauge } from '../components/MannerTempGauge';
 import { PostCardSkeleton } from '../components/skeletons/PostCardSkeleton';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { StatusBadge } from '../components/StatusBadge';
+import { useToast } from '../components/feedback/ToastProvider';
 
-export const CATEGORY_MAP: Record<PostCategory, { label: string; icon: any; color: string }> = {
-  Uniform: { label: '制服・体操服', icon: Shirt, color: 'bg-blue-50 text-blue-600' },
+export const CATEGORY_MAP: Record<PostCategory, { label: string; icon: LucideIcon; color: string }> = {
+  Uniform: { label: '制服・通学用品', icon: Shirt, color: 'bg-blue-50 text-blue-600' },
   Textbook: { label: '教科書・書籍', icon: Book, color: 'bg-amber-50 text-amber-600' },
   Digital: { label: 'IT・デジタル', icon: Cpu, color: 'bg-purple-50 text-purple-600' },
-  ArtSport: { label: '芸術・スポーツ', icon: Palette, color: 'bg-rose-50 text-rose-600' },
+  ArtSport: { label: '文化・スポーツ', icon: Palette, color: 'bg-rose-50 text-rose-600' },
   Life: { label: '生活用品', icon: Coffee, color: 'bg-emerald-50 text-emerald-600' },
   Other: { label: 'その他', icon: Layers, color: 'bg-slate-50 text-slate-600' },
 };
 
-const CATEGORY_LIST: { id: PostCategory | 'All'; label: string; icon: any }[] = [
+const CATEGORY_LIST: { id: PostCategory | 'All'; label: string; icon: LucideIcon }[] = [
   { id: 'All', label: 'すべて', icon: LayoutGrid },
-  { id: 'Uniform', label: '制服・体操服', icon: Shirt },
+  { id: 'Uniform', label: '制服・通学用品', icon: Shirt },
   { id: 'Textbook', label: '教科書・書籍', icon: Book },
   { id: 'Digital', label: 'IT・デジタル', icon: Cpu },
-  { id: 'ArtSport', label: '芸術・スポーツ', icon: Palette },
+  { id: 'ArtSport', label: '文化・スポーツ', icon: Palette },
   { id: 'Life', label: '生活用品', icon: Coffee },
   { id: 'Other', label: 'その他', icon: Layers },
 ];
@@ -51,12 +53,12 @@ const CATEGORY_LIST: { id: PostCategory | 'All'; label: string; icon: any }[] = 
 const CONDITION_LIST: { id: PostCondition | 'All'; label: string }[] = [
   { id: 'All', label: 'すべて' },
   { id: 'Like New', label: '未使用に近い' },
-  { id: 'Good', label: '目立った傷なし' },
+  { id: 'Good', label: 'きれいな状態' },
   { id: 'Used', label: '使用感あり' },
 ];
 
 const SORT_OPTIONS = [
-  { id: 'newest', label: '新着順' },
+  { id: 'newest', label: '新しい順' },
   { id: 'oldest', label: '古い順' },
 ] as const;
 
@@ -65,8 +67,41 @@ type SortOption = (typeof SORT_OPTIONS)[number]['id'];
 const PAGE_SIZE = 20;
 const RECENT_SEARCHES_KEY = 'campusrelay:home-recent-searches';
 
+const HOME_COPY = {
+  heroTagline: '学校のニーズと出品をひとつに',
+  searchPlaceholder: 'アイテム名や学校名で検索',
+  filters: 'フィルタ',
+  recentSearches: '最近の検索',
+  filterHeading: '詳細フィルタ',
+  resetFilters: 'リセット',
+  condition: '商品の状態',
+  size: 'サイズ（例: 140、M、LL）',
+  sizePlaceholder: 'サイズを入力',
+  sort: '並び順',
+  wishlistLoginRequired: 'お気に入りを使うにはログインが必要です。',
+  noSchoolsTitle: '登録済みの学校がありません',
+  noSchoolsDescription: '学校を追加すると、その学校の最新出品や譲渡情報をチェックできます。',
+  addSchool: '学校を追加する',
+  schoolFeed: '学校の出品フィード',
+  latestFeed: '最新の出品フィード',
+  manageSchools: '学校を管理',
+  noPostsTitle: '表示できるアイテムがありません。',
+  noPostsDescription: '検索ワードや条件を変えて、もう一度試してみてください。',
+  freeGiveaway: '無料で譲る',
+  exchange: '交換',
+  loadingMore: '読み込み中...',
+  loadedAll: 'すべてのアイテムを表示しました',
+  filterOpen: 'フィルタを開く',
+  filterClose: 'フィルタを閉じる',
+  searchSummary: 'の検索結果',
+  sortingSummary: '並び順を変更中',
+  wishlistAdd: 'お気に入りに追加する',
+  wishlistRemove: 'お気に入りから外す',
+} as const;
+
 export const HomePage = () => {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [posts, setPosts] = useState<Post[]>([]);
@@ -166,12 +201,14 @@ export const HomePage = () => {
 
       let query = supabase
         .from('posts')
-        .select(`
+        .select(
+          `
           *,
           profiles!user_id (*),
           schools (name_ja),
           post_images (storage_path, sort_order)
-        `)
+        `
+        )
         .eq('status', 'Available')
         .order('created_at', { ascending: sortBy === 'oldest' })
         .range(from, to);
@@ -231,12 +268,12 @@ export const HomePage = () => {
 
   useEffect(() => {
     if (user) {
-      fetchMySchools();
-      fetchWishlist();
+      void fetchMySchools();
+      void fetchWishlist();
     } else {
       setMySchoolIds([]);
       setSchoolsLoaded(true);
-      fetchPosts([], 0, true);
+      void fetchPosts([], 0, true);
     }
   }, [user, fetchMySchools, fetchWishlist, fetchPosts]);
 
@@ -244,7 +281,7 @@ export const HomePage = () => {
     if (user && !schoolsLoaded) return;
     if (fetchingSchools) return;
 
-    fetchPosts(mySchoolIds, page, page === 0);
+    void fetchPosts(mySchoolIds, page, page === 0);
   }, [page, mySchoolIds, fetchingSchools, schoolsLoaded, user, fetchPosts]);
 
   const toggleWishlist = async (event: React.MouseEvent, postId: string) => {
@@ -252,7 +289,7 @@ export const HomePage = () => {
     event.stopPropagation();
 
     if (!user) {
-      alert('お気に入りを使うにはログインが必要です。');
+      showToast({ tone: 'info', title: HOME_COPY.wishlistLoginRequired });
       return;
     }
 
@@ -294,7 +331,7 @@ export const HomePage = () => {
         <h1 className="text-4xl font-black text-slate-800 tracking-tight mb-2">
           Campus<span className="text-lime-500">Relay</span>
         </h1>
-        <p className="text-slate-500 font-medium italic">学校のニーズと出品をひとつに</p>
+        <p className="text-slate-500 font-medium italic">{HOME_COPY.heroTagline}</p>
       </header>
 
       <div className="flex gap-2 mb-4">
@@ -302,7 +339,7 @@ export const HomePage = () => {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input
             type="text"
-            placeholder="アイテムや学校名を検索"
+            placeholder={HOME_COPY.searchPlaceholder}
             className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl shadow-sm border border-slate-100 font-bold focus:ring-4 focus:ring-lime-500/10 focus:border-lime-500 outline-none transition-all"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -310,6 +347,8 @@ export const HomePage = () => {
         </div>
         <button
           onClick={() => setShowFilters(!showFilters)}
+          aria-label={showFilters ? HOME_COPY.filterClose : HOME_COPY.filterOpen}
+          title={showFilters ? HOME_COPY.filterClose : HOME_COPY.filterOpen}
           className={`px-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold ${
             showFilters || activeCondition !== 'All' || sizeFilter || sortBy !== 'newest'
               ? 'bg-slate-800 text-white border-slate-800 shadow-lg shadow-slate-800/20'
@@ -317,7 +356,7 @@ export const HomePage = () => {
           }`}
         >
           <Filter size={20} />
-          <span className="hidden sm:inline">フィルタ</span>
+          <span className="hidden sm:inline">{HOME_COPY.filters}</span>
         </button>
       </div>
 
@@ -325,7 +364,7 @@ export const HomePage = () => {
         <div className="flex flex-wrap items-center gap-2 mb-6">
           <span className="inline-flex items-center gap-1 text-[11px] font-black text-slate-400 uppercase tracking-widest">
             <History size={12} />
-            最近の検索
+            {HOME_COPY.recentSearches}
           </span>
           {recentSearchChips.map((item) => (
             <button
@@ -351,19 +390,21 @@ export const HomePage = () => {
       {showFilters && (
         <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border border-slate-100 mb-8 animate-in slide-in-from-top-2 duration-300">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="font-black text-slate-800">詳細フィルタ</h3>
+            <h3 className="font-black text-slate-800">{HOME_COPY.filterHeading}</h3>
             <button
               onClick={clearFilters}
               className="text-xs font-black text-slate-400 hover:text-red-500 flex items-center gap-1"
             >
               <X size={14} />
-              条件をリセット
+              {HOME_COPY.resetFilters}
             </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">状態</label>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
+                {HOME_COPY.condition}
+              </label>
               <div className="flex flex-wrap gap-2">
                 {CONDITION_LIST.map((condition) => (
                   <button
@@ -383,19 +424,21 @@ export const HomePage = () => {
 
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
-                サイズ（例：140、M、LL）
+                {HOME_COPY.size}
               </label>
               <input
                 type="text"
                 value={sizeFilter}
                 onChange={(event) => setSizeFilter(event.target.value)}
-                placeholder="サイズを入力..."
+                placeholder={HOME_COPY.sizePlaceholder}
                 className="w-full p-3 bg-slate-50 rounded-xl border-none focus:ring-2 focus:ring-lime-500 outline-none font-bold text-sm transition-all"
               />
             </div>
 
             <div className="sm:col-span-2">
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">並び順</label>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
+                {HOME_COPY.sort}
+              </label>
               <div className="flex flex-wrap gap-2">
                 {SORT_OPTIONS.map((option) => (
                   <button
@@ -438,15 +481,13 @@ export const HomePage = () => {
         <div className="bg-gradient-to-br from-lime-500 to-lime-600 rounded-[2.5rem] p-8 mb-8 text-white shadow-lg shadow-lime-500/30 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-700" />
           <div className="relative z-10">
-            <h3 className="text-xl font-black mb-2">登録された学校がありません</h3>
-            <p className="text-lime-50 font-medium mb-6 opacity-90">
-              学校を追加して、校内の最新出品や募集をチェックしましょう。
-            </p>
+            <h3 className="text-xl font-black mb-2">{HOME_COPY.noSchoolsTitle}</h3>
+            <p className="text-lime-50 font-medium mb-6 opacity-90">{HOME_COPY.noSchoolsDescription}</p>
             <Link
               to="/schools"
               className="inline-flex items-center gap-2 bg-white text-lime-600 px-6 py-3 rounded-xl font-black text-sm hover:shadow-xl active:scale-95 transition-all"
             >
-              学校を追加する
+              {HOME_COPY.addSchool}
               <ArrowRight size={18} />
             </Link>
           </div>
@@ -455,17 +496,20 @@ export const HomePage = () => {
 
       <div className="flex items-center justify-between mb-6 px-2">
         <div>
-          <h2 className="text-2xl font-black text-slate-800">{user && mySchoolIds.length > 0 ? '学校の出品フィード' : '最新の出品フィード'}</h2>
+          <h2 className="text-2xl font-black text-slate-800">
+            {user && mySchoolIds.length > 0 ? HOME_COPY.schoolFeed : HOME_COPY.latestFeed}
+          </h2>
           {(debouncedSearch || sortBy !== 'newest') && (
             <p className="mt-1 text-xs font-bold text-slate-400">
-              {debouncedSearch ? `「${debouncedSearch}」の検索結果` : '並び替え中'} ・ {SORT_OPTIONS.find((option) => option.id === sortBy)?.label}
+              {debouncedSearch ? `「${debouncedSearch}」${HOME_COPY.searchSummary}` : HOME_COPY.sortingSummary} ・{' '}
+              {SORT_OPTIONS.find((option) => option.id === sortBy)?.label}
             </p>
           )}
         </div>
         {user && mySchoolIds.length > 0 && (
           <Link to="/schools" className="text-sm font-bold text-lime-600 flex items-center gap-1 hover:underline">
             <Plus size={16} />
-            学校を追加
+            {HOME_COPY.manageSchools}
           </Link>
         )}
       </div>
@@ -481,8 +525,8 @@ export const HomePage = () => {
           <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-200">
             <School size={40} />
           </div>
-          <p className="text-slate-400 font-black text-lg">表示できるアイテムがありません。</p>
-          <p className="text-slate-300 text-sm mt-1 font-medium">検索ワードや条件を変えて、もう一度探してみてください。</p>
+          <p className="text-slate-400 font-black text-lg">{HOME_COPY.noPostsTitle}</p>
+          <p className="text-slate-300 text-sm mt-1 font-medium">{HOME_COPY.noPostsDescription}</p>
         </div>
       ) : (
         <div className="grid gap-6">
@@ -490,6 +534,7 @@ export const HomePage = () => {
             const thumbnail = post.post_images?.slice().sort((a, b) => a.sort_order - b.sort_order)[0]?.storage_path;
             const isWishlisted = wishlistIds.includes(post.id);
             const categoryInfo = CATEGORY_MAP[post.category];
+            const hasDistinctDescription = Boolean(post.description?.trim() && post.description.trim() !== post.title.trim());
 
             return (
               <div key={post.id} className="relative">
@@ -516,7 +561,7 @@ export const HomePage = () => {
                             post.mode === 'GIVEAWAY' ? 'bg-lime-50 text-lime-600' : 'bg-purple-50 text-purple-600'
                           }`}
                         >
-                          {post.mode === 'GIVEAWAY' ? '無料譲渡' : '交換'}
+                          {post.mode === 'GIVEAWAY' ? HOME_COPY.freeGiveaway : HOME_COPY.exchange}
                         </span>
                         <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${categoryInfo?.color || 'bg-slate-100'}`}>
                           {categoryInfo?.label}
@@ -529,7 +574,7 @@ export const HomePage = () => {
                         <span className="text-[10px] font-bold text-slate-400 truncate">{post.schools?.name_ja}</span>
                       </div>
                       <h2 className="text-xl font-black text-slate-800 truncate group-hover:text-lime-600 transition-colors mb-1">{post.title}</h2>
-                      <p className="text-slate-500 text-xs line-clamp-1 font-medium">{post.description}</p>
+                      {hasDistinctDescription && <p className="text-slate-500 text-xs line-clamp-1 font-medium">{post.description}</p>}
                     </div>
 
                     <div className="flex items-center justify-between pt-3 border-t border-slate-50">
@@ -542,11 +587,11 @@ export const HomePage = () => {
                           {post.profiles.display_name[0]}
                         </div>
                         <span className="text-xs font-bold">{post.profiles.display_name}</span>
-                        <VerifiedBadge verified={(post.profiles as any).email_verified} size="sm" showTooltip={false} />
+                        <VerifiedBadge verified={post.profiles.email_verified} size="sm" showTooltip={false} />
                       </Link>
 
                       <div className="flex items-center gap-2">
-                        <MannerTempGauge temp={(post.profiles as any).manner_temp ?? 36.5} size="sm" />
+                        <MannerTempGauge temp={post.profiles.manner_temp ?? 36.5} size="sm" />
                         <div className="flex items-center gap-1 text-[10px] font-black text-slate-400">
                           <Star size={12} className="fill-amber-400 text-amber-400" />
                           <span className="text-slate-700">{post.profiles.avg_rating}</span>
@@ -558,6 +603,8 @@ export const HomePage = () => {
 
                 <button
                   onClick={(event) => toggleWishlist(event, post.id)}
+                  aria-label={isWishlisted ? `${post.title}${HOME_COPY.wishlistRemove}` : `${post.title}${HOME_COPY.wishlistAdd}`}
+                  title={isWishlisted ? HOME_COPY.wishlistRemove : HOME_COPY.wishlistAdd}
                   className={`absolute top-4 right-4 p-2 rounded-xl transition-all z-10 ${
                     isWishlisted ? 'bg-pink-50 text-pink-500' : 'bg-slate-50 text-slate-300 hover:text-pink-400'
                   }`}
@@ -572,13 +619,13 @@ export const HomePage = () => {
             {loadingMore && (
               <div className="flex items-center justify-center gap-3 py-6">
                 <Loader2 className="animate-spin text-lime-500" size={24} />
-                <span className="text-sm font-bold text-slate-400">読み込み中...</span>
+                <span className="text-sm font-bold text-slate-400">{HOME_COPY.loadingMore}</span>
               </div>
             )}
 
             {!hasMore && posts.length > 0 && (
               <div className="text-center py-8">
-                <p className="text-slate-300 text-sm font-bold">すべてのアイテムを表示しました</p>
+                <p className="text-slate-300 text-sm font-bold">{HOME_COPY.loadedAll}</p>
               </div>
             )}
           </div>

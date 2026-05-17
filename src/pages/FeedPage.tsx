@@ -1,8 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
+import {
+  Plus,
+  Loader2,
+  ArrowLeft,
+  Package,
+  Star,
+  Search,
+  Filter,
+  Clock,
+  ArrowDownWideNarrow,
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Post } from '../types';
-import { Plus, Loader2, ArrowLeft, Package, Star, Search, Filter, Clock, ArrowDownWideNarrow } from 'lucide-react';
 import { CATEGORY_MAP } from './HomePage';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
@@ -16,12 +26,32 @@ const STATUS_OPTIONS = [
 ] as const;
 
 const SORT_OPTIONS = [
-  { id: 'newest', label: '新着順', icon: <Clock size={14} /> },
+  { id: 'newest', label: '新しい順', icon: <Clock size={14} /> },
   { id: 'oldest', label: '古い順', icon: <Clock size={14} /> },
 ] as const;
 
 type FeedStatus = (typeof STATUS_OPTIONS)[number]['id'];
 type FeedSort = (typeof SORT_OPTIONS)[number]['id'];
+
+const FEED_COPY = {
+  backToSchools: '学校一覧に戻る',
+  subtitle: 'この学校のリアルタイム出品フィード',
+  createPost: '出品する',
+  searchPlaceholder: 'アイテムを検索...',
+  filters: 'フィルタ',
+  statusLabel: '商品の状態',
+  sortLabel: '並び順',
+  searchSummaryPrefix: '「',
+  searchSummarySuffix: '」の検索結果',
+  summaryFallback: '並び順を変更中',
+  loading: 'アイテムを読み込み中...',
+  emptyTitle: 'アイテムがまだ見つかりません',
+  emptyDescription: '検索や条件を変えて、もう一度試してみてください。',
+  reserved: '予約済み',
+  given: '譲渡済み',
+  loadingMore: '読み込み中...',
+  loadedAll: 'すべてのアイテムを表示しました',
+} as const;
 
 export const FeedPage = () => {
   const { schoolId } = useParams();
@@ -34,15 +64,17 @@ export const FeedPage = () => {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<FeedStatus>(() => {
     const status = searchParams.get('status');
-    return STATUS_OPTIONS.some(option => option.id === status) ? (status as FeedStatus) : 'Available';
+    return STATUS_OPTIONS.some((option) => option.id === status) ? (status as FeedStatus) : 'Available';
   });
   const [sortBy, setSortBy] = useState<FeedSort>(() => {
     const sort = searchParams.get('sort');
-    return SORT_OPTIONS.some(option => option.id === sort) ? (sort as FeedSort) : 'newest';
+    return SORT_OPTIONS.some((option) => option.id === sort) ? (sort as FeedSort) : 'newest';
   });
   const [showFilters, setShowFilters] = useState(false);
 
-  const { page, hasMore, setHasMore, loadingMore, setLoadingMore, sentinelRef, reset } = useInfiniteScroll({ pageSize: PAGE_SIZE });
+  const { page, hasMore, setHasMore, loadingMore, setLoadingMore, sentinelRef, reset } = useInfiniteScroll({
+    pageSize: PAGE_SIZE,
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -69,70 +101,75 @@ export const FeedPage = () => {
     if (data) setSchoolName(data.name_ja);
   }, [schoolId]);
 
-  const fetchPosts = useCallback(async (pageNum: number, isFirstPage: boolean) => {
-    if (!schoolId) {
-      setPosts([]);
-      setHasMore(false);
-      setLoading(false);
-      setLoadingMore(false);
-      return;
-    }
+  const fetchPosts = useCallback(
+    async (pageNum: number, isFirstPage: boolean) => {
+      if (!schoolId) {
+        setPosts([]);
+        setHasMore(false);
+        setLoading(false);
+        setLoadingMore(false);
+        return;
+      }
 
-    if (isFirstPage) {
-      setLoading(true);
-    } else {
-      setLoadingMore(true);
-    }
+      if (isFirstPage) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
 
-    const from = pageNum * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
+      const from = pageNum * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
 
-    let query = supabase
-      .from('posts')
-      .select(`
+      let query = supabase
+        .from('posts')
+        .select(
+          `
         *,
         profiles!user_id (display_name, completed_count, avg_rating, rating_count),
         post_images (storage_path, sort_order)
-      `)
-      .eq('school_id', schoolId)
-      .range(from, to)
-      .order('created_at', { ascending: sortBy === 'oldest' });
+      `
+        )
+        .eq('school_id', schoolId)
+        .range(from, to)
+        .order('created_at', { ascending: sortBy === 'oldest' });
 
-    if (statusFilter !== 'ALL') {
-      if (statusFilter === 'Available') {
-        query = query.or('status.eq.Available,status.is.null');
-      } else {
-        query = query.eq('status', statusFilter);
+      if (statusFilter !== 'ALL') {
+        if (statusFilter === 'Available') {
+          query = query.or('status.eq.Available,status.is.null');
+        } else {
+          query = query.eq('status', statusFilter);
+        }
       }
-    }
 
-    if (debouncedQuery) {
-      query = query.or(`title.ilike.%${debouncedQuery}%,description.ilike.%${debouncedQuery}%`);
-    }
-
-    const { data } = await query;
-
-    if (data) {
-      if (isFirstPage) {
-        setPosts(data as any[]);
-      } else {
-        setPosts(prev => {
-          const existingIds = new Set(prev.map(p => p.id));
-          const newPosts = (data as any[]).filter(p => !existingIds.has(p.id));
-          return [...prev, ...newPosts];
-        });
+      if (debouncedQuery) {
+        query = query.or(`title.ilike.%${debouncedQuery}%,description.ilike.%${debouncedQuery}%`);
       }
-      setHasMore(data.length === PAGE_SIZE);
-    } else {
-      setHasMore(false);
-    }
 
-    setLoading(false);
-    setLoadingMore(false);
-  }, [schoolId, statusFilter, debouncedQuery, sortBy, setHasMore, setLoadingMore]);
+      const { data } = await query;
+
+      if (data) {
+        if (isFirstPage) {
+          setPosts((data as Post[]) ?? []);
+        } else {
+          setPosts((prev) => {
+            const existingIds = new Set(prev.map((p) => p.id));
+            const newPosts = ((data as Post[]) ?? []).filter((p) => !existingIds.has(p.id));
+            return [...prev, ...newPosts];
+          });
+        }
+        setHasMore(data.length === PAGE_SIZE);
+      } else {
+        setHasMore(false);
+      }
+
+      setLoading(false);
+      setLoadingMore(false);
+    },
+    [schoolId, statusFilter, debouncedQuery, sortBy, setHasMore, setLoadingMore]
+  );
 
   useEffect(() => {
-    fetchSchoolInfo();
+    void fetchSchoolInfo();
   }, [fetchSchoolInfo]);
 
   useEffect(() => {
@@ -141,66 +178,75 @@ export const FeedPage = () => {
   }, [statusFilter, debouncedQuery, sortBy, reset]);
 
   useEffect(() => {
-    fetchPosts(page, page === 0);
+    void fetchPosts(page, page === 0);
   }, [page, fetchPosts]);
 
   return (
     <div className="max-w-4xl mx-auto p-4 pb-32">
-      <header className="pt-8 mb-6">
-        <Link to="/schools" className="flex items-center gap-2 text-slate-400 font-bold text-sm mb-4 hover:text-lime-600 transition-colors">
-          <ArrowLeft size={16} /> 学校一覧に戻る
+      <header className="mb-6 pt-8">
+        <Link
+          to="/schools"
+          className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-400 transition-colors hover:text-lime-600"
+        >
+          <ArrowLeft size={16} /> {FEED_COPY.backToSchools}
         </Link>
-        <div className="flex justify-between items-end gap-4">
+        <div className="flex items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-black text-slate-800 tracking-tight">{schoolName}</h1>
-            <p className="text-slate-500 font-medium mt-1 italic">学校ごとのリアルタイム出品フィード</p>
+            <h1 className="text-3xl font-black tracking-tight text-slate-800">{schoolName}</h1>
+            <p className="mt-1 font-medium italic text-slate-500">{FEED_COPY.subtitle}</p>
           </div>
           <Link
             to={`/post/new?schoolId=${schoolId}`}
-            className="bg-lime-500 text-white px-6 py-3 rounded-2xl font-black shadow-lg shadow-lime-500/30 hover:bg-lime-600 active:scale-95 transition-all flex items-center gap-2 shrink-0"
+            className="flex shrink-0 items-center gap-2 rounded-2xl bg-lime-500 px-6 py-3 font-black text-white shadow-lg shadow-lime-500/30 transition-all hover:bg-lime-600 active:scale-95"
           >
             <Plus size={20} />
-            出品する
+            {FEED_COPY.createPost}
           </Link>
         </div>
       </header>
 
-      <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 mb-8 space-y-4">
+      <div className="mb-8 space-y-4 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
         <div className="flex gap-3">
-          <div className="flex-1 relative">
-            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+          <div className="relative flex-1">
+            <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center">
               <Search className="text-slate-400" size={20} />
             </div>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="アイテムを検索..."
-              className="w-full pl-12 pr-4 py-3.5 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-lime-500 outline-none transition-all font-medium text-slate-700"
+              placeholder={FEED_COPY.searchPlaceholder}
+              className="w-full rounded-2xl border-none bg-slate-50 py-3.5 pl-12 pr-4 font-medium text-slate-700 outline-none transition-all focus:ring-2 focus:ring-lime-500"
             />
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`px-4 py-3.5 rounded-2xl font-bold flex items-center gap-2 transition-all ${
+            aria-label={showFilters ? 'フィルタを閉じる' : 'フィルタを開く'}
+            title={showFilters ? 'フィルタを閉じる' : 'フィルタを開く'}
+            className={`flex items-center gap-2 rounded-2xl px-4 py-3.5 font-bold transition-all ${
               showFilters ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
             <Filter size={18} />
-            <span className="hidden sm:inline">フィルタ</span>
+            <span className="hidden sm:inline">{FEED_COPY.filters}</span>
           </button>
         </div>
 
         {showFilters && (
-          <div className="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-top-2 opacity-0 fade-in duration-200 fill-mode-forwards">
+          <div className="grid animate-in grid-cols-1 gap-6 border-t border-slate-100 pt-4 opacity-0 fade-in slide-in-from-top-2 duration-200 fill-mode-forwards md:grid-cols-2">
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">投稿ステータス</label>
+              <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                {FEED_COPY.statusLabel}
+              </label>
               <div className="flex flex-wrap gap-2">
-                {STATUS_OPTIONS.map(status => (
+                {STATUS_OPTIONS.map((status) => (
                   <button
                     key={status.id}
                     onClick={() => setStatusFilter(status.id)}
-                    className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
-                      statusFilter === status.id ? 'bg-lime-500 text-white shadow-md shadow-lime-500/20' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                    className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+                      statusFilter === status.id
+                        ? 'bg-lime-500 text-white shadow-md shadow-lime-500/20'
+                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
                     }`}
                   >
                     {status.label}
@@ -210,13 +256,15 @@ export const FeedPage = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">並び順</label>
+              <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                {FEED_COPY.sortLabel}
+              </label>
               <div className="flex flex-wrap gap-2">
-                {SORT_OPTIONS.map(sort => (
+                {SORT_OPTIONS.map((sort) => (
                   <button
                     key={sort.id}
                     onClick={() => setSortBy(sort.id)}
-                    className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-1.5 transition-all ${
+                    className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold transition-all ${
                       sortBy === sort.id ? 'bg-slate-800 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
                     }`}
                   >
@@ -232,79 +280,100 @@ export const FeedPage = () => {
 
       {!loading && (debouncedQuery || statusFilter !== 'Available' || sortBy !== 'newest') && (
         <div className="mb-6 px-1 text-xs font-bold text-slate-400">
-          {debouncedQuery ? `「${debouncedQuery}」の検索結果` : '絞り込み結果'} ・ {SORT_OPTIONS.find(option => option.id === sortBy)?.label}
+          {debouncedQuery
+            ? `${FEED_COPY.searchSummaryPrefix}${debouncedQuery}${FEED_COPY.searchSummarySuffix}`
+            : FEED_COPY.summaryFallback}{' '}
+          ・ {SORT_OPTIONS.find((option) => option.id === sortBy)?.label}
         </div>
       )}
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-24">
-          <Loader2 className="animate-spin text-lime-500 mb-4" size={40} />
-          <p className="text-slate-400 font-bold">アイテムを読み込み中...</p>
+          <Loader2 className="mb-4 animate-spin text-lime-500" size={40} />
+          <p className="font-bold text-slate-400">{FEED_COPY.loading}</p>
         </div>
       ) : posts.length === 0 ? (
-        <div className="text-center py-24 bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
-          <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+        <div className="rounded-[3rem] border-2 border-dashed border-slate-100 bg-white py-24 text-center">
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-slate-50">
             <Package className="text-slate-200" size={40} />
           </div>
-          <p className="text-slate-400 font-bold text-lg mb-2">アイテムが見つかりませんでした。</p>
-          <p className="text-slate-400 text-sm">検索条件を変更して、もう一度試してみてください。</p>
+          <p className="mb-2 text-lg font-bold text-slate-400">{FEED_COPY.emptyTitle}</p>
+          <p className="text-sm text-slate-400">{FEED_COPY.emptyDescription}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {posts.map(post => {
-            const thumbnail = post.post_images?.sort((a, b) => a.sort_order - b.sort_order)[0]?.storage_path;
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          {posts.map((post) => {
+            const thumbnail = post.post_images?.slice().sort((a, b) => a.sort_order - b.sort_order)[0]?.storage_path;
             const categoryInfo = CATEGORY_MAP[post.category];
             const isCompleted = post.status === 'Given';
+            const hasDistinctDescription = Boolean(post.description?.trim() && post.description.trim() !== post.title.trim());
 
             return (
               <Link
                 key={post.id}
                 to={`/post/${post.id}`}
-                className={`group bg-white rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-2xl transition-all overflow-hidden flex flex-col ${
-                  isCompleted ? 'opacity-60 grayscale-[30%]' : ''
+                className={`group flex flex-col overflow-hidden rounded-[2.5rem] border border-slate-100 bg-white shadow-sm transition-all hover:shadow-2xl ${
+                  isCompleted ? 'grayscale-[30%] opacity-60' : ''
                 }`}
               >
-                <div className="aspect-[4/3] bg-slate-100 relative overflow-hidden">
+                <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
                   {thumbnail ? (
-                    <img src={thumbnail} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
+                    <img
+                      src={thumbnail}
+                      alt={post.title}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      loading="lazy"
+                    />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-300">
+                    <div className="flex h-full w-full items-center justify-center text-slate-300">
                       <Package size={48} strokeWidth={1} />
                     </div>
                   )}
-                  <div className="absolute top-4 left-4 flex gap-2">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-md shadow-sm ${
-                      post.mode === 'GIVEAWAY' ? 'bg-lime-500/90 text-white' : 'bg-purple-500/90 text-white'
-                    }`}>
-                      {post.mode}
+                  <div className="absolute left-4 top-4 flex gap-2">
+                    <span
+                      className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest backdrop-blur-md shadow-sm ${
+                        post.mode === 'GIVEAWAY' ? 'bg-lime-500/90 text-white' : 'bg-purple-500/90 text-white'
+                      }`}
+                    >
+                      {post.mode === 'GIVEAWAY' ? 'GIVEAWAY' : 'EXCHANGE'}
                     </span>
                     {post.status === 'Reserved' && (
-                      <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-500/90 text-white backdrop-blur-md shadow-sm">
-                        予約済み
+                      <span className="rounded-full bg-amber-500/90 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white backdrop-blur-md shadow-sm">
+                        {FEED_COPY.reserved}
                       </span>
                     )}
                     {post.status === 'Given' && (
-                      <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-slate-800/90 text-white backdrop-blur-md shadow-sm">
-                        譲渡済み
+                      <span className="rounded-full bg-slate-800/90 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white backdrop-blur-md shadow-sm">
+                        {FEED_COPY.given}
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="p-6 flex-1 flex flex-col">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter ${categoryInfo?.color || 'bg-slate-100'}`}>
+                <div className="flex flex-1 flex-col p-6">
+                  <div className="mb-2 flex items-start justify-between">
+                    <span
+                      className={`rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-tighter ${
+                        categoryInfo?.color || 'bg-slate-100'
+                      }`}
+                    >
                       {categoryInfo?.label}
                     </span>
-                    <span className="text-[10px] font-bold text-slate-300">{new Date(post.created_at).toLocaleDateString()}</span>
+                    <span className="text-[10px] font-bold text-slate-300">
+                      {new Date(post.created_at).toLocaleDateString('ja-JP')}
+                    </span>
                   </div>
 
-                  <h2 className="text-xl font-black text-slate-800 mb-3 group-hover:text-lime-600 transition-colors line-clamp-1">{post.title}</h2>
-                  <p className="text-slate-500 text-sm mb-6 line-clamp-2 font-medium flex-1">{post.description}</p>
+                  <h2 className="mb-3 line-clamp-1 text-xl font-black text-slate-800 transition-colors group-hover:text-lime-600">
+                    {post.title}
+                  </h2>
+                  {hasDistinctDescription && (
+                    <p className="mb-6 line-clamp-2 flex-1 text-sm font-medium text-slate-500">{post.description}</p>
+                  )}
 
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                  <div className="flex items-center justify-between border-t border-slate-50 pt-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-sky-50 rounded-full flex items-center justify-center text-sky-600 font-black text-xs">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-50 text-xs font-black text-sky-600">
                         {post.profiles.display_name[0]}
                       </div>
                       <span className="text-sm font-bold text-slate-600">{post.profiles.display_name}</span>
@@ -323,12 +392,12 @@ export const FeedPage = () => {
             {loadingMore && (
               <div className="flex items-center justify-center gap-3 py-6">
                 <Loader2 className="animate-spin text-lime-500" size={24} />
-                <span className="text-sm font-bold text-slate-400">読み込み中...</span>
+                <span className="text-sm font-bold text-slate-400">{FEED_COPY.loadingMore}</span>
               </div>
             )}
             {!hasMore && posts.length > 0 && (
-              <div className="text-center py-8">
-                <p className="text-slate-300 text-sm font-bold">すべてのアイテムを表示しました</p>
+              <div className="py-8 text-center">
+                <p className="text-sm font-bold text-slate-300">{FEED_COPY.loadedAll}</p>
               </div>
             )}
           </div>

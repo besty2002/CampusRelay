@@ -2,6 +2,11 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ProfilePage } from './ProfilePage';
+import { ToastProvider } from '../components/feedback/ToastProvider';
+
+type LinkProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+  children?: React.ReactNode;
+};
 
 const authMocks = vi.hoisted(() => ({
   user: { id: 'user-1', email: 'student@example.com' },
@@ -65,7 +70,7 @@ vi.mock('../lib/supabase', () => ({
 }));
 
 vi.mock('react-router-dom', () => ({
-  Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+  Link: ({ children, ...props }: LinkProps) => <a {...props}>{children}</a>,
   useNavigate: () => routerMocks.navigate,
 }));
 
@@ -99,7 +104,11 @@ describe('ProfilePage menu links', () => {
   });
 
   it('shows only activity and settings shortcuts in the profile menu', async () => {
-    render(<ProfilePage />);
+    render(
+      <ToastProvider>
+        <ProfilePage />
+      </ToastProvider>
+    );
 
     await waitFor(() => {
       expect(screen.getByText('取引履歴')).toBeTruthy();

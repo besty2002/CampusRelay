@@ -11,7 +11,12 @@ interface StatusBadgeProps {
 
 const STATUS_CONFIG: Record<
   PostStatus,
-  { label: string; icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>; bgLight: string; iconColor: string }
+  {
+    label: string;
+    icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
+    bgLight: string;
+    iconColor: string;
+  }
 > = {
   Available: {
     label: '受付中',
@@ -50,8 +55,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   return (
     <div
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full ${bgLight} ${
-        onClick ? 'cursor-pointer hover:brightness-95 active:scale-95 transition-all' : ''
+      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 ${bgLight} ${
+        onClick ? 'cursor-pointer transition-all hover:brightness-95 active:scale-95' : ''
       } ${className}`}
     >
       <Icon size={12} className={iconColor} strokeWidth={3} />

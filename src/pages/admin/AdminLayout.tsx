@@ -1,81 +1,66 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../hooks/useAuth';
 import {
-  BarChart3,
-  Users,
-  AlertTriangle,
-  FileText,
-  MessageSquare,
-  ScrollText,
   ShieldAlert,
   ArrowLeft,
   Loader2,
   Crown,
   Shield,
-  KeyRound,
 } from 'lucide-react';
-
-type AdminRole = 'school_admin' | 'super_admin';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../hooks/useAuth';
+import { useToast } from '../../components/feedback/ToastProvider';
+import { ADMIN_TABS, type AdminRole } from './adminCopy';
 
 interface AdminContext {
   role: AdminRole;
   adminSchoolIds: string[];
 }
 
-const TABS = [
-  { path: '/admin', label: '概要', icon: BarChart3, roles: ['school_admin', 'super_admin'] },
-  { path: '/admin/users', label: 'ユーザー', icon: Users, roles: ['super_admin'] },
-  { path: '/admin/reports', label: '通報', icon: AlertTriangle, roles: ['school_admin', 'super_admin'] },
-  { path: '/admin/posts', label: '投稿管理', icon: FileText, roles: ['school_admin', 'super_admin'] },
-  { path: '/admin/comments', label: 'コメント', icon: MessageSquare, roles: ['school_admin', 'super_admin'] },
-  { path: '/admin/audit', label: '操作ログ', icon: ScrollText, roles: ['super_admin'] },
-  { path: '/admin/invites', label: '招待管理', icon: KeyRound, roles: ['super_admin'] },
-] as const;
-
 export const AdminLayout = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { showToast } = useToast();
   const [adminCtx, setAdminCtx] = useState<AdminContext | null>(null);
   const [loading, setLoading] = useState(true);
 
   const checkAdmin = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!data || data.role === 'user') {
-      alert('管理者権限がありません。');
-      navigate('/');
+    if (!user) {
+      setLoading(false);
       return;
     }
 
-    // Get school IDs for school_admin scoping
+    const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+
+    if (!data || data.role === 'user') {
+      showToast({
+        tone: 'error',
+        title: '管理者権限がありません',
+        description: 'ホーム画面から通常ユーザーとしてご利用ください。',
+      });
+      navigate('/');
+      setLoading(false);
+      return;
+    }
+
     let schoolIds: string[] = [];
     if (data.role === 'school_admin') {
-      const { data: schools } = await supabase
-        .from('user_schools')
-        .select('school_id')
-        .eq('user_id', user.id);
-      schoolIds = schools?.map(s => s.school_id) || [];
+      const { data: schools } = await supabase.from('user_schools').select('school_id').eq('user_id', user.id);
+      schoolIds = schools?.map((school) => school.school_id) || [];
     }
 
     setAdminCtx({ role: data.role as AdminRole, adminSchoolIds: schoolIds });
     setLoading(false);
-  }, [user, navigate]);
+  }, [navigate, showToast, user]);
 
   useEffect(() => {
-    checkAdmin();
+    void checkAdmin();
   }, [checkAdmin]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="animate-spin text-lime-500" size={32} />
       </div>
     );
@@ -83,31 +68,30 @@ export const AdminLayout = () => {
 
   if (!adminCtx) return null;
 
-  const visibleTabs = TABS.filter(t => (t.roles as readonly string[]).includes(adminCtx.role));
+  const visibleTabs = ADMIN_TABS.filter((tab) => tab.roles.includes(adminCtx.role));
 
   return (
-    <div className="max-w-6xl mx-auto px-4 pt-8 pb-32">
-      {/* Admin Header */}
+    <div className="mx-auto max-w-6xl px-4 pb-32 pt-8">
       <header className="mb-8">
         <Link
           to="/"
-          className="flex items-center gap-2 text-slate-400 font-bold text-sm mb-4 hover:text-lime-600 transition-colors"
+          className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-400 transition-colors hover:text-lime-600"
         >
           <ArrowLeft size={16} /> ホームに戻る
         </Link>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2.5 bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-2xl shadow-xl shadow-slate-800/30">
+        <div className="mb-2 flex items-center gap-3">
+          <div className="rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 p-2.5 text-white shadow-xl shadow-slate-800/30">
             <ShieldAlert size={24} />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-slate-800 tracking-tight">管理者パネル</h1>
-            <div className="flex items-center gap-2 mt-1">
+            <h1 className="text-3xl font-black tracking-tight text-slate-800">管理者パネル</h1>
+            <div className="mt-1 flex items-center gap-2">
               {adminCtx.role === 'super_admin' ? (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-black rounded-full border border-amber-200">
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-black text-amber-700">
                   <Crown size={10} /> Super Admin
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-sky-50 text-sky-700 text-[10px] font-black rounded-full border border-sky-200">
+                <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-[10px] font-black text-sky-700">
                   <Shield size={10} /> School Admin
                 </span>
               )}
@@ -116,22 +100,20 @@ export const AdminLayout = () => {
         </div>
       </header>
 
-      {/* Tab Navigation */}
-      <nav className="flex gap-1 mb-8 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-        {visibleTabs.map(tab => {
+      <nav className="-mx-4 mb-8 flex gap-1 overflow-x-auto px-4 pb-2 scrollbar-hide">
+        {visibleTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = location.pathname === tab.path;
+
           return (
             <Link
               key={tab.path}
               to={tab.path}
-              className={`
-                flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-black whitespace-nowrap transition-all shrink-0
-                ${isActive
+              className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-2xl px-4 py-2.5 text-sm font-black transition-all ${
+                isActive
                   ? 'bg-slate-800 text-white shadow-lg shadow-slate-800/20'
-                  : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-100'
-                }
-              `}
+                  : 'border border-slate-100 bg-white text-slate-500 hover:bg-slate-50'
+              }`}
             >
               <Icon size={16} />
               {tab.label}
@@ -140,7 +122,6 @@ export const AdminLayout = () => {
         })}
       </nav>
 
-      {/* Page Content */}
       <Outlet context={adminCtx} />
     </div>
   );

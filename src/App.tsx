@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Bell, Home, Loader2, MessageCircle, PlusSquare, ShieldCheck, User } from 'lucide-react';
 import { OfflineBanner } from './components/OfflineBanner';
+import { ToastProvider } from './components/feedback/ToastProvider';
 import { useAuth } from './hooks/useAuth';
 import { isSupabaseConfigured, missingPublicEnvVars } from './lib/env';
 import { supabase } from './lib/supabase';
@@ -32,8 +33,27 @@ const ChatListPage = lazy(() => import('./pages/ChatListPage').then((module) => 
 const ChatRoomPage = lazy(() => import('./pages/ChatRoomPage').then((module) => ({ default: module.ChatRoomPage })));
 const SchoolVerificationPage = lazy(() => import('./pages/SchoolVerificationPage').then((module) => ({ default: module.SchoolVerificationPage })));
 
+const PAGE_LOADER_COPY = {
+  localSetup: 'Local setup needed',
+  startTitle: "Campus Relay can't start yet",
+  startDescription:
+    'This local build is missing Supabase environment variables, so the app was stopping before the first screen rendered. Add the keys below to `.env` in the project root, then restart the dev server.',
+  missingNow: 'Missing now',
+  startHint: 'You can start from `.env.example`. Once those values are set, the normal app will load again.',
+};
+
+const NAV_COPY = {
+  home: 'ホーム',
+  notifications: '通知',
+  create: '出品',
+  createAria: '出品する',
+  messages: 'トーク',
+  profile: 'プロフィール',
+  admin: '管理',
+};
+
 const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center">
+  <div className="flex min-h-screen items-center justify-center">
     <Loader2 className="animate-spin text-lime-500" />
   </div>
 );
@@ -64,13 +84,14 @@ const Layout = ({ children }: { children: ReactNode }) => {
       .select('seller_id, buyer_id, unread_count_seller, unread_count_buyer')
       .or(`seller_id.eq.${user.id},buyer_id.eq.${user.id}`);
 
-    if (rooms) {
-      const total = rooms.reduce((sum, room) => {
-        const isSeller = room.seller_id === user.id;
-        return sum + (isSeller ? (room.unread_count_seller || 0) : (room.unread_count_buyer || 0));
-      }, 0);
-      setUnreadMessages(total);
-    }
+    if (!rooms) return;
+
+    const total = rooms.reduce((sum, room) => {
+      const isSeller = room.seller_id === user.id;
+      return sum + (isSeller ? (room.unread_count_seller || 0) : (room.unread_count_buyer || 0));
+    }, 0);
+
+    setUnreadMessages(total);
   }, [user]);
 
   const checkAdmin = useCallback(async () => {
@@ -90,8 +111,8 @@ const Layout = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    checkAdmin();
-    fetchUnreadCount();
+    void checkAdmin();
+    void fetchUnreadCount();
 
     const channel = supabase
       .channel('nav-unread')
@@ -102,16 +123,14 @@ const Layout = ({ children }: { children: ReactNode }) => {
           schema: 'public',
           table: 'chat_rooms',
         },
-        () => {
-          fetchUnreadCount();
-        }
+        () => fetchUnreadCount()
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, fetchUnreadCount, checkAdmin]);
+  }, [checkAdmin, fetchUnreadCount, user]);
 
   const isAuthPage = location.pathname === '/auth' || location.pathname === '/admin/auth';
   const isChatRoom = location.pathname.startsWith('/chat/');
@@ -129,34 +148,44 @@ const Layout = ({ children }: { children: ReactNode }) => {
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
       <OfflineBanner />
-      <div className="max-w-4xl mx-auto">{children}</div>
+      <div className="mx-auto max-w-4xl">{children}</div>
 
-      <nav className="fixed bottom-0 w-full bg-white/80 backdrop-blur-lg border-t border-slate-100 px-2 py-3 z-50">
-        <div className="max-w-md mx-auto flex justify-between items-center gap-1">
-          <NavLink to="/" icon={<Home size={20} />} label="ホーム" active={location.pathname === '/'} />
-          <NavLink to="/notifications" icon={<Bell size={20} />} label="通知" active={location.pathname === '/notifications'} />
+      <nav className="fixed bottom-0 z-50 w-full border-t border-slate-100 bg-white/80 px-2 py-3 backdrop-blur-lg">
+        <div className="mx-auto flex max-w-md items-end justify-between gap-1">
+          <NavLink to="/" icon={<Home size={20} />} label={NAV_COPY.home} active={location.pathname === '/'} />
+          <NavLink
+            to="/notifications"
+            icon={<Bell size={20} />}
+            label={NAV_COPY.notifications}
+            active={location.pathname === '/notifications'}
+          />
 
           <Link
             to="/post/new"
-            className="w-12 h-12 bg-lime-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-lime-500/30 active:scale-90 transition-all -mt-8 border-4 border-white shrink-0"
+            aria-label={NAV_COPY.createAria}
+            title={NAV_COPY.createAria}
+            className="mt-[-2rem] flex shrink-0 flex-col items-center gap-1 transition-all active:scale-90"
           >
-            <PlusSquare size={24} />
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl border-4 border-white bg-lime-500 text-white shadow-lg shadow-lime-500/30">
+              <PlusSquare size={24} />
+            </span>
+            <span className="text-[9px] font-black tracking-tight text-slate-500">{NAV_COPY.create}</span>
           </Link>
 
           <NavLink
             to="/messages"
             icon={<MessageCircle size={20} />}
-            label="トーク"
+            label={NAV_COPY.messages}
             active={location.pathname === '/messages'}
             badge={unreadMessages}
           />
-          <NavLink to="/me" icon={<User size={20} />} label="プロフィール" active={location.pathname === '/me'} />
+          <NavLink to="/me" icon={<User size={20} />} label={NAV_COPY.profile} active={location.pathname === '/me'} />
 
           {isAdmin && (
             <NavLink
               to="/admin"
               icon={<ShieldCheck size={20} />}
-              label="管理"
+              label={NAV_COPY.admin}
               active={location.pathname.startsWith('/admin')}
             />
           )}
@@ -181,38 +210,35 @@ const NavLink = ({
 }) => (
   <Link
     to={to}
-    className={`flex flex-col items-center gap-1 transition-all flex-1 relative ${
-      active ? 'text-lime-600 scale-110' : 'text-slate-400'
-    }`}
+    aria-label={label}
+    title={label}
+    className={`relative flex flex-1 flex-col items-center gap-1 transition-all ${active ? 'scale-110 text-lime-600' : 'text-slate-400'}`}
   >
     <div className="relative">
       {icon}
       {badge !== undefined && badge > 0 && (
-        <span className="absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 shadow-sm shadow-red-500/30 animate-in zoom-in-50 duration-200">
+        <span className="absolute -right-2.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white shadow-sm shadow-red-500/30">
           {badge > 99 ? '99+' : badge}
         </span>
       )}
     </div>
-    <span className="text-[9px] font-black uppercase tracking-tighter">{label}</span>
+    <span className="text-[9px] font-black tracking-tight">{label}</span>
   </Link>
 );
 
 const MissingConfigPage = () => (
   <div className="min-h-screen bg-slate-50 px-6 py-16">
     <div className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-      <p className="text-sm font-semibold text-lime-600">Local setup needed</p>
-      <h1 className="mt-3 text-3xl font-black text-slate-900">Campus Relay can&apos;t start yet</h1>
-      <p className="mt-3 text-sm leading-6 text-slate-600">
-        This local build is missing Supabase environment variables, so the app was stopping before the first screen rendered.
-        Add the keys below to <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">.env</code> in the project root, then restart the dev server.
-      </p>
+      <p className="text-sm font-semibold text-lime-600">{PAGE_LOADER_COPY.localSetup}</p>
+      <h1 className="mt-3 text-3xl font-black text-slate-900">{PAGE_LOADER_COPY.startTitle}</h1>
+      <p className="mt-3 text-sm leading-6 text-slate-600">{PAGE_LOADER_COPY.startDescription}</p>
       <div className="mt-6 rounded-2xl bg-slate-950 p-4 text-sm text-slate-100">
         <pre className="whitespace-pre-wrap font-mono">VITE_SUPABASE_URL=your-project-url{'\n'}VITE_SUPABASE_ANON_KEY=your-anon-key</pre>
       </div>
-      <p className="mt-4 text-xs leading-5 text-slate-500">Missing now: {missingPublicEnvVars.join(', ')}</p>
       <p className="mt-4 text-xs leading-5 text-slate-500">
-        You can start from <code className="rounded bg-slate-100 px-1.5 py-0.5">.env.example</code>. Once those values are set, the normal app will load again.
+        {PAGE_LOADER_COPY.missingNow}: {missingPublicEnvVars.join(', ')}
       </p>
+      <p className="mt-4 text-xs leading-5 text-slate-500">{PAGE_LOADER_COPY.startHint}</p>
     </div>
   </div>
 );
@@ -225,41 +251,141 @@ function App() {
   }
 
   return (
-    <BrowserRouter basename={basename}>
-      <Layout>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/" element={<HomePage />} />
-            <Route path="/schools" element={<ProtectedRoute><SchoolSelectPage /></ProtectedRoute>} />
-            <Route path="/feed/:schoolId" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
-            <Route path="/post/new" element={<ProtectedRoute><CreatePostPage /></ProtectedRoute>} />
-            <Route path="/post/edit/:postId" element={<ProtectedRoute><CreatePostPage /></ProtectedRoute>} />
-            <Route path="/post/:postId" element={<PostDetailPage />} />
-            <Route path="/me" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-            <Route path="/user/:userId" element={<ProtectedRoute><UserPublicProfilePage /></ProtectedRoute>} />
-            <Route path="/activity" element={<ProtectedRoute><ActivityDashboardPage /></ProtectedRoute>} />
-            <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-            <Route path="/settings/notifications" element={<ProtectedRoute><NotificationSettingsPage /></ProtectedRoute>} />
-            <Route path="/verify" element={<ProtectedRoute><SchoolVerificationPage /></ProtectedRoute>} />
-            <Route path="/messages" element={<ProtectedRoute><ChatListPage /></ProtectedRoute>} />
-            <Route path="/chat/:roomId" element={<ProtectedRoute><ChatRoomPage /></ProtectedRoute>} />
-            <Route path="/admin/auth" element={<AdminAuthPage />} />
-            <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
-              <Route index element={<AdminOverviewPage />} />
-              <Route path="users" element={<AdminUsersPage />} />
-              <Route path="reports" element={<AdminReportsPage />} />
-              <Route path="posts" element={<AdminPostsPage />} />
-              <Route path="comments" element={<AdminCommentsPage />} />
-              <Route path="audit" element={<AdminAuditLogPage />} />
-              <Route path="invites" element={<AdminInvitesPage />} />
-            </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </Layout>
-    </BrowserRouter>
+    <ToastProvider>
+      <BrowserRouter basename={basename}>
+        <Layout>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/" element={<HomePage />} />
+              <Route
+                path="/schools"
+                element={
+                  <ProtectedRoute>
+                    <SchoolSelectPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/feed/:schoolId"
+                element={
+                  <ProtectedRoute>
+                    <FeedPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/post/new"
+                element={
+                  <ProtectedRoute>
+                    <CreatePostPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/post/edit/:postId"
+                element={
+                  <ProtectedRoute>
+                    <CreatePostPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/post/:postId" element={<PostDetailPage />} />
+              <Route
+                path="/me"
+                element={
+                  <ProtectedRoute>
+                    <ProfilePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/user/:userId"
+                element={
+                  <ProtectedRoute>
+                    <UserPublicProfilePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/activity"
+                element={
+                  <ProtectedRoute>
+                    <ActivityDashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/notifications"
+                element={
+                  <ProtectedRoute>
+                    <NotificationsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <SettingsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings/notifications"
+                element={
+                  <ProtectedRoute>
+                    <NotificationSettingsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/verify"
+                element={
+                  <ProtectedRoute>
+                    <SchoolVerificationPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/messages"
+                element={
+                  <ProtectedRoute>
+                    <ChatListPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chat/:roomId"
+                element={
+                  <ProtectedRoute>
+                    <ChatRoomPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/admin/auth" element={<AdminAuthPage />} />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute>
+                    <AdminLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<AdminOverviewPage />} />
+                <Route path="users" element={<AdminUsersPage />} />
+                <Route path="reports" element={<AdminReportsPage />} />
+                <Route path="posts" element={<AdminPostsPage />} />
+                <Route path="comments" element={<AdminCommentsPage />} />
+                <Route path="audit" element={<AdminAuditLogPage />} />
+                <Route path="invites" element={<AdminInvitesPage />} />
+              </Route>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </Layout>
+      </BrowserRouter>
+    </ToastProvider>
   );
 }
 

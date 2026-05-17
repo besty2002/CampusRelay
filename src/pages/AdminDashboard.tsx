@@ -1,16 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  AlertTriangle,
+  CheckCircle,
+  ExternalLink,
+  EyeOff,
+  Loader2,
+  ShieldAlert,
+  XCircle,
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { 
-  ShieldAlert, 
-  CheckCircle, 
-  XCircle, 
-  Loader2, 
-  ExternalLink, 
-  AlertTriangle,
-  EyeOff
-} from 'lucide-react';
-import { useNavigate, Link } from 'react-router-dom';
+import { ConfirmDialog } from '../components/feedback/ConfirmDialog';
+import { useToast } from '../components/feedback/ToastProvider';
 
 interface Report {
   id: string;
@@ -28,58 +30,92 @@ interface Report {
   };
 }
 
+type PendingResolve = {
+  reportId: string;
+  postId: string;
+  action: 'hide' | 'ignore';
+} | null;
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  return fallback;
+};
+
 export const AdminDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { showToast } = useToast();
+
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingResolve, setPendingResolve] = useState<PendingResolve>(null);
+  const [resolving, setResolving] = useState(false);
 
   useEffect(() => {
     if (user) {
-      checkAdminStatus();
+      void checkAdminStatus();
     }
   }, [user]);
 
   const checkAdminStatus = async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user?.id)
-      .single();
-    
-    if (data) {
-      if (data.role === 'user') {
-        alert('管理者権限がありません。');
-        navigate('/');
-        return;
-      }
-      fetchReports();
+    const { data, error } = await supabase.from('profiles').select('role').eq('id', user?.id).single();
+
+    if (error) {
+      showToast({
+        tone: 'error',
+        title: '管理者権限を確認できませんでした',
+        description: error.message,
+      });
+      navigate('/');
+      return;
     }
+
+    if (data?.role === 'user') {
+      showToast({
+        tone: 'info',
+        title: '管理者権限がありません',
+      });
+      navigate('/');
+      return;
+    }
+
+    await fetchReports();
   };
 
   const fetchReports = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('reports')
-      .select(`
+      .select(
+        `
         *,
         posts (title, status, user_id),
         profiles (display_name)
-      `)
+      `
+      )
       .eq('status', 'Pending')
       .order('created_at', { ascending: false });
 
-    if (data) setReports(data as any[]);
+    if (error) {
+      showToast({
+        tone: 'error',
+        title: '通報一覧を読み込めませんでした',
+        description: error.message,
+      });
+    } else if (data) {
+      setReports((data as Report[]) || []);
+    }
+
     setLoading(false);
   };
 
   const handleResolveReport = async (reportId: string, postId: string, action: 'hide' | 'ignore') => {
+    setResolving(true);
     try {
       if (action === 'hide') {
-        const { error: postError } = await supabase
-          .from('posts')
-          .update({ status: 'Hidden' })
-          .eq('id', postId);
+        const { error: postError } = await supabase.from('posts').update({ status: 'Hidden' }).eq('id', postId);
         if (postError) throw postError;
       }
 
@@ -87,56 +123,85 @@ export const AdminDashboard = () => {
         .from('reports')
         .update({ status: 'Reviewed' })
         .eq('id', reportId);
+
       if (reportError) throw reportError;
 
-      alert(action === 'hide' ? '投稿が非表示にされました。' : '通報が棄却されました。');
-      fetchReports();
-    } catch (err: any) {
-      alert(err.message);
+      showToast({
+        tone: 'success',
+        title: action === 'hide' ? '投稿を非表示にしました' : '通報を確認済みにしました',
+      });
+      setPendingResolve(null);
+      await fetchReports();
+    } catch (error) {
+      showToast({
+        tone: 'error',
+        title: '通報を処理できませんでした',
+        description: getErrorMessage(error, '時間をおいてもう一度お試しください。'),
+      });
+    } finally {
+      setResolving(false);
     }
   };
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Loader2 className="animate-spin text-lime-500" />
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="animate-spin text-lime-500" />
+      </div>
+    );
+  }
+
+  const confirmTitle =
+    pendingResolve?.action === 'hide' ? '投稿を非表示にしますか？' : '通報を確認済みにしますか？';
+  const confirmDescription =
+    pendingResolve?.action === 'hide'
+      ? 'この投稿は一般ユーザーに表示されなくなります。必要であれば後から管理画面で再確認できます。'
+      : 'この通報は対応済みとして一覧から外れます。投稿自体はそのまま公開されます。';
+  const confirmLabel = pendingResolve?.action === 'hide' ? '非表示にする' : '確認済みにする';
+  const confirmTone = pendingResolve?.action === 'hide' ? 'danger' : 'default';
 
   return (
-    <div className="max-w-4xl mx-auto p-6 pt-12 pb-32">
+    <div className="mx-auto max-w-4xl p-6 pb-32 pt-12">
       <header className="mb-10">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-lime-500 text-white rounded-xl shadow-lg shadow-lime-500/30">
+        <div className="mb-2 flex items-center gap-3">
+          <div className="rounded-xl bg-lime-500 p-2 text-white shadow-lg shadow-lime-500/30">
             <ShieldAlert size={24} />
           </div>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Admin Dashboard</h1>
+          <h1 className="text-3xl font-black tracking-tight text-slate-800">Admin Dashboard</h1>
         </div>
-        <p className="text-slate-500 font-medium ml-1">学校管理者モード：通報された投稿を確認します。</p>
+        <p className="ml-1 font-medium text-slate-500">
+          学校運営に必要な通報対応をここで確認できます。
+        </p>
       </header>
 
       <section>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-xl font-black text-slate-800">
             <AlertTriangle className="text-amber-500" size={20} />
-            通報された投稿 ({reports.length})
+            未対応の通報 ({reports.length})
           </h2>
         </div>
 
         {reports.length === 0 ? (
-          <div className="bg-white p-12 rounded-[2.5rem] border-2 border-dashed border-slate-100 text-center">
-            <CheckCircle className="mx-auto text-lime-500 mb-4" size={48} />
-            <p className="text-slate-400 font-bold">現在処理が必要な通報はありません。</p>
+          <div className="rounded-[2.5rem] border-2 border-dashed border-slate-100 bg-white p-12 text-center">
+            <CheckCircle className="mx-auto mb-4 text-lime-500" size={48} />
+            <p className="font-bold text-slate-400">現在、対応が必要な通報はありません。</p>
           </div>
         ) : (
           <div className="grid gap-4">
             {reports.map((report) => (
-              <div key={report.id} className="bg-white p-6 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100">
-                <div className="flex justify-between items-start mb-4">
+              <div
+                key={report.id}
+                className="rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-xl shadow-slate-200/50"
+              >
+                <div className="mb-4 flex items-start justify-between">
                   <div>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Reason</span>
+                    <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      REASON
+                    </span>
                     <p className="text-lg font-bold text-slate-800">{report.reason}</p>
                   </div>
-                  <Link 
+                  <Link
                     to={`/post/${report.post_id}`}
                     className="flex items-center gap-1 text-xs font-black text-sky-600 hover:underline"
                   >
@@ -144,24 +209,24 @@ export const AdminDashboard = () => {
                   </Link>
                 </div>
 
-                <div className="bg-slate-50 p-4 rounded-2xl mb-6">
-                  <p className="text-xs font-bold text-slate-400 mb-1">Target Post</p>
+                <div className="mb-6 rounded-2xl bg-slate-50 p-4">
+                  <p className="mb-1 text-xs font-bold text-slate-400">対象の投稿</p>
                   <p className="font-black text-slate-700">{report.posts?.title}</p>
-                  <p className="text-[10px] text-slate-400 mt-1">Reporter: {report.profiles?.display_name}</p>
+                  <p className="mt-1 text-[10px] text-slate-400">通報者: {report.profiles?.display_name}</p>
                 </div>
 
                 <div className="flex gap-2">
-                  <button 
-                    onClick={() => handleResolveReport(report.id, report.post_id, 'hide')}
-                    className="flex-1 flex items-center justify-center gap-2 bg-red-500 text-white py-3 rounded-2xl font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+                  <button
+                    onClick={() => setPendingResolve({ reportId: report.id, postId: report.post_id, action: 'hide' })}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-red-500 py-3 font-bold text-white shadow-lg shadow-red-500/20 transition-all hover:bg-red-600"
                   >
                     <EyeOff size={18} /> 投稿を非表示にする
                   </button>
-                  <button 
-                    onClick={() => handleResolveReport(report.id, report.post_id, 'ignore')}
-                    className="flex-1 flex items-center justify-center gap-2 bg-slate-800 text-white py-3 rounded-2xl font-bold hover:bg-black transition-all shadow-lg shadow-slate-800/20"
+                  <button
+                    onClick={() => setPendingResolve({ reportId: report.id, postId: report.post_id, action: 'ignore' })}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-800 py-3 font-bold text-white shadow-lg shadow-slate-800/20 transition-all hover:bg-black"
                   >
-                    <XCircle size={18} /> 通報を棄却
+                    <XCircle size={18} /> 通報を確認済みにする
                   </button>
                 </div>
               </div>
@@ -169,6 +234,20 @@ export const AdminDashboard = () => {
           </div>
         )}
       </section>
+
+      <ConfirmDialog
+        isOpen={pendingResolve !== null}
+        title={confirmTitle}
+        description={confirmDescription}
+        confirmLabel={confirmLabel}
+        tone={confirmTone}
+        onConfirm={() =>
+          pendingResolve &&
+          handleResolveReport(pendingResolve.reportId, pendingResolve.postId, pendingResolve.action)
+        }
+        onCancel={() => setPendingResolve(null)}
+        busy={resolving}
+      />
     </div>
   );
 };

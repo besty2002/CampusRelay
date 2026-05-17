@@ -1,16 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext, Link } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../hooks/useAuth';
 import {
-  Loader2,
-  MessageSquare,
-  EyeOff,
-  Eye,
-  Trash2,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  EyeOff,
+  Loader2,
+  MessageSquare,
+  Trash2,
 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../hooks/useAuth';
+import { ConfirmDialog } from '../../components/feedback/ConfirmDialog';
+import { useToast } from '../../components/feedback/ToastProvider';
 
 interface AdminContext {
   role: 'school_admin' | 'super_admin';
@@ -24,31 +26,69 @@ interface CommentRow {
   content: string;
   is_hidden: boolean;
   created_at: string;
-  profiles: { display_name: string };
-  posts: { title: string };
+  profiles: { display_name: string } | null;
+  posts: { title: string } | null;
 }
 
+interface RawCommentRow {
+  id: string;
+  post_id: string;
+  user_id: string;
+  content: string;
+  is_hidden: boolean;
+  created_at: string;
+  profiles: { display_name: string }[] | { display_name: string } | null;
+  posts: { title: string }[] | { title: string } | null;
+}
+
+type PendingAction =
+  | { type: 'hide'; commentId: string; userId: string }
+  | { type: 'restore'; commentId: string }
+  | { type: 'delete'; commentId: string }
+  | null;
+
 const PAGE_SIZE = 20;
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  return fallback;
+};
+
+const pickSingle = <T,>(value: T | T[] | null | undefined): T | null => {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+  return value ?? null;
+};
 
 export const AdminCommentsPage = () => {
   const { role } = useOutletContext<AdminContext>();
   const { user: currentUser } = useAuth();
+  const { showToast } = useToast();
+
   const [comments, setComments] = useState<CommentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [showHidden, setShowHidden] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const [busyAction, setBusyAction] = useState(false);
 
   const fetchComments = useCallback(async () => {
     setLoading(true);
     try {
       let query = supabase
         .from('comments')
-        .select(`
+        .select(
+          `
           id, post_id, user_id, content, is_hidden, created_at,
           profiles (display_name),
           posts (title)
-        `, { count: 'exact' })
+        `,
+          { count: 'exact' }
+        )
         .order('created_at', { ascending: false })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
@@ -57,14 +97,24 @@ export const AdminCommentsPage = () => {
       }
 
       const { data, count } = await query;
-      setComments((data as any[]) || []);
+      const normalizedComments = (((data as unknown) as RawCommentRow[]) || []).map((comment) => ({
+        ...comment,
+        profiles: pickSingle(comment.profiles),
+        posts: pickSingle(comment.posts),
+      }));
+      setComments(normalizedComments);
       setTotalCount(count || 0);
-    } catch (err) {
-      console.error('Comments fetch error:', err);
+    } catch (error) {
+      console.error('Comments fetch error:', error);
+      showToast({
+        tone: 'error',
+        title: 'コメント一覧を読み込めませんでした',
+        description: '少し時間をおいてもう一度お試しください。',
+      });
     } finally {
       setLoading(false);
     }
-  }, [page, showHidden]);
+  }, [page, showHidden, showToast]);
 
   useEffect(() => {
     fetchComments();
@@ -72,10 +122,10 @@ export const AdminCommentsPage = () => {
 
   const handleHide = async (commentId: string, userId: string) => {
     if (!currentUser) return;
-    if (!confirm('このコメントを非表示にしますか？')) return;
 
+    setBusyAction(true);
     try {
-      await supabase
+      const { error: updateError } = await supabase
         .from('comments')
         .update({
           is_hidden: true,
@@ -84,15 +134,15 @@ export const AdminCommentsPage = () => {
         })
         .eq('id', commentId);
 
-      // Notify user
+      if (updateError) throw updateError;
+
       await supabase.from('admin_notifications').insert({
         user_id: userId,
         type: 'comment_hidden',
         title: 'コメントが非表示になりました',
-        message: 'あなたのコメントが利用規約に基づき非表示にされました。',
+        message: '利用ルールに基づき、あなたのコメントを非表示にしました。',
       });
 
-      // Audit log
       await supabase.from('admin_audit_logs').insert({
         admin_id: currentUser.id,
         action: 'comment_hide',
@@ -100,18 +150,29 @@ export const AdminCommentsPage = () => {
         target_id: commentId,
       });
 
-      fetchComments();
-    } catch (err: any) {
-      alert('操作に失敗しました: ' + err.message);
+      showToast({
+        tone: 'success',
+        title: 'コメントを非表示にしました',
+      });
+      setPendingAction(null);
+      await fetchComments();
+    } catch (error) {
+      showToast({
+        tone: 'error',
+        title: 'コメントを非表示にできませんでした',
+        description: getErrorMessage(error, '時間をおいてもう一度お試しください。'),
+      });
+    } finally {
+      setBusyAction(false);
     }
   };
 
   const handleRestore = async (commentId: string) => {
     if (!currentUser) return;
-    if (!confirm('このコメントを復元しますか？')) return;
 
+    setBusyAction(true);
     try {
-      await supabase
+      const { error } = await supabase
         .from('comments')
         .update({
           is_hidden: false,
@@ -120,22 +181,40 @@ export const AdminCommentsPage = () => {
         })
         .eq('id', commentId);
 
-      fetchComments();
-    } catch (err: any) {
-      alert('操作に失敗しました: ' + err.message);
+      if (error) throw error;
+
+      showToast({
+        tone: 'success',
+        title: 'コメントを再表示しました',
+      });
+      setPendingAction(null);
+      await fetchComments();
+    } catch (error) {
+      showToast({
+        tone: 'error',
+        title: 'コメントを再表示できませんでした',
+        description: getErrorMessage(error, '時間をおいてもう一度お試しください。'),
+      });
+    } finally {
+      setBusyAction(false);
     }
   };
 
   const handleDelete = async (commentId: string) => {
     if (!currentUser) return;
     if (role !== 'super_admin') {
-      alert('完全削除はSuper Adminのみ可能です。');
+      showToast({
+        tone: 'info',
+        title: '完全削除は Super Admin のみ実行できます。',
+      });
+      setPendingAction(null);
       return;
     }
-    if (!confirm('このコメントを完全に削除しますか？')) return;
 
+    setBusyAction(true);
     try {
-      await supabase.from('comments').delete().eq('id', commentId);
+      const { error } = await supabase.from('comments').delete().eq('id', commentId);
+      if (error) throw error;
 
       await supabase.from('admin_audit_logs').insert({
         admin_id: currentUser.id,
@@ -144,96 +223,138 @@ export const AdminCommentsPage = () => {
         target_id: commentId,
       });
 
-      fetchComments();
-    } catch (err: any) {
-      alert('削除に失敗しました: ' + err.message);
+      showToast({
+        tone: 'success',
+        title: 'コメントを完全削除しました',
+      });
+      setPendingAction(null);
+      await fetchComments();
+    } catch (error) {
+      showToast({
+        tone: 'error',
+        title: 'コメントを削除できませんでした',
+        description: getErrorMessage(error, '時間をおいてもう一度お試しください。'),
+      });
+    } finally {
+      setBusyAction(false);
     }
   };
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
+  const confirmConfig =
+    pendingAction?.type === 'hide'
+      ? {
+          title: 'コメントを非表示にしますか？',
+          description: 'このコメントは一般ユーザーに表示されなくなります。',
+          confirmLabel: '非表示にする',
+          tone: 'danger' as const,
+          onConfirm: () => handleHide(pendingAction.commentId, pendingAction.userId),
+        }
+      : pendingAction?.type === 'restore'
+        ? {
+            title: 'コメントを再表示しますか？',
+            description: '確認後、このコメントは再びユーザーに表示されます。',
+            confirmLabel: '再表示する',
+            tone: 'default' as const,
+            onConfirm: () => handleRestore(pendingAction.commentId),
+          }
+        : pendingAction?.type === 'delete'
+          ? {
+              title: 'コメントを完全削除しますか？',
+              description: 'この操作は元に戻せません。監査ログには削除履歴が残ります。',
+              confirmLabel: '完全削除する',
+              tone: 'danger' as const,
+              onConfirm: () => handleDelete(pendingAction.commentId),
+            }
+          : null;
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <h2 className="text-xl font-black text-slate-800">コメント管理</h2>
         <button
-          onClick={() => { setShowHidden(!showHidden); setPage(0); }}
-          className={`px-4 py-2 rounded-2xl text-sm font-bold transition-all ${
+          onClick={() => {
+            setShowHidden(!showHidden);
+            setPage(0);
+          }}
+          className={`rounded-2xl border px-4 py-2 text-sm font-bold transition-all ${
             showHidden
-              ? 'bg-red-50 text-red-600 border border-red-200'
-              : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'
+              ? 'border-red-200 bg-red-50 text-red-600'
+              : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
           }`}
         >
-          {showHidden ? '非表示のみ' : '全コメント'}
+          {showHidden ? '非表示コメントのみ' : 'すべてのコメント'}
         </button>
       </div>
 
-      <p className="text-xs font-bold text-slate-400 mb-4">{totalCount} 件のコメント</p>
+      <p className="mb-4 text-xs font-bold text-slate-400">{totalCount} 件のコメント</p>
 
       {loading ? (
         <div className="flex justify-center py-16">
           <Loader2 className="animate-spin text-lime-500" size={28} />
         </div>
       ) : comments.length === 0 ? (
-        <div className="bg-white p-12 rounded-[2.5rem] border-2 border-dashed border-slate-100 text-center">
-          <MessageSquare className="mx-auto text-slate-200 mb-4" size={48} />
-          <p className="text-slate-400 font-bold">コメントがありません。</p>
+        <div className="rounded-[2.5rem] border-2 border-dashed border-slate-100 bg-white p-12 text-center">
+          <MessageSquare className="mx-auto mb-4 text-slate-200" size={48} />
+          <p className="font-bold text-slate-400">該当するコメントはありません。</p>
         </div>
       ) : (
         <div className="grid gap-3">
-          {comments.map(comment => (
+          {comments.map((comment) => (
             <div
               key={comment.id}
-              className={`bg-white p-5 rounded-[2rem] shadow-sm border transition-all ${
+              className={`rounded-[2rem] border bg-white p-5 shadow-sm transition-all ${
                 comment.is_hidden ? 'border-red-200 bg-red-50/20 opacity-70' : 'border-slate-100'
               }`}
             >
               <div className="flex items-start gap-4">
-                <div className={`p-2 rounded-xl shrink-0 mt-0.5 ${
-                  comment.is_hidden ? 'bg-red-50 text-red-400' : 'bg-slate-50 text-slate-400'
-                }`}>
+                <div
+                  className={`mt-0.5 shrink-0 rounded-xl p-2 ${
+                    comment.is_hidden ? 'bg-red-50 text-red-400' : 'bg-slate-50 text-slate-400'
+                  }`}
+                >
                   <MessageSquare size={16} />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
                     <Link
                       to={`/user/${comment.user_id}`}
-                      className="text-sm font-black text-slate-700 hover:text-lime-600 transition-colors"
+                      className="text-sm font-black text-slate-700 transition-colors hover:text-lime-600"
                     >
-                      {comment.profiles?.display_name}
+                      {comment.profiles?.display_name ?? 'ユーザー'}
                     </Link>
-                    <span className="text-[10px] text-slate-300 font-medium">
+                    <span className="text-[10px] font-medium text-slate-300">
                       {new Date(comment.created_at).toLocaleDateString('ja-JP')}
                     </span>
                     {comment.is_hidden && (
-                      <span className="text-[10px] font-black text-red-400 bg-red-50 px-2 py-0.5 rounded-full">
+                      <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-black text-red-400">
                         非表示
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-slate-600 font-medium leading-relaxed">{comment.content}</p>
+                  <p className="text-sm font-medium leading-relaxed text-slate-600">{comment.content}</p>
                   <Link
                     to={`/post/${comment.post_id}`}
-                    className="text-[10px] text-sky-500 font-bold hover:underline mt-1 inline-block"
+                    className="mt-1 inline-block text-[10px] font-bold text-sky-500 hover:underline"
                   >
-                    投稿: {comment.posts?.title}
+                    投稿: {comment.posts?.title ?? '削除済みの投稿'}
                   </Link>
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex shrink-0 items-center gap-1.5">
                   {comment.is_hidden ? (
                     <button
-                      onClick={() => handleRestore(comment.id)}
-                      className="p-2 rounded-xl bg-emerald-50 text-emerald-500 hover:bg-emerald-100 transition-all"
-                      title="復元"
+                      onClick={() => setPendingAction({ type: 'restore', commentId: comment.id })}
+                      className="rounded-xl bg-emerald-50 p-2 text-emerald-500 transition-all hover:bg-emerald-100"
+                      title="再表示"
                     >
                       <Eye size={14} />
                     </button>
                   ) : (
                     <button
-                      onClick={() => handleHide(comment.id, comment.user_id)}
-                      className="p-2 rounded-xl bg-amber-50 text-amber-500 hover:bg-amber-100 transition-all"
+                      onClick={() => setPendingAction({ type: 'hide', commentId: comment.id, userId: comment.user_id })}
+                      className="rounded-xl bg-amber-50 p-2 text-amber-500 transition-all hover:bg-amber-100"
                       title="非表示"
                     >
                       <EyeOff size={14} />
@@ -241,8 +362,8 @@ export const AdminCommentsPage = () => {
                   )}
                   {role === 'super_admin' && (
                     <button
-                      onClick={() => handleDelete(comment.id)}
-                      className="p-2 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-all"
+                      onClick={() => setPendingAction({ type: 'delete', commentId: comment.id })}
+                      className="rounded-xl bg-red-50 p-2 text-red-500 transition-all hover:bg-red-100"
                       title="完全削除"
                     >
                       <Trash2 size={14} />
@@ -255,25 +376,39 @@ export const AdminCommentsPage = () => {
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-3 mt-8">
+        <div className="mt-8 flex items-center justify-center gap-3">
           <button
-            onClick={() => setPage(p => Math.max(0, p - 1))}
+            onClick={() => setPage((currentPage) => Math.max(0, currentPage - 1))}
             disabled={page === 0}
-            className="p-2 rounded-xl bg-white border border-slate-200 text-slate-400 disabled:opacity-30"
+            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-400 disabled:opacity-30"
           >
             <ChevronLeft size={18} />
           </button>
-          <span className="text-sm font-bold text-slate-500">{page + 1} / {totalPages}</span>
+          <span className="text-sm font-bold text-slate-500">
+            {page + 1} / {totalPages}
+          </span>
           <button
-            onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+            onClick={() => setPage((currentPage) => Math.min(totalPages - 1, currentPage + 1))}
             disabled={page >= totalPages - 1}
-            className="p-2 rounded-xl bg-white border border-slate-200 text-slate-400 disabled:opacity-30"
+            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-400 disabled:opacity-30"
           >
             <ChevronRight size={18} />
           </button>
         </div>
+      )}
+
+      {confirmConfig && (
+        <ConfirmDialog
+          isOpen
+          title={confirmConfig.title}
+          description={confirmConfig.description}
+          confirmLabel={confirmConfig.confirmLabel}
+          tone={confirmConfig.tone}
+          onConfirm={confirmConfig.onConfirm}
+          onCancel={() => setPendingAction(null)}
+          busy={busyAction}
+        />
       )}
     </div>
   );

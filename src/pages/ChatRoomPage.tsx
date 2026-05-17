@@ -2,15 +2,31 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { ArrowLeft, Send, Loader2, Package, Menu, ChevronDown, WifiOff, Image as ImageIcon, Calendar as CalendarIcon, MapPin, Clock, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Package, ChevronDown, Image as ImageIcon, Calendar as CalendarIcon, Clock, CheckCircle2 } from 'lucide-react';
 import type { ChatMessage, ChatRoom, PostStatus } from '../types';
 import { MessageSkeleton } from '../components/skeletons/MessageSkeleton';
 import imageCompression from 'browser-image-compression';
 import { AppointmentModal } from '../components/AppointmentModal';
 import { ReviewModal } from '../components/ReviewModal';
 import { StatusBadge } from '../components/StatusBadge';
+import { useToast } from '../components/feedback/ToastProvider';
+import { ChatRoomHeader } from '../components/chat/ChatRoomHeader';
+import { AppointmentMessageCard } from '../components/chat/AppointmentMessageCard';
 
-// 笏笏笏 Helpers 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+type PresencePayload = {
+  user_id: string;
+  is_typing?: boolean;
+};
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+    return error.message;
+  }
+
+  return fallback;
+};
+
+// Helpers
 const formatTime = (dateStr: string) =>
   new Date(dateStr).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
@@ -28,7 +44,7 @@ const isSameDay = (a: string, b: string) => {
     da.getDate() === db.getDate();
 };
 
-// 笏笏笏 Typing Indicator Dots 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+// Typing indicator
 const TypingIndicator = () => (
   <div className="flex justify-start mb-3">
     <div className="flex items-end gap-2">
@@ -46,11 +62,12 @@ const TypingIndicator = () => (
   </div>
 );
 
-// 笏笏笏 Main Component 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+// Main component
 export const ChatRoomPage = () => {
   const { roomId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [room, setRoom] = useState<ChatRoom | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -76,7 +93,7 @@ export const ChatRoomPage = () => {
   const [reviewTargetUserId, setReviewTargetUserId] = useState('');
   const headerMenuRef = useRef<HTMLDivElement>(null);
 
-  // 笏笏笏 Fetch Room & Messages 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+  // Fetch room details and initial messages
   const fetchRoomAndMessages = useCallback(async () => {
     if (!roomId) return;
     setLoading(true);
@@ -95,7 +112,7 @@ export const ChatRoomPage = () => {
       .eq('id', roomId)
       .single();
 
-    if (roomData) setRoom(roomData as any);
+    if (roomData) setRoom(roomData as ChatRoom);
 
     const { data: messagesData } = await supabase
       .from('chat_messages')
@@ -107,13 +124,13 @@ export const ChatRoomPage = () => {
       .order('created_at', { ascending: true });
 
     if (messagesData && messagesData.length > 0) {
-      setMessages(messagesData as any[]);
+      setMessages(messagesData as ChatMessage[]);
       lastMessageTimeRef.current = messagesData[messagesData.length - 1].created_at;
     }
     setLoading(false);
   }, [roomId]);
 
-  // 笏笏笏 Fetch only NEW messages (for polling fallback) 笏笏笏笏笏笏笏
+  // Fetch only new messages when polling is active
   const fetchNewMessages = useCallback(async () => {
     if (!roomId) return;
     
@@ -126,7 +143,7 @@ export const ChatRoomPage = () => {
       .eq('room_id', roomId)
       .order('created_at', { ascending: true });
 
-    // ・溢ｧ・・・肥亨・ ・ｴ弡・攪 ・・ｧ・・・ｸ・ｴ
+    // If we already have messages, only ask for rows newer than the latest one.
     if (lastMessageTimeRef.current) {
       query.gt('created_at', lastMessageTimeRef.current);
     }
@@ -136,7 +153,7 @@ export const ChatRoomPage = () => {
     if (data && data.length > 0) {
       setMessages(prev => {
         const existingIds = new Set(prev.map(m => m.id));
-        const newMsgs = (data as any[]).filter(m => !existingIds.has(m.id));
+        const newMsgs = (data as ChatMessage[]).filter(m => !existingIds.has(m.id));
         if (newMsgs.length === 0) return prev;
         return [...prev, ...newMsgs];
       });
@@ -144,7 +161,7 @@ export const ChatRoomPage = () => {
     }
   }, [roomId]);
 
-  // 笏笏笏 Start/Stop Polling 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+  // Polling fallback controls
   const startPolling = useCallback(() => {
     if (pollingRef.current) return;
     console.log('[Chat] Starting fallback polling (3s interval)');
@@ -161,7 +178,7 @@ export const ChatRoomPage = () => {
     }
   }, []);
 
-  // 笏笏笏 Mark messages as read (defensive) 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+  // Mark messages as read defensively
   const markMessagesAsRead = useCallback(async () => {
     if (!user || !roomId || !room) return;
 
@@ -181,18 +198,18 @@ export const ChatRoomPage = () => {
         .update(isSeller ? { unread_count_seller: 0 } : { unread_count_buyer: 0 })
         .eq('id', roomId);
     } catch (err) {
-      // is_read ・ｬ・ｼ・ｴ ・・牟・・・尖洳 ・ｴ・・
+      // Some environments may not have the is_read column yet.
       console.warn('[Chat] markMessagesAsRead failed (is_read column may not exist):', err);
     }
   }, [user, roomId, room]);
 
-  // 笏笏笏 Realtime Subscription + Polling Fallback 笏笏笏笏笏笏笏笏笏笏笏笏笏
+  // Realtime subscription with polling fallback
   useEffect(() => {
     if (!user || !roomId) return;
 
     fetchRoomAndMessages();
 
-    // 笘・﨑ｭ・・polling・・・懍梠 (Realtime ・ｱ・ｵ﨑俯ｩｴ ・溢ｶ､)
+    // Start with polling enabled, then disable it once realtime is healthy.
     startPolling();
 
     // 1) Messages subscription with status logging
@@ -206,21 +223,21 @@ export const ChatRoomPage = () => {
       }, async (payload) => {
         console.log('[Realtime] INSERT received:', payload.new.id);
 
-        // 笘・・ｼ・ payload・川・ ・罷｡・・肥亨・ ・緋ｰ (・・ｸ ・們・)
-        const newMsg = payload.new as any;
+        // Optimistically append the incoming payload so the UI feels instant.
+        const newMsg = payload.new as ChatMessage;
         setMessages(prev => {
           if (prev.some(m => m.id === newMsg.id)) return prev;
-          // payload・・profiles ・簿ｳｴ・ ・・愍・・・・・亨 ・緋ｰ
+          // The realtime payload does not include joined profile data yet.
           const msgWithProfile = {
             ...newMsg,
             is_read: newMsg.is_read ?? false,
-            profiles: { display_name: '' } // ・・亨
+            profiles: { display_name: '' }, // Filled in by the follow-up fetch below.
           };
           lastMessageTimeRef.current = newMsg.created_at;
           return [...prev, msgWithProfile];
         });
 
-        // ・ｸ ・､・・full data・ｼ ・・ｸ・・・・・魂・ｴ孖ｸ
+        // Then hydrate the message with the joined profile record.
         const { data } = await supabase
           .from('chat_messages')
           .select(`
@@ -232,10 +249,10 @@ export const ChatRoomPage = () => {
 
         if (data) {
           setMessages(prev =>
-            prev.map(m => m.id === data.id ? (data as any) : m)
+            prev.map(m => m.id === data.id ? (data as ChatMessage) : m)
           );
 
-          // ・・劇・ｩ ・肥亨・・ｴ ・ｽ・・・俯ｦｬ (・尖洳 ・ｴ・・
+          // If the message came from the other user, try to mark it as read.
           if (data.sender_id !== user.id) {
             supabase
               .from('chat_messages')
@@ -255,7 +272,7 @@ export const ChatRoomPage = () => {
       }, (payload) => {
         setMessages(prev =>
           prev.map(m => m.id === payload.new.id 
-            ? { ...m, is_read: (payload.new as any).is_read ?? m.is_read } 
+            ? { ...m, is_read: (payload.new as Partial<ChatMessage>).is_read ?? m.is_read } 
             : m
           )
         );
@@ -263,12 +280,12 @@ export const ChatRoomPage = () => {
       .subscribe((status, err) => {
         console.log(`[Realtime] Message channel status: ${status}`, err || '');
         if (status === 'SUBSCRIBED') {
-          console.log('[Realtime] 笨・Successfully subscribed to messages');
+          console.log('[Realtime] Successfully subscribed to messages');
           setRealtimeConnected(true);
-          // Realtime ・ｱ・ｵ﨑俯ｩｴ polling ・卓ｧ
+          // Realtime is healthy, so polling can stop for now.
           stopPolling();
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.warn('[Realtime] 笶・Subscription failed, keeping polling active');
+          console.warn('[Realtime] Subscription failed, keeping polling active');
           setRealtimeConnected(false);
           startPolling();
         } else if (status === 'CLOSED') {
@@ -277,7 +294,7 @@ export const ChatRoomPage = () => {
         }
       });
 
-    // 2) Presence channel (夋・ｴ﨑・・ｸ・肥ｼ・ｴ奓ｰ)
+    // Presence channel for typing state
     const presenceChannel = supabase.channel(`presence:${roomId}`);
     presenceChannelRef.current = presenceChannel;
 
@@ -286,7 +303,8 @@ export const ChatRoomPage = () => {
         const state = presenceChannel.presenceState();
         const others = Object.values(state)
           .flat()
-          .filter((p: any) => p.user_id !== user.id && p.is_typing);
+          .map((p) => p as unknown as PresencePayload)
+          .filter((p) => p.user_id !== user.id && p.is_typing);
         setIsPartnerTyping(others.length > 0);
       })
       .subscribe(async (status) => {
@@ -295,7 +313,7 @@ export const ChatRoomPage = () => {
         }
       });
 
-    // 笘・Cleanup
+    // Cleanup subscriptions when the room changes
     return () => {
       supabase.removeChannel(messageChannel);
       supabase.removeChannel(presenceChannel);
@@ -304,19 +322,19 @@ export const ChatRoomPage = () => {
     };
   }, [user, roomId, fetchRoomAndMessages, startPolling, stopPolling, fetchNewMessages]);
 
-  // 笏笏笏 Mark as read when room loads 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+  // Mark visible messages as read after the initial load
   useEffect(() => {
     if (!loading && room && messages.length > 0) {
       markMessagesAsRead();
     }
   }, [loading, room, messages.length, markMessagesAsRead]);
 
-  // 笏笏笏 Auto scroll 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+  // Auto scroll when messages or typing state change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isPartnerTyping]);
 
-  // 笏笏笏 Scroll detection 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+  // Track whether we should show the jump-to-bottom button
   const handleScroll = () => {
     const container = messagesContainerRef.current;
     if (!container) return;
@@ -337,7 +355,7 @@ export const ChatRoomPage = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showHeaderMenu]);
 
-  // 笏笏笏 Typing broadcast 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+  // Broadcast local typing state
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
 
@@ -369,14 +387,14 @@ export const ChatRoomPage = () => {
     setIsAppointmentModalOpen(true);
   };
 
-  // 笏笏笏 Image Upload 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+  // Image upload
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     let file = e.target.files?.[0];
     if (!file || !user || !roomId) return;
     
     setUploadingImage(true);
     try {
-      // 1. ・誤攵・ｰ・ ・ｨ ・ｴ・ｸ・ ・菩ｶ・・・圸 (1MB ・ｴ﨑俯｡・
+      // Compress large image files before upload.
       if (file.type.startsWith('image/')) {
         try {
           const options = {
@@ -386,7 +404,7 @@ export const ChatRoomPage = () => {
           };
           file = await imageCompression(file, options);
         } catch (compError) {
-          console.error('・・桁 ・ｴ・ｸ・ ・菩ｶ・・､甯ｨ:', compError);
+          console.error('Image compression failed:', compError);
         }
       }
 
@@ -404,7 +422,7 @@ export const ChatRoomPage = () => {
         .from('chat-images')
         .getPublicUrl(filePath);
 
-      // ・呟ｴ・・UI
+      // Optimistically render the image message in the thread.
       const optimisticId = `optimistic-img-${Date.now()}`;
       const optimisticMsg: ChatMessage = {
         id: optimisticId,
@@ -418,7 +436,7 @@ export const ChatRoomPage = () => {
       };
       setMessages(prev => [...prev, optimisticMsg]);
 
-      // DB ・・･
+      // Save the uploaded image message to the database.
       const { data, error } = await supabase
         .from('chat_messages')
         .insert({
@@ -435,24 +453,28 @@ export const ChatRoomPage = () => {
       if (data) {
         lastMessageTimeRef.current = data.created_at;
         setMessages(prev =>
-          prev.map(m => m.id === optimisticId ? (data as any) : m)
+          prev.map(m => m.id === optimisticId ? (data as ChatMessage) : m)
             .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
         );
       }
-    } catch (err: any) {
-      alert('画像のアップロードに失敗しました: ' + err.message);
+    } catch (err: unknown) {
+      showToast({
+        title: '画像のアップロードに失敗しました',
+        description: getErrorMessage(err, '画像をもう一度選び直してください。'),
+        tone: 'error',
+      });
     } finally {
       setUploadingImage(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  // 笏笏笏 Status Change 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+  // Seller post status change
   const handleStatusChange = async (newStatus: PostStatus) => {
     if (!room || !roomId) return;
     setShowStatusMenu(false);
     
-    // ・呟ｴ・・・・魂・ｴ孖ｸ
+    // Optimistically update the item status.
     setRoom(prev => prev ? { ...prev, posts: { ...prev.posts, status: newStatus } } : null);
     
     const { error } = await supabase
@@ -461,10 +483,14 @@ export const ChatRoomPage = () => {
       .eq('id', room.post_id);
       
     if (error) {
-      alert('状態変更に失敗しました: ' + error.message);
+      showToast({
+        title: '状態の更新に失敗しました',
+        description: error.message,
+        tone: 'error',
+      });
       setRoom(prev => prev ? { ...prev, posts: { ...prev.posts, status: room.posts.status } } : null);
     } else {
-      // ・ｰ・・・・｣・Given)・・・・ｽ ・・・ｬ・ｰ ・ｨ・ｬ 岺懍亨
+      // Open the review modal once the handoff is completed.
       if (newStatus === 'Given') {
         setReviewTargetUserId(isSeller ? room.buyer_id : room.seller_id);
         setShowReviewModal(true);
@@ -472,7 +498,7 @@ export const ChatRoomPage = () => {
     }
   };
 
-  // 笏笏笏 Send message (・呟ｴ・・・・魂・ｴ孖ｸ) 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+  // Send message with optimistic UI
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !user || !roomId) return;
@@ -485,7 +511,7 @@ export const ChatRoomPage = () => {
       presenceChannelRef.current.track({ user_id: user.id, is_typing: false });
     }
 
-    // 笘・・呟ｴ・・・・魂・ｴ孖ｸ: INSERT ・・乱 UI・・・ｼ・ 岺懍亨
+    // Optimistically append the outgoing message before the insert finishes.
     const optimisticId = `optimistic-${Date.now()}`;
     const optimisticMsg: ChatMessage = {
       id: optimisticId,
@@ -512,16 +538,20 @@ export const ChatRoomPage = () => {
       .single();
 
     if (error) {
-      // ・､甯ｨ ・・・呟ｴ・・・肥亨・ ・懋ｱｰ + ・・･ ・ｵ・・
+      // Roll back the optimistic bubble and restore the draft.
       setMessages(prev => prev.filter(m => m.id !== optimisticId));
       setNewMessage(messageText);
-      alert(error.message);
+      showToast({
+        title: 'メッセージを送信できませんでした',
+        description: error.message,
+        tone: 'error',
+      });
     } else if (data) {
-      // ・ｱ・ｵ ・・・呟ｴ・・・肥亨・・ｼ ・､・・・ｰ・ｴ奓ｰ・・・川ｲｴ
+      // Replace the optimistic message with the saved record.
       lastMessageTimeRef.current = data.created_at;
       setMessages(prev =>
-        prev.map(m => m.id === optimisticId ? (data as any) : m)
-          // Realtime・ｴ ・ｼ・ ・・ｰｩ﨑・・ｽ・ｰ ・瀧ｳｵ ・懋ｱｰ
+        prev.map(m => m.id === optimisticId ? (data as ChatMessage) : m)
+          // Guard against duplicate inserts when realtime also delivers the message.
           .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
       );
     }
@@ -569,9 +599,13 @@ export const ChatRoomPage = () => {
           .eq('id', editingAppointmentId);
 
         if (error) throw error;
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error editing appointment:', error);
-        alert('予定の更新に失敗しました。');
+        showToast({
+          title: '予定の更新に失敗しました',
+          description: getErrorMessage(error, '時間をおいてもう一度お試しください。'),
+          tone: 'error',
+        });
         setMessages(prev =>
           prev.map(m =>
             m.id === editingAppointmentId
@@ -591,7 +625,7 @@ export const ChatRoomPage = () => {
       return;
     }
     
-    // ・呟ｴ・・UI
+    // Optimistically add the appointment message.
     const optimisticId = `optimistic-appt-${Date.now()}`;
     const optimisticMsg: ChatMessage = {
       id: optimisticId,
@@ -630,13 +664,17 @@ export const ChatRoomPage = () => {
       if (returnData) {
         lastMessageTimeRef.current = returnData.created_at;
         setMessages(prev =>
-          prev.map(m => m.id === optimisticId ? (returnData as any) : m)
+          prev.map(m => m.id === optimisticId ? (returnData as ChatMessage) : m)
             .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
         );
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating appointment:', error);
-      alert('約束の提案に失敗しました。');
+      showToast({
+        title: '取引予定の提案に失敗しました',
+        description: getErrorMessage(error, '通信状況を確認してもう一度お試しください。'),
+        tone: 'error',
+      });
       setMessages(prev => prev.filter(m => m.id !== optimisticId));
     } finally {
       setEditingAppointmentId(null);
@@ -650,7 +688,7 @@ export const ChatRoomPage = () => {
     const msg = messages.find(m => m.id === msgId);
     if (!msg || !msg.appointment_data) return;
 
-    // ・呟ｴ・・UI
+    // Update the UI immediately so the status change feels responsive.
     setMessages(prev => prev.map(m => 
       m.id === msgId 
         ? { ...m, appointment_data: { ...m.appointment_data!, status: newStatus } } 
@@ -669,10 +707,14 @@ export const ChatRoomPage = () => {
         .eq('id', msgId);
 
       if (error) throw error;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating appointment:', error);
-      alert('状態の更新に失敗しました。');
-      // ・､・ｱ
+      showToast({
+        title: '予定の更新に失敗しました',
+        description: getErrorMessage(error, '時間をおいて再度お試しください。'),
+        tone: 'error',
+      });
+      // Revert the local appointment status if the update fails.
       setMessages(prev => prev.map(m => 
         m.id === msgId 
           ? { ...m, appointment_data: { ...m.appointment_data!, status: msg.appointment_data!.status } } 
@@ -681,7 +723,7 @@ export const ChatRoomPage = () => {
     }
   };
 
-  // 笏笏笏 Loading State 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+  // Loading state
   if (loading) return (
     <div className="fixed inset-0 w-full flex justify-center bg-[#8ECBAF] z-[100]">
       <div className="flex flex-col h-[100dvh] w-full max-w-2xl relative overflow-hidden shadow-2xl bg-[#8ECBAF]">
@@ -708,67 +750,30 @@ export const ChatRoomPage = () => {
     <div className="fixed inset-0 w-full flex justify-center bg-[#8ECBAF] z-[100]">
       <div className="flex flex-col h-[100dvh] w-full max-w-2xl relative overflow-hidden shadow-2xl" style={{ background: 'linear-gradient(180deg, #8ECBAF 0%, #7BBBA0 100%)' }}>
 
-      {/* 笊絶武笊・LINE-style Header 笊絶武笊・*/}
-      <header className="bg-[#06C755] text-white px-4 py-3 flex items-center gap-3 shrink-0 shadow-md z-20">
-        <button 
-          onClick={() => navigate(-1)} 
-          className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
-        >
-          <ArrowLeft size={22} />
-        </button>
-        <div className="flex-1 min-w-0 text-center">
-          <h2 className="font-bold text-base truncate">{otherParty?.display_name}</h2>
-          {/* Connection status indicator */}
-          {!realtimeConnected && (
-            <div className="flex items-center justify-center gap-1 mt-0.5">
-              <WifiOff size={10} className="text-white/60" />
-              <span className="text-[9px] text-white/60 font-medium">接続を確認中</span>
-            </div>
-          )}
-        </div>
-        <div className="relative" ref={headerMenuRef}>
-          <button
-            onClick={() => setShowHeaderMenu(prev => !prev)}
-            className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
-            aria-label="チャットメニュー"
-          >
-            <Menu size={20} />
-          </button>
-          {showHeaderMenu && (
-            <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden py-1 z-50 animate-in slide-in-from-top-1 fade-in duration-100">
-              <button
-                onClick={() => {
-                  setShowHeaderMenu(false);
-                  navigate(`/post/${room?.post_id}`);
-                }}
-                className="w-full px-4 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                商品詳細を見る
-              </button>
-              <button
-                onClick={() => {
-                  setShowHeaderMenu(false);
-                  navigate(`/user/${otherParty?.id}`);
-                }}
-                className="w-full px-4 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                相手のプロフィールを見る
-              </button>
-              <button
-                onClick={() => {
-                  setShowHeaderMenu(false);
-                  openNewAppointmentModal();
-                }}
-                className="w-full px-4 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100"
-              >
-                取引予定を作成
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
+      {/* Header */}
+      <div className="relative" ref={headerMenuRef}>
+        <ChatRoomHeader
+          partnerName={otherParty?.display_name}
+          realtimeConnected={realtimeConnected}
+          showHeaderMenu={showHeaderMenu}
+          onBack={() => navigate(-1)}
+          onToggleMenu={() => setShowHeaderMenu((prev) => !prev)}
+          onOpenPost={() => {
+            setShowHeaderMenu(false);
+            navigate(`/post/${room?.post_id}`);
+          }}
+          onOpenProfile={() => {
+            setShowHeaderMenu(false);
+            navigate(`/user/${otherParty?.id}`);
+          }}
+          onCreateAppointment={() => {
+            setShowHeaderMenu(false);
+            openNewAppointmentModal();
+          }}
+        />
+      </div>
 
-      {/* 笊絶武笊・Item Card & Status Controller 笊絶武笊・*/}
+      {/* Item card and seller status controls */}
       <div className="mx-3 mt-2 mb-1 flex items-center gap-3 p-2.5 bg-white/90 backdrop-blur-md rounded-xl shadow-sm z-10 relative">
         <Link to={`/post/${room?.post_id}`} className="flex-1 flex items-center gap-3 min-w-0 group cursor-pointer">
           <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden shrink-0">
@@ -786,7 +791,7 @@ export const ChatRoomPage = () => {
           </div>
         </Link>
         
-        {/* Status Dropdown (Seller Only) */}
+        {/* Seller-only status dropdown */}
         {isSeller && (
           <div className="relative shrink-0">
             <StatusBadge 
@@ -811,7 +816,7 @@ export const ChatRoomPage = () => {
         )}
       </div>
 
-      {/* 笊絶武笊・Messages Area 笊絶武笊・*/}
+      {/* Messages area */}
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
@@ -831,7 +836,7 @@ export const ChatRoomPage = () => {
 
           return (
             <div key={msg.id}>
-              {/* 笏笏笏 Date Separator 笏笏笏 */}
+              {/* Date separator */}
               {showDate && (
                 <div className="flex justify-center my-4">
                   <span className="bg-black/20 text-white text-[11px] font-medium px-4 py-1 rounded-full backdrop-blur-sm">
@@ -840,7 +845,7 @@ export const ChatRoomPage = () => {
                 </div>
               )}
 
-              {/* 笏笏笏 Message Bubble 笏笏笏 */}
+              {/* Message bubble */}
               <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${isLastInGroup ? 'mb-3' : 'mb-0.5'}`}>
                 {/* Other's avatar (only first in group) */}
                 {!isMe && (
@@ -877,84 +882,18 @@ export const ChatRoomPage = () => {
                       )}
                       
                       {msg.appointment_data && (
-                        <div className={`p-4 ${isMe ? 'bg-[#05B54D]' : 'bg-lime-50'} ${isFirstInGroup ? 'rounded-2xl' : 'rounded-2xl'} m-1 min-w-[220px]`}>
-                          <div className={`flex items-center gap-2 mb-3 border-b pb-2 ${isMe ? 'border-white/20' : 'border-lime-200/50'}`}>
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isMe ? 'bg-white/20 text-white' : 'bg-lime-200 text-lime-700'}`}>
-                              <CalendarIcon size={16} />
-                            </div>
-                            <div>
-                              <h4 className={`text-xs font-black ${isMe ? 'text-white' : 'text-slate-800'}`}>取引の約束</h4>
-                              <p className={`text-[10px] font-bold ${isMe ? 'text-white/80' : 'text-lime-600'}`}>
-                                {msg.appointment_data.status === 'proposed' ? '提案中' : msg.appointment_data.status === 'accepted' ? '確定済み' : 'キャンセル'}
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-2 mb-3">
-                            <div className="flex items-start gap-2">
-                              <CalendarIcon size={14} className={`mt-0.5 shrink-0 ${isMe ? 'text-white/70' : 'text-slate-400'}`} />
-                              <span className={`text-[13px] font-medium ${isMe ? 'text-white' : 'text-slate-700'}`}>
-                                {new Date(msg.appointment_data.date).toLocaleString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
-                            <div className="flex items-start gap-2">
-                              <MapPin size={14} className={`mt-0.5 shrink-0 ${isMe ? 'text-white/70' : 'text-slate-400'}`} />
-                              <span className={`text-[13px] font-medium break-all ${isMe ? 'text-white' : 'text-slate-700'}`}>
-                                {msg.appointment_data.location}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Action Buttons for receiver */}
-                          {!isMe && msg.appointment_data.status === 'proposed' && (
-                            <div className="flex gap-2 mt-2">
-                              <button 
-                                onClick={() => handleUpdateAppointment(msg.id, 'accepted')}
-                                className="flex-1 py-2 bg-lime-500 hover:bg-lime-600 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
-                              >
-                                承諾する
-                              </button>
-                              <button 
-                                onClick={() => handleUpdateAppointment(msg.id, 'canceled')}
-                                className="flex-1 py-2 bg-white hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl border border-slate-200 transition-colors"
-                              >
-                                断る
-                              </button>
-                            </div>
-                          )}
-
-                          {(isMe && msg.appointment_data.status === 'proposed') && (
-                            <button
-                              onClick={() =>
-                                openEditAppointmentModal(msg.id, {
-                                  date: msg.appointment_data!.date,
-                                  location: msg.appointment_data!.location,
-                                })
-                              }
-                              className="mt-2 w-full py-2 bg-white/15 hover:bg-white/25 text-white text-xs font-bold rounded-xl transition-colors"
-                            >
-                              日程を編集する
-                            </button>
-                          )}
-
-                          {msg.appointment_data.status === 'canceled' && (
-                            <button
-                              onClick={() =>
-                                openEditAppointmentModal(msg.id, {
-                                  date: msg.appointment_data!.date,
-                                  location: msg.appointment_data!.location,
-                                })
-                              }
-                              className={`mt-2 w-full py-2 text-xs font-bold rounded-xl transition-colors ${
-                                isMe
-                                  ? 'bg-white/15 hover:bg-white/25 text-white'
-                                  : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
-                              }`}
-                            >
-                              再提案する
-                            </button>
-                          )}
-                        </div>
+                        <AppointmentMessageCard
+                          message={msg}
+                          isMe={isMe}
+                          onAccept={() => handleUpdateAppointment(msg.id, 'accepted')}
+                          onCancel={() => handleUpdateAppointment(msg.id, 'canceled')}
+                          onEdit={() =>
+                            openEditAppointmentModal(msg.id, {
+                              date: msg.appointment_data!.date,
+                              location: msg.appointment_data!.location,
+                            })
+                          }
+                        />
                       )}
 
                       {msg.text && !msg.appointment_data && (
@@ -986,7 +925,7 @@ export const ChatRoomPage = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 笊絶武笊・Scroll to bottom button 笊絶武笊・*/}
+      {/* Scroll-to-bottom button */}
       {showScrollDown && (
         <button
           onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
@@ -996,7 +935,7 @@ export const ChatRoomPage = () => {
         </button>
       )}
 
-      {/* 笊絶武笊・LINE-style Input Bar 笊絶武笊・*/}
+      {/* Input bar */}
       <footer className="bg-[#F7F8FA] border-t border-slate-200 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] shrink-0">
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
           <input

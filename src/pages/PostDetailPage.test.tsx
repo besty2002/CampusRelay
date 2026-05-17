@@ -2,6 +2,12 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { PostDetailPage } from './PostDetailPage';
+import { ToastProvider } from '../components/feedback/ToastProvider';
+
+type LinkProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+  children?: React.ReactNode;
+  to?: string;
+};
 
 const routerMocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -39,8 +45,8 @@ const supabaseMocks = vi.hoisted(() => {
     school_id: 'school-1',
     user_id: 'owner-1',
     mode: 'GIVEAWAY',
-    title: '算数セット',
-    description: '記名ありですが、まだ使えます。',
+    title: '絵の具セット',
+    description: '授業で使っていた絵の具セットです。',
     category: 'Textbook',
     condition: 'Good',
     status: 'Reserved',
@@ -64,12 +70,12 @@ const supabaseMocks = vi.hoisted(() => {
     id: 'req-1',
     post_id: 'post-1',
     requester_id: 'buyer-1',
-    message: 'お願いします',
+    message: 'ぜひ譲っていただきたいです。',
     status: 'Approved',
     created_at: '2026-05-16T01:00:00.000Z',
     profiles: {
       id: 'buyer-1',
-      display_name: '購入希望者',
+      display_name: '受け取り希望者',
       role: 'user',
       completed_count: 2,
       avg_rating: 5,
@@ -83,12 +89,12 @@ const supabaseMocks = vi.hoisted(() => {
       id: 'req-1',
       post_id: 'post-1',
       requester_id: 'buyer-1',
-      message: 'お願いします',
+      message: 'ぜひ譲っていただきたいです。',
       status: 'Approved',
       created_at: '2026-05-16T01:00:00.000Z',
       profiles: {
         id: 'buyer-1',
-        display_name: '購入希望者',
+        display_name: '受け取り希望者',
         role: 'user',
         completed_count: 2,
         avg_rating: 5,
@@ -129,7 +135,11 @@ vi.mock('../lib/supabase', () => ({
 }));
 
 vi.mock('react-router-dom', () => ({
-  Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+  Link: ({ children, to, ...props }: LinkProps) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
+  ),
   useNavigate: () => routerMocks.navigate,
   useParams: () => ({ postId: routerMocks.postId }),
 }));
@@ -157,7 +167,11 @@ describe('PostDetailPage trade flow', () => {
   });
 
   it('shows the reserved trade summary and owner next-step guidance', async () => {
-    render(<PostDetailPage />);
+    render(
+      <ToastProvider>
+        <PostDetailPage />
+      </ToastProvider>
+    );
 
     await waitFor(() => {
       expect(screen.getByText('取引ステータス')).toBeTruthy();
@@ -165,8 +179,35 @@ describe('PostDetailPage trade flow', () => {
     });
 
     expect(screen.getByText('現在の取引相手')).toBeTruthy();
-    expect(screen.getByText('購入希望者')).toBeTruthy();
+    expect(screen.getByText('受け取り希望者')).toBeTruthy();
     expect(screen.getByText('次のステップ')).toBeTruthy();
     expect(screen.getByText('取引を完了にする')).toBeTruthy();
+  });
+
+  it('shows a chat button for the owner after a request is approved', async () => {
+    render(
+      <ToastProvider>
+        <PostDetailPage />
+      </ToastProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /チャット|繝√Ε/ })).toBeTruthy();
+    });
+  });
+
+  it('exposes clear accessible labels for owner actions', async () => {
+    render(
+      <ToastProvider>
+        <PostDetailPage />
+      </ToastProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('戻る')).toBeTruthy();
+      expect(screen.getByLabelText('お気に入りに追加する')).toBeTruthy();
+      expect(screen.getByLabelText('投稿を編集する')).toBeTruthy();
+      expect(screen.getByLabelText('投稿を削除する')).toBeTruthy();
+    });
   });
 });

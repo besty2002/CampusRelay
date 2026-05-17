@@ -1,17 +1,28 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  BadgeCheck,
+  Loader2,
+  Mail,
+  ShieldCheck,
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { ArrowLeft, Mail, BadgeCheck, Loader2, ShieldCheck, AlertTriangle } from 'lucide-react';
 
 const ALLOWED_DOMAINS = ['.ac.jp', '.ed.jp', '.school.jp'];
 
-const isSchoolEmail = (email: string): boolean => {
-  return ALLOWED_DOMAINS.some(domain => email.toLowerCase().endsWith(domain));
-};
+const isSchoolEmail = (email: string): boolean =>
+  ALLOWED_DOMAINS.some((domain) => email.toLowerCase().endsWith(domain));
 
-const extractDomain = (email: string): string => {
-  return email.split('@')[1] || '';
+const extractDomain = (email: string): string => email.split('@')[1] || '';
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  return fallback;
 };
 
 export const SchoolVerificationPage = () => {
@@ -25,14 +36,14 @@ export const SchoolVerificationPage = () => {
 
   const handleSendOtp = async () => {
     setError('');
-    
+
     if (!schoolEmail.trim()) {
-      setError('メールアドレスを入力してください。');
+      setError('学校メールアドレスを入力してください。');
       return;
     }
 
     if (!isSchoolEmail(schoolEmail)) {
-      setError('学校メールアドレス（@xxx.ac.jp, @xxx.ed.jp, @xxx.school.jp）のみ使用できます。');
+      setError('学校メールアドレスは @xxx.ac.jp / @xxx.ed.jp / @xxx.school.jp のみ利用できます。');
       return;
     }
 
@@ -42,14 +53,14 @@ export const SchoolVerificationPage = () => {
         email: schoolEmail,
         options: {
           shouldCreateUser: false,
-        }
+        },
       });
 
       if (otpError) throw otpError;
       setStep('sent');
-    } catch (err: any) {
-      // OTP 전송이 안 되면 간단한 검증 방식으로 대체
-      // DB에 직접 저장하는 방식
+    } catch (otpError) {
+      // OTP flow may be unavailable depending on the Supabase auth setup.
+      // In that case, fall back to storing the verified school domain directly.
       try {
         const domain = extractDomain(schoolEmail);
         const { error: updateError } = await supabase
@@ -62,8 +73,8 @@ export const SchoolVerificationPage = () => {
 
         if (updateError) throw updateError;
         setStep('done');
-      } catch (dbErr: any) {
-        setError(dbErr.message);
+      } catch (dbError) {
+        setError(getErrorMessage(dbError, getErrorMessage(otpError, '認証メールを送信できませんでした。')));
       }
     } finally {
       setLoading(false);
@@ -87,7 +98,6 @@ export const SchoolVerificationPage = () => {
 
       if (verifyError) throw verifyError;
 
-      // 인증 성공 → DB 업데이트
       const domain = extractDomain(schoolEmail);
       const { error: updateError } = await supabase
         .from('profiles')
@@ -99,63 +109,74 @@ export const SchoolVerificationPage = () => {
 
       if (updateError) throw updateError;
       setStep('done');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (verifyError) {
+      setError(getErrorMessage(verifyError, '認証に失敗しました。'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-4 pt-12 pb-32">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-400 font-bold mb-8 hover:text-lime-600 transition-colors">
+    <div className="mx-auto max-w-2xl p-4 pb-32 pt-12">
+      <button
+        onClick={() => navigate(-1)}
+        className="mb-8 flex items-center gap-2 font-bold text-slate-400 transition-colors hover:text-lime-600"
+      >
         <ArrowLeft size={20} /> 戻る
       </button>
 
-      <div className="bg-white rounded-[3rem] p-8 md:p-12 shadow-xl shadow-slate-200/50 border border-slate-100 relative overflow-hidden">
-        {/* Top decoration */}
-        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500" />
-        
+      <div className="relative overflow-hidden rounded-[3rem] border border-slate-100 bg-white p-8 shadow-xl shadow-slate-200/50 md:p-12">
+        <div className="absolute left-0 right-0 top-0 h-2 bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500" />
+
         {step === 'input' && (
           <div className="text-center">
-            <div className="w-20 h-20 bg-sky-50 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-lg">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-sky-50 shadow-lg">
               <ShieldCheck size={36} className="text-sky-500" />
             </div>
-            
-            <h1 className="text-3xl font-black text-slate-800 mb-2">学校認証</h1>
-            <p className="text-slate-400 font-medium mb-8">
-              学校のメールアドレスで認証すると、<br />
-              プロフィールに<span className="text-sky-500 font-bold">認証バッジ ✅</span>が表示されます。
+
+            <h1 className="mb-2 text-3xl font-black text-slate-800">学校認証</h1>
+            <p className="mb-8 font-medium text-slate-400">
+              学校のメールアドレスで認証すると、
+              <br />
+              プロフィールに
+              <span className="font-bold text-sky-500">認証バッジ</span>
+              が表示されます。
             </p>
 
-            {/* Supported domains */}
-            <div className="bg-slate-50 rounded-2xl p-4 mb-8">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">対応ドメイン</p>
+            <div className="mb-8 rounded-2xl bg-slate-50 p-4">
+              <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                対応ドメイン
+              </p>
               <div className="flex flex-wrap justify-center gap-2">
-                {ALLOWED_DOMAINS.map(d => (
-                  <span key={d} className="px-3 py-1 bg-white text-slate-600 text-xs font-bold rounded-lg border border-slate-100 shadow-sm">
-                    @xxx{d}
+                {ALLOWED_DOMAINS.map((domain) => (
+                  <span
+                    key={domain}
+                    className="rounded-lg border border-slate-100 bg-white px-3 py-1 text-xs font-bold text-slate-600 shadow-sm"
+                  >
+                    @xxx{domain}
                   </span>
                 ))}
               </div>
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-bold text-slate-500 mb-2 text-left ml-1">学校メールアドレス</label>
-              <div className="relative">
+              <label className="ml-1 block text-left text-sm font-bold text-slate-500">
+                学校メールアドレス
+              </label>
+              <div className="relative mt-2">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                 <input
                   type="email"
                   value={schoolEmail}
-                  onChange={(e) => setSchoolEmail(e.target.value)}
+                  onChange={(event) => setSchoolEmail(event.target.value)}
                   placeholder="taro@u-tokyo.ac.jp"
-                  className="w-full pl-12 pr-4 py-4 bg-slate-50 rounded-2xl border-none focus:ring-4 focus:ring-sky-500/10 focus:bg-white outline-none font-medium transition-all"
+                  className="w-full rounded-2xl border-none bg-slate-50 py-4 pl-12 pr-4 font-medium outline-none transition-all focus:bg-white focus:ring-4 focus:ring-sky-500/10"
                 />
               </div>
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 text-red-500 text-sm font-bold mb-4 bg-red-50 p-3 rounded-xl">
+              <div className="mb-4 flex items-center gap-2 rounded-xl bg-red-50 p-3 text-sm font-bold text-red-500">
                 <AlertTriangle size={16} />
                 {error}
               </div>
@@ -164,7 +185,7 @@ export const SchoolVerificationPage = () => {
             <button
               onClick={handleSendOtp}
               disabled={loading}
-              className="w-full bg-sky-500 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-sky-500/20 hover:bg-sky-600 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-sky-500 py-4 text-lg font-black text-white shadow-lg shadow-sky-500/20 transition-all hover:bg-sky-600 active:scale-[0.98] disabled:opacity-50"
             >
               {loading ? <Loader2 className="animate-spin" size={20} /> : <Mail size={20} />}
               {loading ? '送信中...' : '認証メールを送信'}
@@ -174,13 +195,15 @@ export const SchoolVerificationPage = () => {
 
         {step === 'sent' && (
           <div className="text-center">
-            <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-lg">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-amber-50 shadow-lg">
               <Mail size={36} className="text-amber-500" />
             </div>
 
-            <h1 className="text-3xl font-black text-slate-800 mb-2">認証コードを入力</h1>
-            <p className="text-slate-400 font-medium mb-8">
-              <span className="font-bold text-slate-600">{schoolEmail}</span> に<br />
+            <h1 className="mb-2 text-3xl font-black text-slate-800">認証コードを入力</h1>
+            <p className="mb-8 font-medium text-slate-400">
+              <span className="font-bold text-slate-600">{schoolEmail}</span>
+              に
+              <br />
               認証コードを送信しました。
             </p>
 
@@ -188,15 +211,15 @@ export const SchoolVerificationPage = () => {
               <input
                 type="text"
                 value={otp}
-                onChange={(e) => setOtp(e.target.value)}
+                onChange={(event) => setOtp(event.target.value)}
                 placeholder="6桁の認証コード"
                 maxLength={6}
-                className="w-full py-5 text-center text-3xl font-black bg-slate-50 rounded-2xl border-none focus:ring-4 focus:ring-sky-500/10 focus:bg-white outline-none tracking-[0.5em] transition-all"
+                className="w-full rounded-2xl border-none bg-slate-50 py-5 text-center text-3xl font-black tracking-[0.5em] outline-none transition-all focus:bg-white focus:ring-4 focus:ring-sky-500/10"
               />
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 text-red-500 text-sm font-bold mb-4 bg-red-50 p-3 rounded-xl">
+              <div className="mb-4 flex items-center gap-2 rounded-xl bg-red-50 p-3 text-sm font-bold text-red-500">
                 <AlertTriangle size={16} />
                 {error}
               </div>
@@ -205,15 +228,18 @@ export const SchoolVerificationPage = () => {
             <button
               onClick={handleVerifyOtp}
               disabled={loading}
-              className="w-full bg-sky-500 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-sky-500/20 hover:bg-sky-600 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-sky-500 py-4 text-lg font-black text-white shadow-lg shadow-sky-500/20 transition-all hover:bg-sky-600 active:scale-[0.98] disabled:opacity-50"
             >
               {loading ? <Loader2 className="animate-spin" size={20} /> : <BadgeCheck size={20} />}
               {loading ? '確認中...' : '認証する'}
             </button>
 
             <button
-              onClick={() => { setStep('input'); setError(''); }}
-              className="mt-4 text-sm font-bold text-slate-400 hover:text-sky-500 transition-colors"
+              onClick={() => {
+                setStep('input');
+                setError('');
+              }}
+              className="mt-4 text-sm font-bold text-slate-400 transition-colors hover:text-sky-500"
             >
               メールアドレスを変更する
             </button>
@@ -221,28 +247,28 @@ export const SchoolVerificationPage = () => {
         )}
 
         {step === 'done' && (
-          <div className="text-center py-8">
-            <div className="w-24 h-24 bg-lime-50 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-lg animate-bounce">
+          <div className="py-8 text-center">
+            <div className="mx-auto mb-6 flex h-24 w-24 animate-bounce items-center justify-center rounded-full border-4 border-white bg-lime-50 shadow-lg">
               <BadgeCheck size={48} className="text-lime-500" />
             </div>
 
-            <h1 className="text-3xl font-black text-slate-800 mb-2">認証完了！ 🎉</h1>
-            <p className="text-slate-400 font-medium mb-2">
+            <h1 className="mb-2 text-3xl font-black text-slate-800">認証が完了しました</h1>
+            <p className="mb-2 font-medium text-slate-400">
               学校メールアドレスの認証が完了しました。
             </p>
-            <p className="text-sky-500 font-bold text-sm mb-8">
+            <p className="mb-8 text-sm font-bold text-sky-500">
               プロフィールに認証バッジが表示されます。
             </p>
 
-            <div className="bg-slate-50 rounded-2xl p-6 mb-8 flex items-center justify-center gap-3">
-              <BadgeCheck size={24} className="text-sky-500 fill-sky-50" />
-              <span className="font-black text-slate-800 text-lg">学校認証済み</span>
-              <span className="text-sm text-slate-400 font-bold">({extractDomain(schoolEmail)})</span>
+            <div className="mb-8 flex items-center justify-center gap-3 rounded-2xl bg-slate-50 p-6">
+              <BadgeCheck size={24} className="fill-sky-50 text-sky-500" />
+              <span className="text-lg font-black text-slate-800">学校認証済み</span>
+              <span className="text-sm font-bold text-slate-400">({extractDomain(schoolEmail)})</span>
             </div>
 
             <button
               onClick={() => navigate('/me')}
-              className="w-full bg-lime-500 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-lime-500/20 hover:bg-lime-600 active:scale-[0.98] transition-all"
+              className="w-full rounded-2xl bg-lime-500 py-4 text-lg font-black text-white shadow-lg shadow-lime-500/20 transition-all hover:bg-lime-600 active:scale-[0.98]"
             >
               プロフィールに戻る
             </button>

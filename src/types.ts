@@ -33,6 +33,11 @@ export interface PostImage {
   sort_order: number;
 }
 
+export interface PostRequestSummary {
+  id: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+}
+
 export interface Post {
   id: string;
   school_id: string;
@@ -49,7 +54,7 @@ export interface Post {
   profiles: Profile;
   post_images?: PostImage[];
   schools?: School;
-  post_requests?: any[];
+  post_requests?: PostRequestSummary[];
 }
 
 export interface PostRequest {

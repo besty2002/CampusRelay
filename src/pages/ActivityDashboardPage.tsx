@@ -2,27 +2,71 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import type { Post } from '../types';
-import { 
-  Loader2, 
-  Package, 
+import type { PostStatus } from '../types';
+import {
+  Loader2,
+  Package,
   Clock,
   ArrowLeft,
   ArrowUpRight,
   ArrowDownLeft,
-  ChevronRight
+  ChevronRight,
 } from 'lucide-react';
+
+interface ActivityPost {
+  id: string;
+  title: string;
+  status: PostStatus;
+  created_at: string;
+  post_images?: Array<{ storage_path: string }>;
+  post_requests?: Array<{ id: string; status: 'Pending' | 'Approved' | 'Rejected' }>;
+}
+
+interface ReceivedRequest {
+  id: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  created_at: string;
+  posts?: {
+    id: string;
+    title: string;
+    post_images?: Array<{ storage_path: string }>;
+    profiles?: { display_name: string };
+  };
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  Available: '受付中',
+  Reserved: '予約済み',
+  Given: '譲渡済み',
+  Hidden: '非公開',
+  Pending: '申請中',
+  Approved: '承認済み',
+  Rejected: '見送り',
+};
+
+const COPY = {
+  backToProfile: 'プロフィールに戻る',
+  title: '取引履歴',
+  description: '出品したアイテムと申請したアイテムの進行状況を確認できます。',
+  givingTab: '出品中（譲る）',
+  receivingTab: '申請履歴（受け取る）',
+  noGivingItems: 'まだ出品したアイテムはありません。',
+  noReceivingItems: 'まだ申請したアイテムはありません。',
+  requestCountSuffix: '件',
+  giverLabel: 'Giver:',
+  browseItems: 'アイテムを見る',
+} as const;
 
 export const ActivityDashboardPage = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'giving' | 'receiving'>('giving');
-  const [givingItems, setGivingItems] = useState<Post[]>([]);
-  const [receivingRequests, setReceivingRequests] = useState<any[]>([]);
+  const [givingItems, setGivingItems] = useState<ActivityPost[]>([]);
+  const [receivingRequests, setReceivingRequests] = useState<ReceivedRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
-      fetchActivity();
+      void fetchActivity();
     }
   }, [user, activeTab]);
 
@@ -30,23 +74,27 @@ export const ActivityDashboardPage = () => {
     setLoading(true);
     try {
       if (activeTab === 'giving') {
-        // Items I am giving away
         const { data } = await supabase
           .from('posts')
-          .select(`
+          .select(
+            `
             *,
             post_images (storage_path),
             schools (name_ja),
             post_requests (id, status)
-          `)
+          `
+          )
           .eq('user_id', user?.id)
           .order('created_at', { ascending: false });
-        if (data) setGivingItems(data as any[]);
+
+        if (data) {
+          setGivingItems(data as ActivityPost[]);
+        }
       } else {
-        // Items I have requested
         const { data } = await supabase
           .from('post_requests')
-          .select(`
+          .select(
+            `
             *,
             posts (
               *,
@@ -54,10 +102,14 @@ export const ActivityDashboardPage = () => {
               schools (name_ja),
               profiles (display_name)
             )
-          `)
+          `
+          )
           .eq('requester_id', user?.id)
           .order('created_at', { ascending: false });
-        if (data) setReceivingRequests(data);
+
+        if (data) {
+          setReceivingRequests(data as ReceivedRequest[]);
+        }
       }
     } catch (err) {
       console.error('Error fetching activity:', err);
@@ -67,32 +119,34 @@ export const ActivityDashboardPage = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6 pt-12 pb-32">
+    <div className="mx-auto max-w-2xl p-6 pb-32 pt-12">
       <header className="mb-10">
-        <Link to="/me" className="flex items-center gap-2 text-slate-400 font-bold text-sm mb-4 hover:text-lime-600 transition-colors">
-          <ArrowLeft size={16} /> プロフィールに戻る
+        <Link
+          to="/me"
+          className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-400 transition-colors hover:text-lime-600"
+        >
+          <ArrowLeft size={16} /> {COPY.backToProfile}
         </Link>
-        <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-2">My Activity</h1>
-        <p className="text-slate-500 font-medium ml-1">お譲りの申請や進行状況を管理しましょう。</p>
+        <h1 className="mb-2 text-3xl font-black tracking-tight text-slate-800">{COPY.title}</h1>
+        <p className="ml-1 font-medium text-slate-500">{COPY.description}</p>
       </header>
 
-      {/* Tabs */}
-      <div className="flex gap-2 p-1 bg-slate-100 rounded-2xl mb-8">
+      <div className="mb-8 flex gap-2 rounded-2xl bg-slate-100 p-1">
         <button
           onClick={() => setActiveTab('giving')}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm transition-all ${
+          className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-black transition-all ${
             activeTab === 'giving' ? 'bg-white text-lime-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
           }`}
         >
-          <ArrowUpRight size={18} /> 出品中 (譲る)
+          <ArrowUpRight size={18} /> {COPY.givingTab}
         </button>
         <button
           onClick={() => setActiveTab('receiving')}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm transition-all ${
+          className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-black transition-all ${
             activeTab === 'receiving' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
           }`}
         >
-          <ArrowDownLeft size={18} /> 申請履歴 (受け取る)
+          <ArrowDownLeft size={18} /> {COPY.receivingTab}
         </button>
       </div>
 
@@ -104,40 +158,47 @@ export const ActivityDashboardPage = () => {
         <div className="space-y-4">
           {activeTab === 'giving' ? (
             givingItems.length === 0 ? (
-              <EmptyState message="まだ出品したアイテムがありません。" />
+              <EmptyState message={COPY.noGivingItems} />
             ) : (
-              givingItems.map(item => (
-                <Link 
-                  key={item.id} 
+              givingItems.map((item) => (
+                <Link
+                  key={item.id}
                   to={`/post/${item.id}`}
-                  className="block bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-xl transition-all"
+                  className="block rounded-[2.5rem] border border-slate-100 bg-white p-5 shadow-sm transition-all hover:shadow-xl"
                 >
                   <div className="flex gap-4">
-                    <div className="w-20 h-20 rounded-2xl bg-slate-50 overflow-hidden shrink-0 border border-slate-100">
+                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
                       {item.post_images && item.post_images.length > 0 ? (
-                        <img src={item.post_images[0].storage_path} className="w-full h-full object-cover" />
+                        <img src={item.post_images[0].storage_path} className="h-full w-full object-cover" alt="" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-200"><Package size={24} /></div>
+                        <div className="flex h-full w-full items-center justify-center text-slate-200">
+                          <Package size={24} />
+                        </div>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div className="flex min-w-0 flex-1 flex-col justify-between">
                       <div>
-                        <div className="flex justify-between items-start mb-1">
-                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest ${
-                            item.status === 'Available' ? 'bg-lime-50 text-lime-600' :
-                            item.status === 'Reserved' ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'
-                          }`}>
-                            {item.status}
+                        <div className="mb-1 flex items-start justify-between">
+                          <span
+                            className={`rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${
+                              item.status === 'Available'
+                                ? 'bg-lime-50 text-lime-600'
+                                : item.status === 'Reserved'
+                                  ? 'bg-amber-50 text-amber-600'
+                                  : 'bg-slate-50 text-slate-400'
+                            }`}
+                          >
+                            {STATUS_LABELS[item.status] ?? item.status}
                           </span>
-                          <div className="flex items-center gap-1 text-[10px] font-bold text-slate-300 uppercase">
+                          <div className="flex items-center gap-1 text-[10px] font-bold uppercase text-slate-300">
                             <Clock size={10} /> {new Date(item.created_at).toLocaleDateString()}
                           </div>
                         </div>
-                        <h3 className="font-black text-slate-800 truncate">{item.title}</h3>
+                        <h3 className="truncate font-black text-slate-800">{item.title}</h3>
                       </div>
-                      <div className="flex items-center justify-between mt-2">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                          {item.post_requests?.length || 0} 人の申請者が待機中
+                      <div className="mt-2 flex items-center justify-between">
+                        <p className="text-[10px] font-bold uppercase tracking-tighter text-slate-400">
+                          申請 {item.post_requests?.length || 0} {COPY.requestCountSuffix}
                         </p>
                         <ChevronRight size={16} className="text-slate-300" />
                       </div>
@@ -146,48 +207,55 @@ export const ActivityDashboardPage = () => {
                 </Link>
               ))
             )
+          ) : receivingRequests.length === 0 ? (
+            <EmptyState message={COPY.noReceivingItems} />
           ) : (
-            receivingRequests.length === 0 ? (
-              <EmptyState message="まだ申請したアイテムがありません。" />
-            ) : (
-              receivingRequests.map(req => (
-                <Link 
-                  key={req.id} 
-                  to={`/post/${req.posts?.id}`}
-                  className="block bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-xl transition-all"
-                >
-                  <div className="flex gap-4">
-                    <div className="w-20 h-20 rounded-2xl bg-slate-50 overflow-hidden shrink-0 border border-slate-100">
-                      {req.posts?.post_images && req.posts.post_images.length > 0 ? (
-                        <img src={req.posts.post_images[0].storage_path} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-200"><Package size={24} /></div>
-                      )}
+            receivingRequests.map((req) => (
+              <Link
+                key={req.id}
+                to={`/post/${req.posts?.id}`}
+                className="block rounded-[2.5rem] border border-slate-100 bg-white p-5 shadow-sm transition-all hover:shadow-xl"
+              >
+                <div className="flex gap-4">
+                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
+                    {req.posts?.post_images && req.posts.post_images.length > 0 ? (
+                      <img src={req.posts.post_images[0].storage_path} className="h-full w-full object-cover" alt="" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-slate-200">
+                        <Package size={24} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col justify-between">
+                    <div>
+                      <div className="mb-1 flex items-start justify-between">
+                        <span
+                          className={`rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${
+                            req.status === 'Pending'
+                              ? 'bg-sky-50 text-sky-600'
+                              : req.status === 'Approved'
+                                ? 'bg-lime-50 text-lime-600'
+                                : 'bg-red-50 text-red-600'
+                          }`}
+                        >
+                          {STATUS_LABELS[req.status] ?? req.status}
+                        </span>
+                        <span className="text-[10px] font-bold uppercase text-slate-300">
+                          {new Date(req.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <h3 className="truncate font-black text-slate-800">{req.posts?.title}</h3>
+                      <p className="mt-0.5 text-[10px] font-bold text-slate-400">
+                        {COPY.giverLabel} {req.posts?.profiles?.display_name}
+                      </p>
                     </div>
-                    <div className="flex-1 min-w-0 flex flex-col justify-between">
-                      <div>
-                        <div className="flex justify-between items-start mb-1">
-                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest ${
-                            req.status === 'Pending' ? 'bg-sky-50 text-sky-600' :
-                            req.status === 'Approved' ? 'bg-lime-50 text-lime-600' : 'bg-red-50 text-red-600'
-                          }`}>
-                            {req.status}
-                          </span>
-                          <span className="text-[10px] font-bold text-slate-300 uppercase">
-                            {new Date(req.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <h3 className="font-black text-slate-800 truncate">{req.posts?.title}</h3>
-                        <p className="text-[10px] text-slate-400 font-bold mt-0.5">Giver: {req.posts?.profiles?.display_name}</p>
-                      </div>
-                      <div className="mt-2 text-right">
-                        <ChevronRight size={16} className="text-slate-300 inline" />
-                      </div>
+                    <div className="mt-2 text-right">
+                      <ChevronRight size={16} className="inline text-slate-300" />
                     </div>
                   </div>
-                </Link>
-              ))
-            )
+                </div>
+              </Link>
+            ))
           )}
         </div>
       )}
@@ -196,9 +264,11 @@ export const ActivityDashboardPage = () => {
 };
 
 const EmptyState = ({ message }: { message: string }) => (
-  <div className="bg-white p-12 rounded-[3rem] border-2 border-dashed border-slate-100 text-center">
-    <Package className="mx-auto text-slate-200 mb-4" size={48} />
-    <p className="text-slate-400 font-bold">{message}</p>
-    <Link to="/" className="text-lime-600 font-black text-sm mt-2 inline-block">アイテムを探す &rarr;</Link>
+  <div className="rounded-[3rem] border-2 border-dashed border-slate-100 bg-white p-12 text-center">
+    <Package className="mx-auto mb-4 text-slate-200" size={48} />
+    <p className="font-bold text-slate-400">{message}</p>
+    <Link to="/" className="mt-2 inline-block text-sm font-black text-lime-600">
+      アイテムを見る &rarr;
+    </Link>
   </div>
 );

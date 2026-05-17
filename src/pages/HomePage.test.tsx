@@ -1,7 +1,12 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { HomePage } from './HomePage';
+import { ToastProvider } from '../components/feedback/ToastProvider';
+
+type LinkProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+  children?: React.ReactNode;
+};
 
 const authMocks = vi.hoisted(() => ({
   user: { id: 'user-1', email: 'student@example.com' },
@@ -32,7 +37,48 @@ const supabaseMocks = vi.hoisted(() => {
 
   const wishlistBuilder = createBuilder([]);
   const userSchoolsBuilder = createBuilder([{ school_id: 'school-1' }]);
-  const postsBuilder = createBuilder([]);
+  const postsBuilder = createBuilder([
+    {
+      id: 'post-1',
+      user_id: 'user-a',
+      title: '絵の具',
+      description: '絵の具',
+      category: 'Textbook',
+      condition: 'Good',
+      mode: 'GIVEAWAY',
+      status: 'Available',
+      created_at: '2026-05-17T00:00:00.000Z',
+      item_size: null,
+      profiles: {
+        display_name: 'ilikebeatles77',
+        avg_rating: 5,
+        email_verified: true,
+        manner_temp: 36.5,
+      },
+      schools: { name_ja: '新田学園' },
+      post_images: [],
+    },
+    {
+      id: 'post-2',
+      user_id: 'user-b',
+      title: '江北',
+      description: '江北 江北 江北',
+      category: 'Textbook',
+      condition: 'Good',
+      mode: 'GIVEAWAY',
+      status: 'Available',
+      created_at: '2026-05-17T00:00:00.000Z',
+      item_size: null,
+      profiles: {
+        display_name: 'doogiya2002',
+        avg_rating: 0,
+        email_verified: false,
+        manner_temp: 36.5,
+      },
+      schools: { name_ja: '江北高校' },
+      post_images: [],
+    },
+  ]);
 
   return {
     wishlistBuilder,
@@ -58,7 +104,7 @@ vi.mock('../lib/supabase', () => ({
 }));
 
 vi.mock('react-router-dom', () => ({
-  Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+  Link: ({ children, ...props }: LinkProps) => <a {...props}>{children}</a>,
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 
@@ -97,7 +143,11 @@ describe('HomePage', () => {
   });
 
   it('waits for school lookup before fetching posts for signed-in users', async () => {
-    render(<HomePage />);
+    render(
+      <ToastProvider>
+        <HomePage />
+      </ToastProvider>
+    );
 
     await waitFor(() => {
       expect(supabaseMocks.userSchoolsBuilder.select).toHaveBeenCalled();
@@ -109,5 +159,21 @@ describe('HomePage', () => {
     );
 
     expect(postQueryCalls).toHaveLength(0);
+  });
+
+  it('hides duplicate card descriptions when they match the title', async () => {
+    render(
+      <ToastProvider>
+        <HomePage />
+      </ToastProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('絵の具')).toBeTruthy();
+      expect(screen.getByText('江北 江北 江北')).toBeTruthy();
+    });
+
+    expect(screen.getAllByText('絵の具')).toHaveLength(1);
+    expect(screen.getAllByText('江北')).toHaveLength(1);
   });
 });
