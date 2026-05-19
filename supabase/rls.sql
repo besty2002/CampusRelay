@@ -24,6 +24,8 @@ CREATE POLICY "Insert own posts" ON posts FOR INSERT TO authenticated
 CREATE POLICY "Update own posts" ON posts FOR UPDATE TO authenticated
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Delete own posts" ON posts FOR DELETE TO authenticated
+  USING (auth.uid() = user_id);
 CREATE POLICY "Admins can moderate posts" ON posts FOR UPDATE TO authenticated
   USING (
     EXISTS (

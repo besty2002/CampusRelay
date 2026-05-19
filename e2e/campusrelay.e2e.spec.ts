@@ -18,15 +18,15 @@ const supabaseUrl = env.VITE_SUPABASE_URL;
 const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY;
 
 const ACCOUNT_A = {
-  email: 'test-user-a@example.com',
-  password: 'Test1234!',
-  displayName: 'Test User A',
+  email: process.env.E2E_ACCOUNT_A_EMAIL || 'test-user-a@example.com',
+  password: process.env.E2E_ACCOUNT_A_PASSWORD || 'Test1234!',
+  displayName: process.env.E2E_ACCOUNT_A_DISPLAY_NAME || 'Test User A',
 };
 
 const ACCOUNT_B = {
-  email: 'test-user-b@example.com',
-  password: 'Test1234!',
-  displayName: 'Test User B',
+  email: process.env.E2E_ACCOUNT_B_EMAIL || 'test-user-b@example.com',
+  password: process.env.E2E_ACCOUNT_B_PASSWORD || 'Test1234!',
+  displayName: process.env.E2E_ACCOUNT_B_DISPLAY_NAME || 'Test User B',
 };
 
 const COPY = {
@@ -41,8 +41,10 @@ const COPY = {
   review: '\u30ec\u30d3\u30e5\u30fc',
   reviewSubmit: '\u30ec\u30d3\u30e5\u30fc\u3092\u9001\u4fe1',
   logout: '\u30ed\u30b0\u30a2\u30a6\u30c8',
+  publish: '\u51fa\u54c1\u5b8c\u4e86',
   schoolKeyword: '\u65b0\u7530',
   schoolName: '\u65b0\u7530\u5b66\u5712',
+  schoolRequired: '\u51fa\u54c1\u5148\u306e\u5b66\u6821\u3092\u9078\u629e\u3057\u3066\u304f\u3060\u3055\u3044\u3002',
   messagePlaceholder: '\u30e1\u30c3\u30bb\u30fc\u30b8',
 } as const;
 
@@ -176,15 +178,24 @@ const waitForAvatarUrl = async (client: SupabaseClient, userId: string, attempts
   return '';
 };
 
-const createListing = async (page: Page, title: string) => {
-  await page.goto('/post/new');
-  await page.waitForTimeout(3000);
+const createListing = async (page: Page, title: string, schoolId?: string) => {
+  const url = schoolId ? `/post/new?schoolId=${schoolId}` : '/post/new';
+  await page.goto(url);
+  await page.locator('h1').waitFor({ state: 'visible', timeout: 15000 });
   await page.locator('input[type="file"]').setInputFiles(imagePath);
-  await page.waitForTimeout(3000);
+  await page.locator('img[alt="preview"]').waitFor({ state: 'visible', timeout: 20000 });
   await page.locator('input:not([type="file"])').first().fill(title);
   await page.locator('textarea').fill(`${title} description`);
-  await page.locator('button').last().click();
-  await page.waitForTimeout(8000);
+  await expect(page.getByRole('button', { name: new RegExp(escapeRegExp(COPY.publish)) })).toBeEnabled({
+    timeout: 15000,
+  });
+  await page.evaluate(() => {
+    const form = document.querySelector('form');
+    if (form instanceof HTMLFormElement) {
+      form.requestSubmit();
+    }
+  });
+  await page.waitForURL(/\/post\/[0-9a-f-]+$/i, { timeout: 20000 });
   return page.url();
 };
 
@@ -240,8 +251,97 @@ const logout = async (page: Page) => {
   await page.waitForTimeout(2000);
 };
 
-const cleanupPost = async (client: SupabaseClient, postId: string) => {
-  return client.from('posts').delete().eq('id', postId);
+const extractAvatarPath = (avatarUrl: string | null | undefined) => {
+  if (!avatarUrl) return null;
+  const normalized = avatarUrl.split('?')[0];
+  const marker = '/storage/v1/object/public/avatars/';
+  const markerIndex = normalized.indexOf(marker);
+  if (markerIndex === -1) return null;
+  return decodeURIComponent(normalized.slice(markerIndex + marker.length));
+};
+
+const cleanupOwnedE2EData = async (client: SupabaseClient, userId: string, clearAvatar = false) => {
+  const { data: posts, error: postsError } = await client
+    .from('posts')
+    .select('id, title')
+    .eq('user_id', userId)
+    .ilike('title', 'E2E-%');
+
+  if (postsError) {
+    return { ok: false, error: postsError.message, removedPosts: 0, remainingPosts: -1 };
+  }
+
+  const postIds = (posts || []).map((post) => post.id);
+  let removedImages = 0;
+
+  if (postIds.length > 0) {
+    const { data: postImages, error: postImagesError } = await client
+      .from('post_images')
+      .select('storage_path')
+      .in('post_id', postIds);
+
+    if (postImagesError) {
+      return { ok: false, error: postImagesError.message, removedPosts: 0, remainingPosts: -1 };
+    }
+
+    const imagePaths = (postImages || []).map((row) => row.storage_path).filter(Boolean);
+    removedImages = imagePaths.length;
+
+    if (imagePaths.length > 0) {
+      const { error: removeImageError } = await client.storage.from('post-images').remove(imagePaths);
+      if (removeImageError) {
+        return { ok: false, error: removeImageError.message, removedPosts: 0, remainingPosts: -1 };
+      }
+    }
+
+    const { error: deleteError } = await client.from('posts').delete().in('id', postIds);
+    if (deleteError) {
+      return { ok: false, error: deleteError.message, removedPosts: 0, remainingPosts: -1 };
+    }
+  }
+
+  let clearedAvatar = false;
+  if (clearAvatar) {
+    const { data: profile, error: profileError } = await client.from('profiles').select('avatar_url').eq('id', userId).single();
+    if (profileError) {
+      return { ok: false, error: profileError.message, removedPosts: postIds.length, remainingPosts: -1 };
+    }
+
+    const avatarPath = extractAvatarPath(profile.avatar_url);
+    if (avatarPath) {
+      const { error: removeAvatarError } = await client.storage.from('avatars').remove([avatarPath]);
+      if (!removeAvatarError) clearedAvatar = true;
+    }
+
+    if (profile.avatar_url) {
+      const { error: clearAvatarError } = await client.from('profiles').update({ avatar_url: null }).eq('id', userId);
+      if (clearAvatarError) {
+        return { ok: false, error: clearAvatarError.message, removedPosts: postIds.length, remainingPosts: -1 };
+      }
+      clearedAvatar = true;
+    }
+  }
+
+  const { count: remainingPosts, error: verifyError } = await client
+    .from('posts')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .ilike('title', 'E2E-%');
+
+  if (verifyError) {
+    return { ok: false, error: verifyError.message, removedPosts: postIds.length, remainingPosts: -1 };
+  }
+
+  const remainingPostCount = remainingPosts || 0;
+
+  return {
+    ok: remainingPostCount === 0,
+    error: remainingPostCount > 0 ? 'posts DELETE policy is likely not applied on the remote database yet' : '',
+    removedPosts: postIds.length,
+    removedImages,
+    remainingPosts: remainingPostCount,
+    clearedAvatar,
+  };
 };
 
 test.describe.serial('CampusRelay end-to-end flow', () => {
@@ -260,11 +360,44 @@ test.describe.serial('CampusRelay end-to-end flow', () => {
     const userAClient = await makeClient(ACCOUNT_A.email, ACCOUNT_A.password);
     const userAId = (await userAClient.auth.getUser()).data.user?.id ?? '';
     const userBClient = await makeClient(ACCOUNT_B.email, ACCOUNT_B.password).catch(() => null);
+    const userBId = userBClient ? (await userBClient.auth.getUser()).data.user?.id ?? '' : '';
+    const { data: userASchools } = await userAClient
+      .from('user_schools')
+      .select('school_id')
+      .eq('user_id', userAId)
+      .limit(1);
+    const userASchoolId = userASchools?.[0]?.school_id ?? '';
     const listingTitle = `E2E-${Date.now()}`;
     let listingUrl = '';
     let listingId = '';
 
     try {
+      const preCleanupA = await cleanupOwnedE2EData(userAClient, userAId, true);
+      record(
+        'pre_cleanup_user_a',
+        preCleanupA.ok,
+        JSON.stringify({
+          removedPosts: preCleanupA.removedPosts,
+          removedImages: preCleanupA.removedImages,
+          remainingPosts: preCleanupA.remainingPosts,
+          error: preCleanupA.error,
+        })
+      );
+
+      if (userBClient && userBId) {
+        const preCleanupB = await cleanupOwnedE2EData(userBClient, userBId, true);
+        record(
+          'pre_cleanup_user_b',
+          preCleanupB.ok,
+          JSON.stringify({
+            removedPosts: preCleanupB.removedPosts,
+            removedImages: preCleanupB.removedImages,
+            remainingPosts: preCleanupB.remainingPosts,
+            error: preCleanupB.error,
+          })
+        );
+      }
+
       await login(pageA, ACCOUNT_A.email, ACCOUNT_A.password);
       record('login_user_a', !pageA.url().includes('/auth'), pageA.url());
 
@@ -275,7 +408,7 @@ test.describe.serial('CampusRelay end-to-end flow', () => {
       const avatarUrl = await waitForAvatarUrl(userAClient, userAId);
       record('avatar_user_a', Boolean(avatarUrl), avatarUrl || 'missing avatar_url');
 
-      listingUrl = await createListing(pageA, listingTitle);
+      listingUrl = await createListing(pageA, listingTitle, userASchoolId);
       listingId = listingUrl.split('/post/')[1] || '';
       const { data: postRow } = await userAClient
         .from('posts')
@@ -385,8 +518,18 @@ test.describe.serial('CampusRelay end-to-end flow', () => {
       await logout(pageB);
       record('logout_user_b_final', true, 'completed');
 
-      const cleanupResult = await cleanupPost(userAClient, listingId);
-      record('cleanup_post', !cleanupResult.error, cleanupResult.error?.message || 'deleted');
+      const cleanupResult = await cleanupOwnedE2EData(userAClient, userAId, true);
+      record(
+        'cleanup_post',
+        cleanupResult.ok,
+        JSON.stringify({
+          removedPosts: cleanupResult.removedPosts,
+          removedImages: cleanupResult.removedImages,
+          remainingPosts: cleanupResult.remainingPosts,
+          clearedAvatar: cleanupResult.clearedAvatar,
+          error: cleanupResult.error,
+        })
+      );
 
       record('console_errors', consoleErrors.length === 0, consoleErrors.join('\n') || 'none');
 

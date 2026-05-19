@@ -20,6 +20,8 @@ describe('RLS policy coverage', () => {
     expect(sql).toContain('WITH CHECK (auth.uid() = user_id)');
     expect(sql).toContain('CREATE POLICY "Update own posts"');
     expect(sql).toContain('USING (auth.uid() = user_id)');
+    expect(sql).toContain('CREATE POLICY "Delete own posts"');
+    expect(sql).toContain('ON posts FOR DELETE');
   });
 
   it('requires chat rooms to match the real post seller', () => {
