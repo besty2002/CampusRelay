@@ -23,32 +23,39 @@ import { ProfileSkeleton } from '../components/skeletons/ProfileSkeleton';
 import { UserAvatar } from '../components/UserAvatar';
 import { StatusBadge } from '../components/StatusBadge';
 import { useToast } from '../components/feedback/ToastProvider';
+import { TrustHighlights } from '../components/trust/TrustHighlights';
+import { logger } from '../lib/logger';
 
 interface WishlistedPostRow {
   posts: Post | Post[] | null;
 }
 
+interface ReviewSummaryRow {
+  id: string;
+  manner_tags: string[] | null;
+}
+
 const COPY = {
-  avatarUpdated: 'プロフィール画像を更新しました',
-  avatarUpdateFailed: 'プロフィール画像の更新に失敗しました',
-  avatarRetry: '時間をおいてもう一度お試しください。',
-  profileFallbackName: 'ユーザー',
-  member: 'メンバー',
-  admin: '管理者',
-  completedCount: '取引完了数',
-  rating: '評価',
-  reviews: 'レビュー',
-  wishlist: 'お気に入り',
-  activity: '取引履歴',
-  settings: '設定',
-  logout: 'ログアウト',
-  backToProfile: 'プロフィールに戻る',
-  wishlistTitle: 'お気に入り',
-  wishlistEmpty: 'お気に入りに追加したアイテムはまだありません。',
-  myPostsTitle: '出品したアイテム',
-  myPostsEmpty: 'まだ出品したアイテムはありません。',
-  createFirstPost: '最初の出品をしてみる',
-  itemsSuffix: '件',
+  avatarUpdated: '\u30d7\u30ed\u30d5\u30a3\u30fc\u30eb\u753b\u50cf\u3092\u66f4\u65b0\u3057\u307e\u3057\u305f',
+  avatarUpdateFailed: '\u30d7\u30ed\u30d5\u30a3\u30fc\u30eb\u753b\u50cf\u306e\u66f4\u65b0\u306b\u5931\u6557\u3057\u307e\u3057\u305f',
+  avatarRetry: '\u6642\u9593\u3092\u304a\u3044\u3066\u3082\u3046\u4e00\u5ea6\u304a\u8a66\u3057\u304f\u3060\u3055\u3044\u3002',
+  profileFallbackName: '\u30e6\u30fc\u30b6\u30fc',
+  member: '\u30e1\u30f3\u30d0\u30fc',
+  admin: '\u7ba1\u7406\u8005',
+  completedCount: '\u5b8c\u4e86\u53d6\u5f15\u6570',
+  rating: '\u8a55\u4fa1',
+  reviews: '\u30ec\u30d3\u30e5\u30fc',
+  wishlist: '\u304a\u6c17\u306b\u5165\u308a',
+  activity: '\u53d6\u5f15\u5c65\u6b74',
+  settings: '\u8a2d\u5b9a',
+  logout: '\u30ed\u30b0\u30a2\u30a6\u30c8',
+  backToProfile: '\u30d7\u30ed\u30d5\u30a3\u30fc\u30eb\u306b\u623b\u308b',
+  wishlistTitle: '\u304a\u6c17\u306b\u5165\u308a',
+  wishlistEmpty: '\u304a\u6c17\u306b\u5165\u308a\u306b\u8ffd\u52a0\u3057\u305f\u30a2\u30a4\u30c6\u30e0\u306f\u307e\u3060\u3042\u308a\u307e\u305b\u3093\u3002',
+  myPostsTitle: '\u51fa\u54c1\u3057\u305f\u30a2\u30a4\u30c6\u30e0',
+  myPostsEmpty: '\u307e\u3060\u51fa\u54c1\u3057\u305f\u30a2\u30a4\u30c6\u30e0\u306f\u3042\u308a\u307e\u305b\u3093\u3002',
+  createFirstPost: '\u6700\u521d\u306e\u51fa\u54c1\u3092\u3057\u3066\u307f\u308b',
+  itemsSuffix: '\u4ef6',
 } as const;
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -58,6 +65,17 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 
   return fallback;
 };
+
+const summarizeTopTags = (reviews: ReviewSummaryRow[]) =>
+  [...reviews.reduce((map, review) => {
+    (review.manner_tags ?? []).forEach((tag) => {
+      map.set(tag, (map.get(tag) ?? 0) + 1);
+    });
+    return map;
+  }, new Map<string, number>()).entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 4)
+    .map(([tag]) => tag);
 
 export const ProfilePage = () => {
   const { user } = useAuth();
@@ -69,6 +87,7 @@ export const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'main' | 'wishlist'>('main');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [reviewSummaries, setReviewSummaries] = useState<ReviewSummaryRow[]>([]);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -118,8 +137,17 @@ export const ProfilePage = () => {
             .filter((post): post is Post => Boolean(post))
         );
       }
+
+      const { data: reviewData } = await supabase
+        .from('reviews')
+        .select('id, manner_tags')
+        .eq('to_user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      setReviewSummaries((((reviewData as unknown) as ReviewSummaryRow[]) || []));
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      logger.error('profile.fetch', error);
     } finally {
       setLoading(false);
     }
@@ -157,7 +185,7 @@ export const ProfilePage = () => {
       setProfile((prev) => (prev ? { ...prev, avatar_url: avatarUrl } : null));
       showToast({ tone: 'success', title: COPY.avatarUpdated });
     } catch (error: unknown) {
-      console.error('Avatar upload error:', error);
+      logger.error('profile.avatarUpload', error);
       showToast({
         tone: 'error',
         title: COPY.avatarUpdateFailed,
@@ -178,6 +206,8 @@ export const ProfilePage = () => {
       </div>
     );
   }
+
+  const topTags = summarizeTopTags(reviewSummaries);
 
   if (view === 'wishlist') {
     return (
@@ -319,6 +349,15 @@ export const ProfilePage = () => {
           <ChevronRight size={20} className="text-slate-300" />
         </button>
       </div>
+
+      <TrustHighlights
+        title="信頼サマリー"
+        completedCount={profile?.completed_count || 0}
+        avgRating={profile?.avg_rating || 0}
+        ratingCount={profile?.rating_count || 0}
+        recentReviewCount={reviewSummaries.length}
+        topTags={topTags}
+      />
 
       <div className="mb-8">
         <div className="flex justify-between items-end mb-6 px-2">

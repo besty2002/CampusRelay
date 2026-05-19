@@ -43,6 +43,7 @@ const supabaseMocks = vi.hoisted(() => {
     or: vi.fn(() => builder),
     update: vi.fn(() => builder),
     neq: vi.fn(() => builder),
+    in: vi.fn(() => builder),
   };
 
   const notificationBuilder: Record<string, unknown> = {
@@ -108,10 +109,27 @@ describe('AdminUsersPage', () => {
       expect(screen.getAllByText('対象ユーザー').length).toBeGreaterThan(0);
     });
 
-    const banButtons = screen.getAllByTitle('停止する');
+    const banButtons = screen.getAllByTitle(/BAN/);
     fireEvent.click(banButtons[0]);
 
     expect(screen.getByText('アカウントを停止しますか？')).toBeTruthy();
-    expect(screen.getByText('必要であれば理由を残して、このユーザーのアカウントを停止します。')).toBeTruthy();
+  });
+
+  it('shows bulk actions when a user is selected', async () => {
+    render(
+      <ToastProvider>
+        <AdminUsersPage />
+      </ToastProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('対象ユーザー を選択')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByLabelText('対象ユーザー を選択'));
+
+    expect(screen.getByText('1 人を選択中')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '認証を付与' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '一括BAN' })).toBeTruthy();
   });
 });

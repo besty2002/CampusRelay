@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { ConfirmDialog } from '../components/feedback/ConfirmDialog';
 import { useToast } from '../components/feedback/ToastProvider';
+import { logger } from '../lib/logger';
 
 interface KeywordAlert {
   id: string;
@@ -197,7 +198,7 @@ export const NotificationSettingsPage = () => {
       setPushEnabled(true);
       showToast({ tone: 'success', title: COPY.pushOnSuccess });
     } catch (error: unknown) {
-      console.error(error);
+      logger.error('notificationSettings.pushSubscription', error);
       showToast({
         tone: 'error',
         title: COPY.pushSetupError,

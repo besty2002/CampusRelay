@@ -16,6 +16,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { ConfirmDialog } from '../../components/feedback/ConfirmDialog';
 import { useToast } from '../../components/feedback/ToastProvider';
+import { logger } from '../../lib/logger';
 
 interface AdminContext {
   role: 'school_admin' | 'super_admin';
@@ -89,7 +90,7 @@ export const AdminInvitesPage = () => {
       if (schoolsError) throw schoolsError;
       setSchools((schoolsData as School[]) || []);
     } catch (error) {
-      console.error('Fetch error:', error);
+      logger.error('Fetch error:', error);
       showToast({
         tone: 'error',
         title: '招待コードを読み込めませんでした',

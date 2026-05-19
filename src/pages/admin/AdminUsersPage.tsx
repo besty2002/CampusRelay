@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
-import { Ban, ChevronLeft, ChevronRight, ChevronRightIcon, Crown, Loader2, Search, Shield, ShieldAlert } from 'lucide-react';
+import { Ban, CheckSquare, ChevronLeft, ChevronRight, ChevronRightIcon, Crown, Loader2, Search, Shield, ShieldAlert } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { UserAvatar } from '../../components/UserAvatar';
@@ -8,6 +8,7 @@ import { MannerTempGauge } from '../../components/MannerTempGauge';
 import { VerifiedBadge } from '../../components/VerifiedBadge';
 import { ConfirmDialog } from '../../components/feedback/ConfirmDialog';
 import { useToast } from '../../components/feedback/ToastProvider';
+import { logger } from '../../lib/logger';
 
 interface AdminContext {
   role: 'school_admin' | 'super_admin';
@@ -43,48 +44,53 @@ type VerificationTarget = {
   grant: boolean;
 };
 
+type BulkActionTarget = {
+  action: 'ban' | 'unban' | 'verify' | 'unverify';
+  ids: string[];
+};
+
 const PAGE_SIZE = 20;
 
 const COPY = {
-  title: 'ユーザー管理',
-  searchPlaceholder: 'ユーザー名で検索...',
-  allRoles: 'すべてのロール',
-  allStates: 'すべての状態',
-  active: 'アクティブ',
-  banned: 'BAN中',
-  noResults: '条件に合うユーザーが見つかりません。',
-  countSuffix: '件のユーザー',
-  completedCount: '取引完了',
-  rating: '評価',
-  signupDate: '登録日',
-  roleChangeRestricted: 'ロール変更は Super Admin のみ実行できます。',
-  roleChangeSuccess: 'ロールを変更しました',
-  banSuccess: 'アカウントを停止しました',
-  unbanSuccess: 'アカウント停止を解除しました',
-  verificationGrantSuccess: '学校認証を付与しました',
-  verificationRevokeSuccess: '学校認証を解除しました',
-  actionError: '操作に失敗しました',
-  banTitle: 'アカウントを停止しますか？',
-  banDescription: '必要であれば理由を残して、このユーザーのアカウントを停止します。',
-  banReasonPlaceholder: '停止理由を入力してください',
-  banConfirm: '停止する',
-  unbanTitle: 'アカウント停止を解除しますか？',
-  unbanDescription: '解除すると、このユーザーは再びサービスを利用できます。',
-  unbanConfirm: '解除する',
-  roleChangeTitle: 'ロールを変更しますか？',
-  roleChangeConfirm: '変更する',
-  verificationGrantTitle: '学校認証を付与しますか？',
-  verificationRevokeTitle: '学校認証を解除しますか？',
-  verificationGrantDescription: 'このユーザーを管理画面で学校認証済みにします。',
-  verificationRevokeDescription: 'このユーザーの学校認証状態を解除します。',
-  verificationGrantConfirm: '付与する',
-  verificationRevokeConfirm: '解除する',
+  title: '\u30e6\u30fc\u30b6\u30fc\u7ba1\u7406',
+  searchPlaceholder: '\u30e6\u30fc\u30b6\u30fc\u540d\u3067\u691c\u7d22...',
+  allRoles: '\u3059\u3079\u3066\u306e\u30ed\u30fc\u30eb',
+  allStates: '\u3059\u3079\u3066\u306e\u72b6\u614b',
+  active: '\u30a2\u30af\u30c6\u30a3\u30d6',
+  banned: 'BAN\u4e2d',
+  noResults: '\u6761\u4ef6\u306b\u5408\u3046\u30e6\u30fc\u30b6\u30fc\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093\u3002',
+  countSuffix: '\u4ef6\u306e\u30e6\u30fc\u30b6\u30fc',
+  completedCount: '\u5b8c\u4e86\u53d6\u5f15',
+  rating: '\u8a55\u4fa1',
+  signupDate: '\u767b\u9332\u65e5',
+  roleChangeRestricted: '\u30ed\u30fc\u30eb\u5909\u66f4\u306f Super Admin \u306e\u307f\u53ef\u80fd\u3067\u3059\u3002',
+  roleChangeSuccess: '\u30ed\u30fc\u30eb\u3092\u5909\u66f4\u3057\u307e\u3057\u305f',
+  banSuccess: '\u30a2\u30ab\u30a6\u30f3\u30c8\u3092\u505c\u6b62\u3057\u307e\u3057\u305f',
+  unbanSuccess: '\u30a2\u30ab\u30a6\u30f3\u30c8\u505c\u6b62\u3092\u89e3\u9664\u3057\u307e\u3057\u305f',
+  verificationGrantSuccess: '\u5b66\u6821\u8a8d\u8a3c\u3092\u4ed8\u4e0e\u3057\u307e\u3057\u305f',
+  verificationRevokeSuccess: '\u5b66\u6821\u8a8d\u8a3c\u3092\u89e3\u9664\u3057\u307e\u3057\u305f',
+  actionError: '\u64cd\u4f5c\u306b\u5931\u6557\u3057\u307e\u3057\u305f',
+  banTitle: '\u30a2\u30ab\u30a6\u30f3\u30c8\u3092\u505c\u6b62\u3057\u307e\u3059\u304b\uff1f',
+  banDescription: '\u5fc5\u8981\u3067\u3042\u308c\u3070\u7406\u7531\u3092\u6b8b\u3057\u3066\u3001\u3053\u306e\u30e6\u30fc\u30b6\u30fc\u306e\u30a2\u30ab\u30a6\u30f3\u30c8\u3092\u505c\u6b62\u3057\u307e\u3059\u3002',
+  banReasonPlaceholder: '\u505c\u6b62\u7406\u7531\u3092\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044',
+  banConfirm: 'BAN\u3059\u308b',
+  unbanTitle: '\u30a2\u30ab\u30a6\u30f3\u30c8\u505c\u6b62\u3092\u89e3\u9664\u3057\u307e\u3059\u304b\uff1f',
+  unbanDescription: '\u89e3\u9664\u3059\u308b\u3068\u3001\u3053\u306e\u30e6\u30fc\u30b6\u30fc\u306f\u518d\u3073\u30b5\u30fc\u30d3\u30b9\u3092\u5229\u7528\u3067\u304d\u307e\u3059\u3002',
+  unbanConfirm: '\u89e3\u9664\u3059\u308b',
+  roleChangeTitle: '\u30ed\u30fc\u30eb\u3092\u5909\u66f4\u3057\u307e\u3059\u304b\uff1f',
+  roleChangeConfirm: '\u5909\u66f4\u3059\u308b',
+  verificationGrantTitle: '\u5b66\u6821\u8a8d\u8a3c\u3092\u4ed8\u4e0e\u3057\u307e\u3059\u304b\uff1f',
+  verificationRevokeTitle: '\u5b66\u6821\u8a8d\u8a3c\u3092\u89e3\u9664\u3057\u307e\u3059\u304b\uff1f',
+  verificationGrantDescription: '\u3053\u306e\u30e6\u30fc\u30b6\u30fc\u3092\u624b\u52d5\u3067\u5b66\u6821\u8a8d\u8a3c\u6e08\u307f\u306b\u3057\u307e\u3059\u3002',
+  verificationRevokeDescription: '\u3053\u306e\u30e6\u30fc\u30b6\u30fc\u306e\u5b66\u6821\u8a8d\u8a3c\u72b6\u614b\u3092\u89e3\u9664\u3057\u307e\u3059\u3002',
+  verificationGrantConfirm: '\u4ed8\u4e0e\u3059\u308b',
+  verificationRevokeConfirm: '\u89e3\u9664\u3059\u308b',
   bannedBadge: 'BAN',
-  retry: 'もう一度お試しください。',
-  cancel: 'キャンセル',
-  banNoticeTitle: 'アカウントが停止されました',
-  unbanNoticeTitle: 'アカウント停止が解除されました',
-  unbanNoticeMessage: 'アカウント停止が解除されました。サービスを再び利用できます。',
+  retry: '\u3082\u3046\u4e00\u5ea6\u304a\u8a66\u3057\u304f\u3060\u3055\u3044\u3002',
+  cancel: '\u30ad\u30e3\u30f3\u30bb\u30eb',
+  banNoticeTitle: '\u30a2\u30ab\u30a6\u30f3\u30c8\u304c\u505c\u6b62\u3055\u308c\u307e\u3057\u305f',
+  unbanNoticeTitle: '\u30a2\u30ab\u30a6\u30f3\u30c8\u505c\u6b62\u304c\u89e3\u9664\u3055\u308c\u307e\u3057\u305f',
+  unbanNoticeMessage: '\u30a2\u30ab\u30a6\u30f3\u30c8\u505c\u6b62\u304c\u89e3\u9664\u3055\u308c\u307e\u3057\u305f\u3002\u30b5\u30fc\u30d3\u30b9\u3092\u518d\u3073\u5229\u7528\u3067\u304d\u307e\u3059\u3002',
 } as const;
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -115,6 +121,8 @@ export const AdminUsersPage = () => {
   const [banReason, setBanReason] = useState('');
   const [roleChangeTarget, setRoleChangeTarget] = useState<RoleChangeTarget | null>(null);
   const [verificationTarget, setVerificationTarget] = useState<VerificationTarget | null>(null);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [bulkActionTarget, setBulkActionTarget] = useState<BulkActionTarget | null>(null);
   const [busyAction, setBusyAction] = useState<'ban' | 'role' | 'verify' | null>(null);
 
   const fetchUsers = useCallback(async () => {
@@ -135,7 +143,7 @@ export const AdminUsersPage = () => {
       setUsers(((data as unknown) as UserRow[]) || []);
       setTotalCount(count || 0);
     } catch (error) {
-      console.error('Users fetch error:', error);
+      logger.error('admin.users.fetch', error);
     } finally {
       setLoading(false);
     }
@@ -144,6 +152,22 @@ export const AdminUsersPage = () => {
   useEffect(() => {
     void fetchUsers();
   }, [fetchUsers]);
+
+  useEffect(() => {
+    setSelectedUserIds((current) => current.filter((id) => users.some((user) => user.id === id)));
+  }, [users]);
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUserIds((current) =>
+      current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId]
+    );
+  };
+
+  const toggleSelectAllVisible = () => {
+    const visibleIds = users.filter((targetUser) => targetUser.id !== currentUser?.id).map((targetUser) => targetUser.id);
+    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedUserIds.includes(id));
+    setSelectedUserIds(allVisibleSelected ? [] : visibleIds);
+  };
 
   const confirmBanChange = async () => {
     if (!currentUser || !banTarget) return;
@@ -267,7 +291,73 @@ export const AdminUsersPage = () => {
     }
   };
 
+  const confirmBulkAction = async () => {
+    if (!currentUser || !bulkActionTarget || bulkActionTarget.ids.length === 0) return;
+
+    const targetIds = bulkActionTarget.ids;
+    setBusyAction(bulkActionTarget.action === 'ban' || bulkActionTarget.action === 'unban' ? 'ban' : 'verify');
+
+    try {
+      if (bulkActionTarget.action === 'ban' || bulkActionTarget.action === 'unban') {
+        const isBan = bulkActionTarget.action === 'ban';
+        const reason = isBan ? banReason.trim() || null : null;
+
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            is_banned: isBan,
+            banned_at: isBan ? new Date().toISOString() : null,
+            ban_reason: reason,
+          })
+          .in('id', targetIds);
+
+        if (error) throw error;
+
+        if (isBan) {
+          await supabase
+            .from('posts')
+            .update({ status: 'Hidden', hidden_by: currentUser.id, hidden_at: new Date().toISOString() })
+            .in('user_id', targetIds)
+            .neq('status', 'Hidden');
+        }
+
+        showToast({
+          tone: 'success',
+          title: isBan ? `選択した ${targetIds.length} 人をBANしました` : `選択した ${targetIds.length} 人のBANを解除しました`,
+        });
+      } else {
+        const grant = bulkActionTarget.action === 'verify';
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            email_verified: grant,
+            verified_school_domain: grant ? 'manual-admin' : null,
+          })
+          .in('id', targetIds);
+
+        if (error) throw error;
+
+        showToast({
+          tone: 'success',
+          title: grant ? `選択した ${targetIds.length} 人を認証済みにしました` : `選択した ${targetIds.length} 人の認証を解除しました`,
+        });
+      }
+
+      setSelectedUserIds([]);
+      setBulkActionTarget(null);
+      setBanReason('');
+      void fetchUsers();
+    } catch (error: unknown) {
+      showToast({ tone: 'error', title: COPY.actionError, description: getErrorMessage(error, COPY.retry) });
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const selectableUsers = users.filter((targetUser) => targetUser.id !== currentUser?.id);
+  const allVisibleSelected =
+    selectableUsers.length > 0 && selectableUsers.every((targetUser) => selectedUserIds.includes(targetUser.id));
 
   const getRoleBadge = (userRole: string) => {
     if (userRole === 'super_admin') {
@@ -339,6 +429,51 @@ export const AdminUsersPage = () => {
           {totalCount} {COPY.countSuffix}
         </p>
 
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
+          <button
+            type="button"
+            onClick={toggleSelectAllVisible}
+            className="inline-flex items-center gap-2 text-sm font-black text-slate-600 transition-colors hover:text-lime-600"
+          >
+            <CheckSquare size={16} />
+            {allVisibleSelected ? '表示中の選択を解除' : '表示中のユーザーをまとめて選択'}
+          </button>
+
+          {selectedUserIds.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-black text-slate-400">{selectedUserIds.length} 人を選択中</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkActionTarget({ action: 'verify', ids: selectedUserIds });
+                }}
+                className="rounded-xl bg-lime-50 px-3 py-2 text-xs font-black text-lime-700 transition-colors hover:bg-lime-100"
+              >
+                認証を付与
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkActionTarget({ action: 'unverify', ids: selectedUserIds });
+                }}
+                className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-600 transition-colors hover:bg-slate-200"
+              >
+                認証を解除
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkActionTarget({ action: 'ban', ids: selectedUserIds });
+                  setBanReason('');
+                }}
+                className="rounded-xl bg-red-50 px-3 py-2 text-xs font-black text-red-600 transition-colors hover:bg-red-100"
+              >
+                一括BAN
+              </button>
+            </div>
+          )}
+        </div>
+
         {loading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="animate-spin text-lime-500" size={28} />
@@ -357,6 +492,15 @@ export const AdminUsersPage = () => {
                 }`}
               >
                 <div className="flex items-center gap-4">
+                  {targetUser.id !== currentUser?.id && (
+                    <input
+                      type="checkbox"
+                      checked={selectedUserIds.includes(targetUser.id)}
+                      onChange={() => toggleUserSelection(targetUser.id)}
+                      aria-label={`${targetUser.display_name} を選択`}
+                      className="h-4 w-4 rounded border-slate-300 text-lime-500 focus:ring-lime-500"
+                    />
+                  )}
                   <Link to={`/user/${targetUser.id}`}>
                     <UserAvatar avatarUrl={targetUser.avatar_url} displayName={targetUser.display_name} size="md" />
                   </Link>
@@ -504,6 +648,45 @@ export const AdminUsersPage = () => {
         </div>
       )}
 
+      {bulkActionTarget?.action === 'ban' && (
+        <div className="fixed inset-0 z-[180] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-7 shadow-2xl">
+            <h3 className="mb-3 text-lg font-black text-slate-800">選択したユーザーをBANしますか？</h3>
+            <p className="mb-4 text-sm font-medium leading-6 text-slate-500">
+              選択した {bulkActionTarget.ids.length} 人を一括で停止します。必要なら理由も残せます。
+            </p>
+            <textarea
+              value={banReason}
+              onChange={(event) => setBanReason(event.target.value)}
+              placeholder={COPY.banReasonPlaceholder}
+              rows={4}
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium outline-none transition-all focus:border-lime-400 focus:ring-2 focus:ring-lime-500/20"
+            />
+            <div className="mt-6 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkActionTarget(null);
+                  setBanReason('');
+                }}
+                disabled={busyAction === 'ban'}
+                className="flex-1 rounded-2xl bg-slate-100 py-3 text-sm font-bold text-slate-600 transition-all hover:bg-slate-200 disabled:opacity-60"
+              >
+                {COPY.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={confirmBulkAction}
+                disabled={busyAction === 'ban'}
+                className="flex-1 rounded-2xl bg-red-500 py-3 text-sm font-bold text-white shadow-lg shadow-red-500/20 transition-all hover:bg-red-600 disabled:opacity-60"
+              >
+                一括BANする
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ConfirmDialog
         isOpen={banTarget?.ban === false}
         title={COPY.unbanTitle}
@@ -539,6 +722,32 @@ export const AdminUsersPage = () => {
         busy={busyAction === 'verify'}
         onCancel={() => setVerificationTarget(null)}
         onConfirm={confirmVerification}
+      />
+
+      <ConfirmDialog
+        isOpen={bulkActionTarget?.action === 'unverify'}
+        title="選択したユーザーの認証を解除しますか？"
+        description={
+          bulkActionTarget ? `選択した ${bulkActionTarget.ids.length} 人の学校認証をまとめて解除します。` : ''
+        }
+        confirmLabel="認証を解除する"
+        cancelLabel={COPY.cancel}
+        busy={busyAction === 'verify'}
+        onCancel={() => setBulkActionTarget(null)}
+        onConfirm={confirmBulkAction}
+      />
+
+      <ConfirmDialog
+        isOpen={bulkActionTarget?.action === 'verify'}
+        title="選択したユーザーを認証済みにしますか？"
+        description={
+          bulkActionTarget ? `選択した ${bulkActionTarget.ids.length} 人をまとめて認証済みにします。` : ''
+        }
+        confirmLabel="認証を付与する"
+        cancelLabel={COPY.cancel}
+        busy={busyAction === 'verify'}
+        onCancel={() => setBulkActionTarget(null)}
+        onConfirm={confirmBulkAction}
       />
     </>
   );

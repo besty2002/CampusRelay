@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Bell, CheckCircle2, MessageCircle, Loader2, ChevronRight, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { logger } from '../lib/logger';
 
 interface Notification {
   id: string;
@@ -126,7 +127,7 @@ export const NotificationsPage = () => {
         formatted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       );
     } catch (err) {
-      console.error('Error fetching alerts:', err);
+      logger.error('Error fetching alerts:', err);
     } finally {
       setLoading(false);
     }

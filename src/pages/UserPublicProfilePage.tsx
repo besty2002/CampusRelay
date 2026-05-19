@@ -15,6 +15,8 @@ import { MannerTempGauge } from '../components/MannerTempGauge';
 import { StatusBadge } from '../components/StatusBadge';
 import { UserAvatar } from '../components/UserAvatar';
 import { VerifiedBadge } from '../components/VerifiedBadge';
+import { TrustHighlights } from '../components/trust/TrustHighlights';
+import { logger } from '../lib/logger';
 
 interface PublicPost {
   id: string;
@@ -32,6 +34,17 @@ interface PublicReview {
   created_at: string;
   from_profiles: { display_name: string }[] | { display_name: string } | null;
 }
+
+const summarizeTopTags = (reviews: PublicReview[]) =>
+  [...reviews.reduce((map, review) => {
+    (review.manner_tags ?? []).forEach((tag) => {
+      map.set(tag, (map.get(tag) ?? 0) + 1);
+    });
+    return map;
+  }, new Map<string, number>()).entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 4)
+    .map(([tag]) => tag);
 
 const getReviewerName = (reviewer: PublicReview['from_profiles']): string => {
   if (Array.isArray(reviewer)) {
@@ -95,7 +108,7 @@ export const UserPublicProfilePage = () => {
 
         setReviews((((reviewsData as unknown) as PublicReview[]) || []));
       } catch (error) {
-        console.error('Error fetching public profile:', error);
+        logger.error('publicProfile.fetch', error);
       } finally {
         setLoading(false);
       }
@@ -115,6 +128,8 @@ export const UserPublicProfilePage = () => {
   if (!profile) {
     return <div className="p-8 text-center font-bold text-slate-500">ユーザーが見つかりませんでした。</div>;
   }
+
+  const topTags = summarizeTopTags(reviews);
 
   return (
     <div className="mx-auto max-w-2xl p-4 pb-32 pt-12">
@@ -161,6 +176,15 @@ export const UserPublicProfilePage = () => {
           </div>
         </div>
       </div>
+
+      <TrustHighlights
+        title="このユーザーの信頼感"
+        completedCount={profile.completed_count}
+        avgRating={profile.avg_rating}
+        ratingCount={profile.rating_count}
+        recentReviewCount={reviews.length}
+        topTags={topTags}
+      />
 
       <div className="mb-12">
         <h2 className="mb-6 flex items-center gap-2 px-2 text-xl font-black text-slate-800">

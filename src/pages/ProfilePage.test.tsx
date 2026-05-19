@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { ProfilePage } from './ProfilePage';
 import { ToastProvider } from '../components/feedback/ToastProvider';
 
@@ -22,6 +22,7 @@ const supabaseMocks = vi.hoisted(() => {
       select: vi.fn(() => builder),
       eq: vi.fn(() => builder),
       order: vi.fn(() => builder),
+      limit: vi.fn(() => builder),
       single: vi.fn(() => builder),
       then: (resolve: (value: { data: unknown }) => unknown) => Promise.resolve(resolve({ data })),
     };
@@ -33,20 +34,25 @@ const supabaseMocks = vi.hoisted(() => {
     id: 'user-1',
     display_name: 'Student',
     role: 'user',
-    completed_count: 0,
-    avg_rating: 0,
-    rating_count: 0,
+    completed_count: 3,
+    avg_rating: 4.8,
+    rating_count: 5,
     manner_temp: 36.5,
     email_verified: false,
   });
   const postsBuilder = createBuilder([]);
   const wishlistsBuilder = createBuilder([]);
+  const reviewsBuilder = createBuilder([
+    { id: 'review-1', manner_tags: ['返信が早い', '丁寧'] },
+    { id: 'review-2', manner_tags: ['返信が早い'] },
+  ]);
 
   return {
     from: vi.fn((table: string) => {
       if (table === 'profiles') return profilesBuilder;
       if (table === 'posts') return postsBuilder;
       if (table === 'wishlists') return wishlistsBuilder;
+      if (table === 'reviews') return reviewsBuilder;
       throw new Error(`Unexpected table: ${table}`);
     }),
     auth: {
@@ -98,12 +104,12 @@ vi.mock('../components/StatusBadge', () => ({
   StatusBadge: () => null,
 }));
 
-describe('ProfilePage menu links', () => {
+describe('ProfilePage enhancements', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('shows only activity and settings shortcuts in the profile menu', async () => {
+  it('shows trust highlights with top review tags', async () => {
     render(
       <ToastProvider>
         <ProfilePage />
@@ -111,17 +117,11 @@ describe('ProfilePage menu links', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('取引履歴')).toBeTruthy();
-      expect(screen.getByText('設定')).toBeTruthy();
+      expect(screen.getByText('信頼サマリー')).toBeTruthy();
+      expect(screen.getByText('返信が早い')).toBeTruthy();
+      expect(screen.getByText('丁寧')).toBeTruthy();
     });
 
-    expect(screen.queryByText('通知・キーワード設定')).toBeNull();
-    expect(screen.queryByText('学校認証')).toBeNull();
-
-    fireEvent.click(screen.getByText('取引履歴'));
-    expect(routerMocks.navigate).toHaveBeenCalledWith('/activity');
-
-    fireEvent.click(screen.getByText('設定'));
-    expect(routerMocks.navigate).toHaveBeenCalledWith('/settings');
+    expect(screen.getByText('信頼サマリー')).toBeTruthy();
   });
 });

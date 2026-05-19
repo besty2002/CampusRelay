@@ -18,6 +18,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../components/feedback/ToastProvider';
+import { logger } from '../../lib/logger';
 
 interface AdminContext {
   role: 'school_admin' | 'super_admin';
@@ -134,7 +135,7 @@ export const AdminReportsPage = () => {
       setReports(((data as unknown) as Report[]) || []);
       setTotalCount(count || 0);
     } catch (error) {
-      console.error('Reports fetch error:', error);
+      logger.error('Reports fetch error:', error);
     } finally {
       setLoading(false);
     }

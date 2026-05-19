@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { logger } from '../../lib/logger';
 import {
   Loader2,
   ScrollText,
@@ -96,7 +97,7 @@ export const AdminAuditLogPage = () => {
       setLogs((data as AuditLog[]) || []);
       setTotalCount(count || 0);
     } catch (err) {
-      console.error('Audit log fetch error:', err);
+      logger.error('Audit log fetch error:', err);
     } finally {
       setLoading(false);
     }

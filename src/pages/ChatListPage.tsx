@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Link } from 'react-router-dom';
-import { MessageCircle, Search } from 'lucide-react';
+import { ImageOff, MessageCircle, Search } from 'lucide-react';
 import type { ChatRoom } from '../types';
 import { ChatListSkeleton } from '../components/skeletons/ChatListSkeleton';
 
@@ -23,6 +23,8 @@ const COPY = {
   browseItems: 'アイテムを見る',
   noMessages: 'まだメッセージはありません',
   justNow: 'たった今',
+  sellerBadge: '出品者',
+  userFallback: 'ユーザー',
 } as const;
 
 const formatRelativeTime = (dateStr: string | undefined) => {
@@ -44,7 +46,14 @@ const formatRelativeTime = (dateStr: string | undefined) => {
     const days = ['日', '月', '火', '水', '木', '金', '土'];
     return `${days[date.getDay()]}曜日`;
   }
+
   return `${date.getMonth() + 1}/${date.getDate()}`;
+};
+
+const buildPostImageUrl = (storagePath?: string) => {
+  if (!storagePath) return '';
+  if (storagePath.startsWith('http://') || storagePath.startsWith('https://')) return storagePath;
+  return `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/post-images/${storagePath}`;
 };
 
 export const ChatListPage = () => {
@@ -52,6 +61,7 @@ export const ChatListPage = () => {
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
 
   const fetchRooms = useCallback(async () => {
     if (!user) return;
@@ -215,6 +225,8 @@ export const ChatListPage = () => {
             const thumbnail = room.posts?.post_images?.[0]?.storage_path;
             const unreadCount = isSeller ? (room.unread_count_seller || 0) : (room.unread_count_buyer || 0);
             const initial = otherParty?.display_name?.[0] || '?';
+            const imageKey = `${room.id}:${thumbnail || 'fallback'}`;
+            const hasBrokenImage = Boolean(thumbnail && brokenImages[imageKey]);
 
             return (
               <Link
@@ -224,15 +236,24 @@ export const ChatListPage = () => {
               >
                 <div className="flex items-start gap-3">
                   <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-2xl bg-slate-100">
-                    {thumbnail ? (
+                    {thumbnail && !hasBrokenImage ? (
                       <img
-                        src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/post-images/${thumbnail}`}
-                        alt={room.posts?.title || '投稿画像'}
+                        src={buildPostImageUrl(thumbnail)}
+                        alt=""
                         className="h-full w-full object-cover"
+                        onError={() =>
+                          setBrokenImages((prev) => ({
+                            ...prev,
+                            [imageKey]: true,
+                          }))
+                        }
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#06C755]/15 to-[#06C755]/5 text-lg font-bold text-[#06C755]">
-                        {initial}
+                      <div
+                        data-testid={`chat-thumbnail-fallback-${room.id}`}
+                        className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#06C755]/15 to-[#06C755]/5 text-lg font-bold text-[#06C755]"
+                      >
+                        {thumbnail ? <ImageOff size={18} /> : initial}
                       </div>
                     )}
                     {unreadCount > 0 && (
@@ -246,11 +267,11 @@ export const ChatListPage = () => {
                     <div className="mb-1 flex items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
                         <p className="truncate font-bold text-slate-800">
-                          {otherParty?.display_name || 'ユーザー'}
+                          {otherParty?.display_name || COPY.userFallback}
                         </p>
                         {isSeller && (
                           <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600">
-                            出品者
+                            {COPY.sellerBadge}
                           </span>
                         )}
                       </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search,
   Plus,
@@ -65,6 +65,7 @@ const SORT_OPTIONS = [
 type SortOption = (typeof SORT_OPTIONS)[number]['id'];
 
 const PAGE_SIZE = 20;
+import { logger } from '../lib/logger';
 const RECENT_SEARCHES_KEY = 'campusrelay:home-recent-searches';
 
 const HOME_COPY = {
@@ -100,6 +101,7 @@ const HOME_COPY = {
 } as const;
 
 export const HomePage = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -238,7 +240,7 @@ export const HomePage = () => {
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching posts:', error);
+        logger.error('Error fetching posts:', error);
         setHasMore(false);
       } else if (data) {
         if (isFirstPage) {
@@ -538,9 +540,17 @@ export const HomePage = () => {
 
             return (
               <div key={post.id} className="relative">
-                <Link
-                  to={`/post/${post.id}`}
-                  className="group bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-2xl hover:shadow-slate-200/50 transition-all flex gap-5 active:scale-[0.98] relative"
+                <div
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => navigate(`/post/${post.id}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      navigate(`/post/${post.id}`);
+                    }
+                  }}
+                  className="group bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-2xl hover:shadow-slate-200/50 transition-all flex gap-5 active:scale-[0.98] relative cursor-pointer"
                 >
                   <div className="w-28 h-28 shrink-0 rounded-[1.5rem] bg-slate-50 overflow-hidden border border-slate-50 shadow-inner relative">
                     <StatusBadge status={post.status} className="absolute top-2 left-2 z-10 shadow-sm backdrop-blur-md bg-white/90" />
@@ -599,7 +609,7 @@ export const HomePage = () => {
                       </div>
                     </div>
                   </div>
-                </Link>
+                </div>
 
                 <button
                   onClick={(event) => toggleWishlist(event, post.id)}

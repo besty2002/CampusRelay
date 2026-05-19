@@ -8,7 +8,7 @@ const baseMessage: ChatMessage = {
   id: 'msg-1',
   room_id: 'room-1',
   sender_id: 'user-1',
-  text: '取引の約束を提案しました。',
+  text: '取引予定を提案しました。',
   is_read: false,
   created_at: '2026-05-16T10:00:00.000Z',
   profiles: {
@@ -16,7 +16,7 @@ const baseMessage: ChatMessage = {
   },
   appointment_data: {
     date: '2026-05-17T12:30:00',
-    location: '校門前',
+    location: '北千住駅',
     status: 'proposed',
   },
 };
@@ -36,8 +36,8 @@ describe('AppointmentMessageCard', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('承諾する'));
-    fireEvent.click(screen.getByText('断る'));
+    fireEvent.click(screen.getByText('承認する'));
+    fireEvent.click(screen.getByText('取消'));
 
     expect(onAccept).toHaveBeenCalledTimes(1);
     expect(onCancel).toHaveBeenCalledTimes(1);
@@ -64,5 +64,25 @@ describe('AppointmentMessageCard', () => {
 
     fireEvent.click(screen.getByText('再提案する'));
     expect(onEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a completion-waiting badge for accepted appointments', () => {
+    render(
+      <AppointmentMessageCard
+        message={{
+          ...baseMessage,
+          appointment_data: {
+            ...baseMessage.appointment_data!,
+            status: 'accepted',
+          },
+        }}
+        isMe={false}
+        onAccept={vi.fn()}
+        onCancel={vi.fn()}
+        onEdit={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('完了待ち')).toBeTruthy();
   });
 });

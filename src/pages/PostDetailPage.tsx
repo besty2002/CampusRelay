@@ -8,9 +8,7 @@ import {
   Heart,
   Loader2,
   MessageCircle,
-  Send,
   Star,
-  Trash,
   Trash2,
   User,
 } from 'lucide-react';
@@ -24,6 +22,8 @@ import { MannerTempGauge } from '../components/MannerTempGauge';
 import { ImageViewer } from '../components/ImageViewer';
 import { ConfirmDialog } from '../components/feedback/ConfirmDialog';
 import { useToast } from '../components/feedback/ToastProvider';
+import { PostRequestList } from '../components/post/PostRequestList';
+import { PostCommentsSection } from '../components/post/PostCommentsSection';
 
 type PostComment = {
   id: string;
@@ -38,268 +38,268 @@ type PostComment = {
 /*
 const LEGACY_STATUS_COPY = {
   Available: {
-    title: 'まだ譲り先を募集しています',
-    ownerDescription: '気になる相手が現れたら、チャットで話してから譲渡申請を承認できます。',
-    visitorDescription: 'チャットで相談したあと、譲渡申請を送ってやり取りを始められます。',
+    title: '�܂��������W���Ă��܂�',
+    ownerDescription: '�C�ɂȂ鑊�肪���ꂽ��A�`���b�g�Řb���Ă�����n�\�������F�ł��܂��B',
+    visitorDescription: '�`���b�g�ő��k�������ƁA���n�\���𑗂��Ă������n�߂��܂��B',
   },
   Reserved: {
-    title: '譲渡先が決まりました',
-    ownerDescription: '選んだ相手とチャットで日時や受け渡し方法を決めて、完了したら取引を締めてください。',
-    visitorDescription: '現在は選ばれた相手との取引準備中です。内容が変わるまで少しお待ちください。',
+    title: '���n�悪���܂�܂���',
+    ownerDescription: '�I�񂾑���ƃ`���b�g�œ�����󂯓n�����@�����߂āA����������������߂Ă��������B',
+    visitorDescription: '���݂͑I�΂ꂽ����Ƃ̎���������ł��B���e���ς��܂ŏ������҂����������B',
   },
   Given: {
-    title: '譲渡は完了しました',
-    ownerDescription: '受け渡しは完了しています。必要に応じて相手へのレビューを残してください。',
-    visitorDescription: 'このアイテムの譲渡は完了済みです。取引相手へのレビューもここから行えます。',
+    title: '���n�͊������܂���',
+    ownerDescription: '�󂯓n���͊������Ă��܂��B�K�v�ɉ����đ���ւ̃��r���[���c���Ă��������B',
+    visitorDescription: '���̃A�C�e���̏��n�͊����ς݂ł��B�������ւ̃��r���[����������s���܂��B',
   },
   Hidden: {
-    title: 'この投稿は公開停止中です',
-    ownerDescription: '現在は公開されていないため、他のユーザーには表示されません。',
-    visitorDescription: '現在この投稿は公開されていないため、取引を進めることはできません。',
+    title: '���̓��e�͌��J��~���ł�',
+    ownerDescription: '���݂͌��J����Ă��Ȃ����߁A���̃��[�U�[�ɂ͕\������܂���B',
+    visitorDescription: '���݂��̓��e�͌��J����Ă��Ȃ����߁A�����i�߂邱�Ƃ͂ł��܂���B',
   },
 } as const;
 
 const LEGACY_REQUEST_STATUS_COPY = {
   Pending: {
-    label: '申請中',
+    label: '�\����',
     className: 'bg-sky-50 text-sky-600',
-    description: '出品者からの確認を待っています。',
+    description: '�o�i�҂���̊m�F��҂��Ă��܂��B',
   },
   Approved: {
-    label: '承認済み',
+    label: '���F�ς�',
     className: 'bg-lime-50 text-lime-600',
-    description: 'チャットで日程や場所を相談しましょう。',
+    description: '�`���b�g�œ�����ꏊ�𑊒k���܂��傤�B',
   },
   Rejected: {
-    label: '見送り',
+    label: '������',
     className: 'bg-slate-100 text-slate-500',
-    description: '今回は別の相手との取引が進んでいます。',
+    description: '����͕ʂ̑���Ƃ̎�����i��ł��܂��B',
   },
 } as const;
 
 const LEGACY_CATEGORY_LABELS: Record<Post['category'], string> = {
-  Uniform: '制服',
-  Textbook: '教科書・書籍',
-  Digital: 'デジタル機器',
-  Life: '生活用品',
-  ArtSport: '部活・アート',
-  Other: 'その他',
+  Uniform: '����',
+  Textbook: '���ȏ��E����',
+  Digital: '�f�W�^���@��',
+  Life: '�����p�i',
+  ArtSport: '�����E�A�[�g',
+  Other: '���̑�',
 };
 
 const LEGACY_CONDITION_LABELS: Record<PostCondition, string> = {
-  'Like New': '未使用に近い',
-  Good: '目立った傷なし',
-  Used: '使用感あり',
+  'Like New': '���g�p�ɋ߂�',
+  Good: '�ڗ��������Ȃ�',
+  Used: '�g�p������',
 };
 
 const LEGACY_COPY = {
-  back: '戻る',
-  wishlistAdd: 'お気に入りに追加する',
-  wishlistRemove: 'お気に入りから外す',
-  loginRequired: 'ログインが必要です',
-  wishlistLoginDescription: 'お気に入りに追加するにはログインしてください。',
-  requestLoginDescription: '譲渡申請を送るにはログインしてください。',
-  commentLoginDescription: 'コメントするにはログインしてください。',
-  reportLoginDescription: '通報するにはログインしてください。',
-  chatLoginDescription: 'チャットを始めるにはログインしてください。',
-  editPost: '投稿を編集する',
-  deletePost: '投稿を削除する',
-  report: '通報',
-  deleteSuccess: '投稿を削除しました',
-  deleteError: '投稿の削除に失敗しました',
-  requestMessage: 'ぜひ譲っていただきたいです。よろしくお願いします。',
-  requestDuplicate: 'すでに譲渡申請を送っています',
-  requestSuccess: '譲渡申請を送りました',
-  requestError: '譲渡申請に失敗しました',
-  approveSuccess: '譲渡申請を承認しました',
-  approveError: '譲渡申請の承認に失敗しました',
-  completeSuccess: '取引を完了にしました',
-  completeError: '取引完了の更新に失敗しました',
-  commentAddSuccess: 'コメントを投稿しました',
-  commentAddError: 'コメントの投稿に失敗しました',
-  commentDeleteSuccess: 'コメントを削除しました',
-  commentDeleteError: 'コメントの削除に失敗しました',
-  reportReasonRequired: '通報理由を入力してください',
-  reportSuccess: '通報を受け付けました',
-  reportError: '通報に失敗しました',
-  chatError: 'チャットを開始できませんでした',
-  reviewTargetMissing: 'レビュー相手が見つかりません',
-  notFound: '投稿が見つかりませんでした。',
-  tradeStatus: '取引ステータス',
-  yourRequest: 'あなたの申請状況',
-  currentPartner: '現在の取引相手',
-  partnerFallback: '取引相手を見る',
-  exchangeWanted: '交換でほしいもの',
-  requestList: '譲渡申請リスト',
-  noRequests: 'まだ申請は届いていません。',
-  ownerCompleteCountPrefix: '取引完了',
-  approveButton: '承認する',
-  nextStep: '次のステップ',
-  nextStepDescription: 'チャットで日程と場所を決めたら、受け渡し完了後に取引を締めてください。',
-  completeButton: '取引を完了にする',
-  givenNotice: 'このアイテムは譲渡完了済みです。必要に応じてレビューを残せます。',
-  reviewButton: '相手にレビューを書く',
-  startChat: 'チャットで相談する',
-  requestButton: '譲渡を希望する',
-  requestingButton: '申請中...',
-  requestDoneButton: '申請済みです',
-  commentsTitle: 'コメント',
-  commentsEmpty: 'まだコメントはありません。気になることがあれば気軽に聞いてみましょう。',
-  anonymousUser: 'ユーザー',
-  commentDelete: '削除する',
-  commentPlaceholder: '投稿について気になることを書いてみましょう。',
-  loginForComment: 'コメントするにはログインが必要です。',
-  goToLogin: 'ログインページへ',
-  reportTitle: '投稿を通報する',
-  reportDescription: '利用規約に反する内容や不快な投稿を見つけた場合は、理由を添えてお知らせください。',
-  reportPlaceholder: '通報理由を入力してください。',
-  cancel: 'キャンセル',
-  submitReport: '通報する',
-  reviewFallbackName: '取引相手',
-  deletePostConfirmTitle: 'この投稿を削除しますか？',
-  deletePostConfirmDescription: '削除すると、投稿内容や進行中のやり取りは元に戻せません。',
-  deleteCommentConfirmTitle: 'このコメントを削除しますか？',
-  deleteCommentConfirmDescription: '削除したコメントは元に戻せません。',
+  back: '�߂�',
+  wishlistAdd: '���C�ɓ���ɒǉ�����',
+  wishlistRemove: '���C�ɓ��肩��O��',
+  loginRequired: '���O�C�����K�v�ł�',
+  wishlistLoginDescription: '���C�ɓ���ɒǉ�����ɂ̓��O�C�����Ă��������B',
+  requestLoginDescription: '���n�\���𑗂�ɂ̓��O�C�����Ă��������B',
+  commentLoginDescription: '�R�����g����ɂ̓��O�C�����Ă��������B',
+  reportLoginDescription: '�ʕ񂷂�ɂ̓��O�C�����Ă��������B',
+  chatLoginDescription: '�`���b�g���n�߂�ɂ̓��O�C�����Ă��������B',
+  editPost: '���e��ҏW����',
+  deletePost: '���e���폜����',
+  report: '�ʕ�',
+  deleteSuccess: '���e���폜���܂���',
+  deleteError: '���e�̍폜�Ɏ��s���܂���',
+  requestMessage: '���Џ����Ă������������ł��B��낵�����肢���܂��B',
+  requestDuplicate: '���łɏ��n�\���𑗂��Ă��܂�',
+  requestSuccess: '���n�\���𑗂�܂���',
+  requestError: '���n�\���Ɏ��s���܂���',
+  approveSuccess: '���n�\�������F���܂���',
+  approveError: '���n�\���̏��F�Ɏ��s���܂���',
+  completeSuccess: '����������ɂ��܂���',
+  completeError: '��������̍X�V�Ɏ��s���܂���',
+  commentAddSuccess: '�R�����g�𓊍e���܂���',
+  commentAddError: '�R�����g�̓��e�Ɏ��s���܂���',
+  commentDeleteSuccess: '�R�����g���폜���܂���',
+  commentDeleteError: '�R�����g�̍폜�Ɏ��s���܂���',
+  reportReasonRequired: '�ʕ񗝗R����͂��Ă�������',
+  reportSuccess: '�ʕ���󂯕t���܂���',
+  reportError: '�ʕ�Ɏ��s���܂���',
+  chatError: '�`���b�g���J�n�ł��܂���ł���',
+  reviewTargetMissing: '���r���[���肪������܂���',
+  notFound: '���e��������܂���ł����B',
+  tradeStatus: '����X�e�[�^�X',
+  yourRequest: '���Ȃ��̐\����',
+  currentPartner: '���݂̎������',
+  partnerFallback: '������������',
+  exchangeWanted: '�����łق�������',
+  requestList: '���n�\�����X�g',
+  noRequests: '�܂��\���͓͂��Ă��܂���B',
+  ownerCompleteCountPrefix: '�������',
+  approveButton: '���F����',
+  nextStep: '���̃X�e�b�v',
+  nextStepDescription: '�`���b�g�œ����Əꏊ�����߂���A�󂯓n��������Ɏ������߂Ă��������B',
+  completeButton: '����������ɂ���',
+  givenNotice: '���̃A�C�e���͏��n�����ς݂ł��B�K�v�ɉ����ă��r���[���c���܂��B',
+  reviewButton: '����Ƀ��r���[������',
+  startChat: '�`���b�g�ő��k����',
+  requestButton: '���n����]����',
+  requestingButton: '�\����...',
+  requestDoneButton: '�\���ς݂ł�',
+  commentsTitle: '�R�����g',
+  commentsEmpty: '�܂��R�����g�͂���܂���B�C�ɂȂ邱�Ƃ�����΋C�y�ɕ����Ă݂܂��傤�B',
+  anonymousUser: '���[�U�[',
+  commentDelete: '�폜����',
+  commentPlaceholder: '���e�ɂ��ċC�ɂȂ邱�Ƃ������Ă݂܂��傤�B',
+  loginForComment: '�R�����g����ɂ̓��O�C�����K�v�ł��B',
+  goToLogin: '���O�C���y�[�W��',
+  reportTitle: '���e��ʕ񂷂�',
+  reportDescription: '���p�K��ɔ�������e��s���ȓ��e���������ꍇ�́A���R��Y���Ă��m�点���������B',
+  reportPlaceholder: '�ʕ񗝗R����͂��Ă��������B',
+  cancel: '�L�����Z��',
+  submitReport: '�ʕ񂷂�',
+  reviewFallbackName: '�������',
+  deletePostConfirmTitle: '���̓��e���폜���܂����H',
+  deletePostConfirmDescription: '�폜����ƁA���e���e��i�s���̂����͌��ɖ߂��܂���B',
+  deleteCommentConfirmTitle: '���̃R�����g���폜���܂����H',
+  deleteCommentConfirmDescription: '�폜�����R�����g�͌��ɖ߂��܂���B',
 } as const;
 
 */
 const STATUS_COPY = {
   Available: {
-    title: 'まだ譲り先を募集しています',
+    title: '\u307e\u3060\u8b72\u308a\u5148\u3092\u52df\u96c6\u3057\u3066\u3044\u307e\u3059',
     ownerDescription:
-      '気になる申請が届いたら、チャットで相談してから譲渡申請を承認できます。',
+      '\u6c17\u306b\u306a\u308b\u76f8\u624b\u304c\u3044\u308c\u3070\u3001\u30c1\u30e3\u30c3\u30c8\u3067\u76f8\u8ac7\u3057\u3066\u304b\u3089\u8b72\u6e21\u5148\u3092\u6c7a\u3081\u3089\u308c\u307e\u3059\u3002',
     visitorDescription:
-      'チャットで相談したあと、譲渡申請を送ってやり取りを始められます。',
+      '\u30c1\u30e3\u30c3\u30c8\u3067\u76f8\u8ac7\u3059\u308b\u524d\u306b\u3001\u307e\u305a\u306f\u8b72\u6e21\u3092\u5e0c\u671b\u3057\u3066\u7533\u8acb\u3057\u3066\u304f\u3060\u3055\u3044\u3002',
   },
   Reserved: {
-    title: '譲渡先が決まりました',
+    title: '\u8b72\u6e21\u5148\u304c\u6c7a\u307e\u308a\u307e\u3057\u305f',
     ownerDescription:
-      '選んだ相手とチャットで日時や受け渡し方法を決めて、完了したら取引を進めてください。',
+      '\u53d6\u5f15\u76f8\u624b\u3068\u30c1\u30e3\u30c3\u30c8\u3067\u76f8\u8ac7\u3057\u306a\u304c\u3089\u3001\u53d7\u3051\u6e21\u3057\u306e\u4e88\u5b9a\u3092\u9032\u3081\u3066\u3044\u304d\u307e\u3057\u3087\u3046\u3002',
     visitorDescription:
-      '現在は選ばれた相手との取引調整中です。次の案内が届くまで少しお待ちください。',
+      '\u3042\u306a\u305f\u306f\u9078\u3070\u308c\u305f\u53d6\u5f15\u76f8\u624b\u3067\u3059\u3002\u30c1\u30e3\u30c3\u30c8\u3067\u53d7\u3051\u6e21\u3057\u306e\u4e88\u5b9a\u3092\u9032\u3081\u3066\u3044\u304d\u307e\u3057\u3087\u3046\u3002',
   },
   Given: {
-    title: '譲渡は完了しました',
+    title: '\u8b72\u6e21\u306f\u5b8c\u4e86\u3057\u307e\u3057\u305f',
     ownerDescription:
-      '受け渡しは完了しています。必要に応じて相手へのレビューを残してください。',
+      '\u53d7\u3051\u6e21\u3057\u304c\u5b8c\u4e86\u3057\u307e\u3057\u305f\u3002\u5fc5\u8981\u3067\u3042\u308c\u3070\u3001\u53d6\u5f15\u76f8\u624b\u3078\u30ec\u30d3\u30e5\u30fc\u3092\u66f8\u304d\u307e\u3057\u3087\u3046\u3002',
     visitorDescription:
-      'このアイテムの譲渡は完了済みです。取引相手へのレビューもここから行えます。',
+      '\u3053\u306e\u30a2\u30a4\u30c6\u30e0\u306e\u8b72\u6e21\u306f\u5b8c\u4e86\u3057\u307e\u3057\u305f\u3002\u5fc5\u8981\u3067\u3042\u308c\u3070\u3001\u53d6\u5f15\u76f8\u624b\u3078\u30ec\u30d3\u30e5\u30fc\u3092\u66f8\u304d\u307e\u3057\u3087\u3046\u3002',
   },
   Hidden: {
-    title: 'この投稿は非公開です',
+    title: '\u3053\u306e\u6295\u7a3f\u306f\u516c\u958b\u505c\u6b62\u4e2d\u3067\u3059',
     ownerDescription:
-      '現在は公開を停止しているため、ほかのユーザーには表示されません。',
+      '\u3053\u306e\u6295\u7a3f\u306f\u73fe\u5728\u975e\u516c\u958b\u3067\u3059\u3002\u5fc5\u8981\u3067\u3042\u308c\u3070\u3001\u518d\u5ea6\u516c\u958b\u72b6\u614b\u3078\u623b\u3057\u3066\u304f\u3060\u3055\u3044\u3002',
     visitorDescription:
-      '現在この投稿は非公開のため、詳細を確認することはできません。',
+      '\u3053\u306e\u6295\u7a3f\u306f\u73fe\u5728\u975e\u516c\u958b\u306e\u305f\u3081\u3001\u8a73\u7d30\u3092\u78ba\u8a8d\u3059\u308b\u3053\u3068\u306f\u3067\u304d\u307e\u305b\u3093\u3002',
   },
 } as const;
 
 const REQUEST_STATUS_COPY = {
   Pending: {
-    label: '申請中',
+    label: '\u7533\u8acb\u4e2d',
     className: 'bg-sky-50 text-sky-600',
-    description: '出品者からの返事を待っています。',
+    description: '\u51fa\u54c1\u8005\u304b\u3089\u306e\u8fd4\u7b54\u3092\u5f85\u3063\u3066\u3044\u307e\u3059\u3002',
   },
   Approved: {
-    label: '承認済み',
+    label: '\u627f\u8a8d\u6e08\u307f',
     className: 'bg-lime-50 text-lime-600',
-    description: 'チャットで日時や場所の調整を進めましょう。',
+    description: '\u30c1\u30e3\u30c3\u30c8\u3067\u53d7\u3051\u6e21\u3057\u306e\u4e88\u5b9a\u3092\u9032\u3081\u3089\u308c\u307e\u3059\u3002',
   },
   Rejected: {
-    label: '見送り',
+    label: '\u898b\u9001\u308a',
     className: 'bg-slate-100 text-slate-500',
-    description: '今回はほかの相手との取引が進んでいます。',
+    description: '\u4eca\u56de\u306f\u5225\u306e\u76f8\u624b\u3068\u306e\u53d6\u5f15\u306b\u9032\u307f\u307e\u3057\u305f\u3002',
   },
 } as const;
 
 const CATEGORY_LABELS: Record<Post['category'], string> = {
-  Uniform: '制服・通学用品',
-  Textbook: '教科書・書籍',
-  Digital: 'IT・デジタル',
-  Life: '生活用品',
-  ArtSport: '文化・スポーツ',
-  Other: 'その他',
+  Uniform: '\u5236\u670d\u30fb\u901a\u5b66\u7528\u54c1',
+  Textbook: '\u6559\u79d1\u66f8\u30fb\u66f8\u7c4d',
+  Digital: 'IT\u30fb\u30c7\u30b8\u30bf\u30eb',
+  Life: '\u751f\u6d3b\u7528\u54c1',
+  ArtSport: '\u6587\u5316\u30fb\u30b9\u30dd\u30fc\u30c4',
+  Other: '\u305d\u306e\u4ed6',
 };
 
 const CONDITION_LABELS: Record<PostCondition, string> = {
-  'Like New': '未使用に近い',
-  Good: '目立った傷なし',
-  Used: '使用感あり',
+  'Like New': '\u672a\u4f7f\u7528\u306b\u8fd1\u3044',
+  Good: '\u76ee\u7acb\u3063\u305f\u50b7\u306a\u3057',
+  Used: '\u4f7f\u7528\u611f\u3042\u308a',
 };
 
 const COPY = {
-  back: '戻る',
-  wishlistAdd: 'お気に入りに追加する',
-  wishlistRemove: 'お気に入りから外す',
-  loginRequired: 'ログインが必要です',
-  wishlistLoginDescription: 'お気に入りに追加するにはログインしてください。',
-  requestLoginDescription: '譲渡申請を送るにはログインしてください。',
-  commentLoginDescription: 'コメントするにはログインしてください。',
-  reportLoginDescription: '通報するにはログインしてください。',
-  chatLoginDescription: 'チャットを始めるにはログインしてください。',
-  editPost: '投稿を編集する',
-  deletePost: '投稿を削除する',
-  report: '通報',
-  deleteSuccess: '投稿を削除しました',
-  deleteError: '投稿の削除に失敗しました',
-  requestMessage: 'もしよければ譲っていただきたいです。よろしくお願いします。',
-  requestDuplicate: 'すでに譲渡申請を送っています',
-  requestSuccess: '譲渡申請を送りました',
-  requestError: '譲渡申請に失敗しました',
-  approveSuccess: '譲渡申請を承認しました',
-  approveError: '譲渡申請の承認に失敗しました',
-  completeSuccess: '取引を完了にしました',
-  completeError: '取引状態の更新に失敗しました',
-  commentAddSuccess: 'コメントを投稿しました',
-  commentAddError: 'コメントの投稿に失敗しました',
-  commentDeleteSuccess: 'コメントを削除しました',
-  commentDeleteError: 'コメントの削除に失敗しました',
-  reportReasonRequired: '通報理由を入力してください',
-  reportSuccess: '通報を受け付けました',
-  reportError: '通報に失敗しました',
-  chatError: 'チャットを開始できませんでした',
-  reviewTargetMissing: 'レビュー対象の相手が見つかりません',
-  notFound: '投稿が見つかりませんでした。',
-  tradeStatus: '取引ステータス',
-  yourRequest: 'あなたの申請状況',
-  currentPartner: '現在の取引相手',
-  partnerFallback: '取引相手を見る',
-  exchangeWanted: '交換でもほしい',
-  requestList: '譲渡申請リスト',
-  noRequests: 'まだ申請は届いていません。',
-  ownerCompleteCountPrefix: '取引完了',
-  approveButton: '承認する',
-  nextStep: '次のステップ',
+  back: '\u623b\u308b',
+  wishlistAdd: '\u304a\u6c17\u306b\u5165\u308a\u306b\u8ffd\u52a0\u3059\u308b',
+  wishlistRemove: '\u304a\u6c17\u306b\u5165\u308a\u304b\u3089\u5916\u3059',
+  loginRequired: '\u30ed\u30b0\u30a4\u30f3\u304c\u5fc5\u8981\u3067\u3059',
+  wishlistLoginDescription: '\u304a\u6c17\u306b\u5165\u308a\u306b\u8ffd\u52a0\u3059\u308b\u306b\u306f\u30ed\u30b0\u30a4\u30f3\u304c\u5fc5\u8981\u3067\u3059\u3002',
+  requestLoginDescription: '\u8b72\u6e21\u3092\u5e0c\u671b\u3059\u308b\u306b\u306f\u30ed\u30b0\u30a4\u30f3\u304c\u5fc5\u8981\u3067\u3059\u3002',
+  commentLoginDescription: '\u30b3\u30e1\u30f3\u30c8\u3092\u6295\u7a3f\u3059\u308b\u306b\u306f\u30ed\u30b0\u30a4\u30f3\u304c\u5fc5\u8981\u3067\u3059\u3002',
+  reportLoginDescription: '\u901a\u5831\u3059\u308b\u306b\u306f\u30ed\u30b0\u30a4\u30f3\u304c\u5fc5\u8981\u3067\u3059\u3002',
+  chatLoginDescription: '\u30c1\u30e3\u30c3\u30c8\u3092\u59cb\u3081\u308b\u306b\u306f\u30ed\u30b0\u30a4\u30f3\u304c\u5fc5\u8981\u3067\u3059\u3002',
+  editPost: '\u6295\u7a3f\u3092\u7de8\u96c6\u3059\u308b',
+  deletePost: '\u6295\u7a3f\u3092\u524a\u9664\u3059\u308b',
+  report: '\u901a\u5831',
+  deleteSuccess: '\u6295\u7a3f\u3092\u524a\u9664\u3057\u307e\u3057\u305f',
+  deleteError: '\u6295\u7a3f\u3092\u524a\u9664\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f',
+  requestMessage: '\u8b72\u6e21\u3092\u5e0c\u671b\u3057\u3066\u3044\u307e\u3059\u3002\u3088\u308d\u3057\u304f\u304a\u9858\u3044\u3057\u307e\u3059\u3002',
+  requestDuplicate: '\u3059\u3067\u306b\u8b72\u6e21\u3092\u5e0c\u671b\u3057\u3066\u3044\u307e\u3059',
+  requestSuccess: '\u8b72\u6e21\u5e0c\u671b\u3092\u9001\u4fe1\u3057\u307e\u3057\u305f',
+  requestError: '\u8b72\u6e21\u5e0c\u671b\u3092\u9001\u4fe1\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f',
+  approveSuccess: '\u7533\u8acb\u3092\u627f\u8a8d\u3057\u307e\u3057\u305f',
+  approveError: '\u7533\u8acb\u3092\u627f\u8a8d\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f',
+  completeSuccess: '\u53d6\u5f15\u3092\u5b8c\u4e86\u306b\u3057\u307e\u3057\u305f',
+  completeError: '\u53d6\u5f15\u306e\u72b6\u614b\u3092\u66f4\u65b0\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f',
+  commentAddSuccess: '\u30b3\u30e1\u30f3\u30c8\u3092\u6295\u7a3f\u3057\u307e\u3057\u305f',
+  commentAddError: '\u30b3\u30e1\u30f3\u30c8\u3092\u6295\u7a3f\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f',
+  commentDeleteSuccess: '\u30b3\u30e1\u30f3\u30c8\u3092\u524a\u9664\u3057\u307e\u3057\u305f',
+  commentDeleteError: '\u30b3\u30e1\u30f3\u30c8\u3092\u524a\u9664\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f',
+  reportReasonRequired: '\u901a\u5831\u7406\u7531\u3092\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044',
+  reportSuccess: '\u901a\u5831\u3092\u53d7\u3051\u4ed8\u3051\u307e\u3057\u305f',
+  reportError: '\u901a\u5831\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f',
+  chatError: '\u30c1\u30e3\u30c3\u30c8\u3092\u958b\u59cb\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f',
+  reviewTargetMissing: '\u30ec\u30d3\u30e5\u30fc\u5bfe\u8c61\u306e\u76f8\u624b\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093\u3067\u3057\u305f',
+  notFound: '\u6295\u7a3f\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093\u3067\u3057\u305f\u3002',
+  tradeStatus: '\u53d6\u5f15\u30b9\u30c6\u30fc\u30bf\u30b9',
+  yourRequest: '\u3042\u306a\u305f\u306e\u7533\u8acb\u72b6\u6cc1',
+  currentPartner: '\u73fe\u5728\u306e\u53d6\u5f15\u76f8\u624b',
+  partnerFallback: '\u53d6\u5f15\u76f8\u624b',
+  exchangeWanted: '\u4ea4\u63db\u3067\u307b\u3057\u3044\u3082\u306e',
+  requestList: '\u7533\u8acb\u4e00\u89a7',
+  noRequests: '\u307e\u3060\u7533\u8acb\u306f\u5c4a\u3044\u3066\u3044\u307e\u305b\u3093\u3002',
+  ownerCompleteCountPrefix: '\u5b8c\u4e86\u3057\u305f\u53d6\u5f15',
+  approveButton: '\u627f\u8a8d\u3059\u308b',
+  nextStep: '\u6b21\u306e\u30b9\u30c6\u30c3\u30d7',
   nextStepDescription:
-    'チャットで日時と場所を決めたら、受け渡し後に取引を完了にしてください。',
-  completeButton: '取引を完了にする',
+    '\u30c1\u30e3\u30c3\u30c8\u3067\u53d7\u3051\u6e21\u3057\u306e\u65e5\u6642\u3084\u5834\u6240\u3092\u76f8\u8ac7\u3057\u3066\u3001\u53d6\u5f15\u3092\u5b8c\u4e86\u307e\u3067\u9032\u3081\u3066\u3044\u304d\u307e\u3057\u3087\u3046\u3002',
+  completeButton: '\u53d6\u5f15\u3092\u5b8c\u4e86\u306b\u3059\u308b',
   givenNotice:
-    'このアイテムは譲渡完了済みです。必要に応じてレビューを残せます。',
-  reviewButton: '相手にレビューを書く',
-  startChat: 'チャットで相談する',
-  requestButton: '譲渡を希望する',
-  requestingButton: '申請中...',
-  requestDoneButton: '申請済みです',
-  commentsTitle: 'コメント',
+    '\u3053\u306e\u30a2\u30a4\u30c6\u30e0\u306e\u8b72\u6e21\u306f\u5b8c\u4e86\u3057\u307e\u3057\u305f\u3002\u5fc5\u8981\u3067\u3042\u308c\u3070\u3001\u53d6\u5f15\u76f8\u624b\u306b\u30ec\u30d3\u30e5\u30fc\u3092\u66f8\u304d\u307e\u3057\u3087\u3046\u3002',
+  reviewButton: '\u76f8\u624b\u306b\u30ec\u30d3\u30e5\u30fc\u3092\u66f8\u304f',
+  startChat: '\u30c1\u30e3\u30c3\u30c8\u3067\u76f8\u8ac7\u3059\u308b',
+  requestButton: '\u8b72\u6e21\u3092\u5e0c\u671b\u3059\u308b',
+  requestingButton: '\u7533\u8acb\u4e2d...',
+  requestDoneButton: '\u7533\u8acb\u6e08\u307f\u3067\u3059',
+  commentsTitle: '\u30b3\u30e1\u30f3\u30c8',
   commentsEmpty:
-    'まだコメントはありません。気になることがあれば気軽に聞いてみましょう。',
-  anonymousUser: 'ユーザー',
-  commentDelete: '削除する',
-  commentPlaceholder: '投稿について気になることを入力してみましょう。',
-  loginForComment: 'コメントするにはログインが必要です。',
-  goToLogin: 'ログインページへ',
-  reportTitle: '投稿を通報する',
+    '\u307e\u3060\u30b3\u30e1\u30f3\u30c8\u306f\u3042\u308a\u307e\u305b\u3093\u3002\u6c17\u306b\u306a\u308b\u3053\u3068\u304c\u3042\u308c\u3070\u6c17\u8efd\u306b\u6295\u7a3f\u3057\u3066\u307f\u307e\u3057\u3087\u3046\u3002',
+  anonymousUser: '\u30e6\u30fc\u30b6\u30fc',
+  commentDelete: '\u524a\u9664\u3059\u308b',
+  commentPlaceholder: '\u4f7f\u3044\u65b9\u3084\u53d7\u3051\u6e21\u3057\u306b\u3064\u3044\u3066\u3001\u6c17\u306b\u306a\u308b\u3053\u3068\u3092\u805e\u3044\u3066\u307f\u307e\u3057\u3087\u3046\u3002',
+  loginForComment: '\u30b3\u30e1\u30f3\u30c8\u3092\u6295\u7a3f\u3059\u308b\u306b\u306f\u30ed\u30b0\u30a4\u30f3\u304c\u5fc5\u8981\u3067\u3059\u3002',
+  goToLogin: '\u30ed\u30b0\u30a4\u30f3\u30da\u30fc\u30b8\u3078',
+  reportTitle: '\u6295\u7a3f\u3092\u901a\u5831\u3059\u308b',
   reportDescription:
-    '不適切な内容や不安な投稿を見つけた場合は、理由を添えてお知らせください。',
-  reportPlaceholder: '通報理由を入力してください。',
-  cancel: 'キャンセル',
-  submitReport: '通報する',
-  reviewFallbackName: '取引相手',
-  deletePostConfirmTitle: 'この投稿を削除しますか？',
+    '\u4e0d\u9069\u5207\u306a\u5185\u5bb9\u3084\u5371\u967a\u3060\u3068\u611f\u3058\u308b\u6295\u7a3f\u304c\u3042\u308c\u3070\u3001\u7406\u7531\u3092\u6dfb\u3048\u3066\u904b\u55b6\u306b\u77e5\u3089\u305b\u3066\u304f\u3060\u3055\u3044\u3002',
+  reportPlaceholder: '\u901a\u5831\u7406\u7531\u3092\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044\u3002',
+  cancel: '\u30ad\u30e3\u30f3\u30bb\u30eb',
+  submitReport: '\u901a\u5831\u3059\u308b',
+  reviewFallbackName: '\u53d6\u5f15\u76f8\u624b',
+  deletePostConfirmTitle: '\u3053\u306e\u6295\u7a3f\u3092\u524a\u9664\u3057\u307e\u3059\u304b\uff1f',
   deletePostConfirmDescription:
-    '削除すると、関連するやり取りは元に戻せません。',
-  deleteCommentConfirmTitle: 'このコメントを削除しますか？',
-  deleteCommentConfirmDescription: '削除したコメントは元に戻せません。',
+    '\u524a\u9664\u3059\u308b\u3068\u3001\u95a2\u9023\u3059\u308b\u30c7\u30fc\u30bf\u3082\u542b\u3081\u3066\u5143\u306b\u623b\u305b\u307e\u305b\u3093\u3002',
+  deleteCommentConfirmTitle: '\u3053\u306e\u30b3\u30e1\u30f3\u30c8\u3092\u524a\u9664\u3057\u307e\u3059\u304b\uff1f',
+  deleteCommentConfirmDescription: '\u524a\u9664\u3057\u305f\u30b3\u30e1\u30f3\u30c8\u306f\u5143\u306b\u623b\u305b\u307e\u305b\u3093\u3002',
 } as const;
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -464,7 +464,7 @@ export const PostDetailPage = () => {
       const { error } = await supabase.from('wishlists').delete().eq('user_id', user.id).eq('post_id', postId);
       if (!error) {
         setIsWishlisted(false);
-        showToast({ tone: 'success', title: 'お気に入りから外しました' });
+        showToast({ tone: 'success', title: '\u304a\u6c17\u306b\u5165\u308a\u304b\u3089\u5916\u3057\u307e\u3057\u305f' });
       }
       return;
     }
@@ -472,7 +472,7 @@ export const PostDetailPage = () => {
     const { error } = await supabase.from('wishlists').insert({ user_id: user.id, post_id: postId });
     if (!error) {
       setIsWishlisted(true);
-      showToast({ tone: 'success', title: 'お気に入りに追加しました' });
+      showToast({ tone: 'success', title: '\u304a\u6c17\u306b\u5165\u308a\u306b\u8ffd\u52a0\u3057\u307e\u3057\u305f' });
     }
   };
 
@@ -490,7 +490,7 @@ export const PostDetailPage = () => {
       showToast({
         tone: 'error',
         title: COPY.deleteError,
-        description: getErrorMessage(error, 'もう一度お試しください。'),
+        description: getErrorMessage(error, '������x���������������B'),
       });
     } finally {
       setBusyAction(null);
@@ -547,7 +547,7 @@ export const PostDetailPage = () => {
       showToast({
         tone: 'error',
         title: COPY.approveError,
-        description: getErrorMessage(error, 'もう一度お試しください。'),
+        description: getErrorMessage(error, '������x���������������B'),
       });
     }
   };
@@ -563,7 +563,7 @@ export const PostDetailPage = () => {
       showToast({
         tone: 'error',
         title: COPY.completeError,
-        description: getErrorMessage(error, 'もう一度お試しください。'),
+        description: getErrorMessage(error, '������x���������������B'),
       });
     }
   };
@@ -682,7 +682,7 @@ export const PostDetailPage = () => {
       showToast({
         tone: 'error',
         title: COPY.chatError,
-        description: getErrorMessage(error, 'もう一度お試しください。'),
+        description: getErrorMessage(error, '������x���������������B'),
       });
     }
   };
@@ -797,13 +797,13 @@ export const PostDetailPage = () => {
                       setViewerOpen(true);
                     }}
                   >
-                    <img src={image.storage_path} alt={`${post.title}の画像 ${index + 1}`} className="h-full w-full object-cover" />
+                    <img src={image.storage_path} alt={`${post.title}�̉摜 ${index + 1}`} className="h-full w-full object-cover" />
                   </div>
                 ))}
               </div>
               {sortedImages.length > 1 && (
                 <div className="bg-white py-3 text-center text-xs font-bold text-slate-400">
-                  {sortedImages.length}枚の画像
+                  {sortedImages.length}���̉摜
                 </div>
               )}
               <ImageViewer
@@ -833,7 +833,7 @@ export const PostDetailPage = () => {
                 {CONDITION_LABELS[post.condition] ?? post.condition}
               </span>
               {post.mode === 'EXCHANGE' && (
-                <span className="rounded-lg bg-purple-50 px-3 py-1 text-[10px] font-black uppercase text-purple-600">交換</span>
+                <span className="rounded-lg bg-purple-50 px-3 py-1 text-[10px] font-black uppercase text-purple-600">����</span>
               )}
             </div>
 
@@ -895,7 +895,7 @@ export const PostDetailPage = () => {
                 </div>
                 <div className="mt-0.5 flex items-center gap-3">
                   <span className="rounded-md bg-lime-500 px-2 py-0.5 text-[10px] font-black uppercase text-white">
-                    {COPY.ownerCompleteCountPrefix} {post.profiles.completed_count}件
+                    {COPY.ownerCompleteCountPrefix} {post.profiles.completed_count}��
                   </span>
                   <span className="flex items-center gap-1 text-[10px] font-black uppercase text-slate-400">
                     <Star size={12} className="fill-amber-400 text-amber-400" />
@@ -931,60 +931,15 @@ export const PostDetailPage = () => {
             )}
 
             {isOwner && post.status === 'Available' && (
-              <div className="space-y-6">
-                <h3 className="flex items-center gap-2 text-lg font-black text-slate-800">
-                  <CheckCircle2 className="text-lime-500" size={20} />
-                  {COPY.requestList}
-                </h3>
-                {requests.length === 0 ? (
-                  <div className="rounded-3xl border-2 border-dashed border-slate-200 bg-white p-8 text-center">
-                    <p className="font-bold text-slate-400">{COPY.noRequests}</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-3">
-                    {requests.map((request) => {
-                      const requestStatus = REQUEST_STATUS_COPY[request.status];
-                      return (
-                        <div
-                          key={request.id}
-                          className="flex flex-col gap-4 rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
-                        >
-                          <div className="flex items-center gap-3">
-                            <Link
-                              to={`/user/${request.requester_id}`}
-                              className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-50 font-black text-sky-500"
-                            >
-                              {request.profiles.display_name[0]}
-                            </Link>
-                            <div>
-                              <Link to={`/user/${request.requester_id}`} className="font-bold text-slate-700 hover:text-sky-600">
-                                {request.profiles.display_name}
-                              </Link>
-                              <p className="text-[10px] font-bold uppercase tracking-tighter text-slate-400">
-                                {COPY.ownerCompleteCountPrefix} {request.profiles.completed_count}件
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 self-end sm:self-auto">
-                            <span className={`rounded-full px-3 py-1 text-[11px] font-black ${requestStatus.className}`}>
-                              {requestStatus.label}
-                            </span>
-                            {request.status === 'Pending' && (
-                              <button
-                                onClick={() => handleApprove(request.id)}
-                                className="rounded-2xl bg-slate-800 px-6 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-800/20 transition-all hover:bg-slate-900"
-                              >
-                                {COPY.approveButton}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <PostRequestList
+                requests={requests}
+                requestStatusCopy={REQUEST_STATUS_COPY}
+                emptyLabel={COPY.noRequests}
+                title={COPY.requestList}
+                approveLabel={COPY.approveButton}
+                ownerCompleteCountPrefix={COPY.ownerCompleteCountPrefix}
+                onApprove={handleApprove}
+              />
             )}
 
             {isOwner && post.status === 'Reserved' && (
@@ -1044,80 +999,29 @@ export const PostDetailPage = () => {
             )}
           </div>
         </div>
-
-        <div className="mb-8 rounded-[3rem] border border-slate-100 bg-white p-8 shadow-xl shadow-slate-200/50 md:p-12">
-          <h3 className="mb-8 flex items-center gap-3 text-2xl font-black text-slate-800">
-            <MessageCircle className="text-lime-500" />
-            {COPY.commentsTitle}
-          </h3>
-
-          <div className="mb-10 space-y-6">
-            {comments.length === 0 ? (
-              <p className="py-4 text-center font-bold italic text-slate-400">{COPY.commentsEmpty}</p>
-            ) : (
-              comments.map((comment) => (
-                <div key={comment.id} className="group flex gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-100 bg-slate-50 text-slate-400">
-                    <User size={20} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-1 flex items-center justify-between">
-                      <span className="text-sm font-black text-slate-700">{comment.profiles?.display_name ?? COPY.anonymousUser}</span>
-                      <span className="text-[10px] font-bold uppercase text-slate-300">
-                        {new Date(comment.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="rounded-2xl rounded-tl-none border border-slate-50 bg-slate-50/50 p-4 text-sm font-medium leading-relaxed text-slate-600">
-                      {comment.content}
-                    </p>
-                    {(user?.id === comment.user_id || isOwner) && (
-                      <button
-                        onClick={() => setDeleteTargetCommentId(comment.id)}
-                        className="mt-2 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-red-400 opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
-                      >
-                        <Trash size={10} />
-                        {COPY.commentDelete}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {user ? (
-            <form onSubmit={handleAddComment} className="relative">
-              <input
-                type="text"
-                placeholder={COPY.commentPlaceholder}
-                className="w-full rounded-2xl border-none bg-slate-50 py-4 pl-6 pr-14 font-medium outline-none transition-all focus:bg-white focus:ring-4 focus:ring-lime-500/10"
-                value={newComment}
-                onChange={(event) => setNewComment(event.target.value)}
-                disabled={submittingComment}
-              />
-              <button
-                type="submit"
-                disabled={submittingComment || !newComment.trim()}
-                className="absolute right-2 top-1/2 rounded-xl bg-lime-500 p-2.5 text-white shadow-lg shadow-lime-500/30 transition-all hover:bg-lime-600 active:scale-90 disabled:opacity-50"
-                aria-label="コメントを送信する"
-                title="コメントを送信する"
-              >
-                <Send size={18} />
-              </button>
-            </form>
-          ) : (
-            <div className="rounded-[2rem] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center">
-              <p className="text-sm font-bold text-slate-400">{COPY.loginForComment}</p>
-              <Link to="/auth" className="mt-2 inline-block text-xs font-black uppercase tracking-widest text-lime-600">
-                {COPY.goToLogin} &rarr;
-              </Link>
-            </div>
-          )}
-        </div>
+        <PostCommentsSection
+          comments={comments}
+          userId={user?.id}
+          isOwner={isOwner}
+          newComment={newComment}
+          submittingComment={submittingComment}
+          copy={{
+            commentsTitle: COPY.commentsTitle,
+            commentsEmpty: COPY.commentsEmpty,
+            anonymousUser: COPY.anonymousUser,
+            commentDelete: COPY.commentDelete,
+            commentPlaceholder: COPY.commentPlaceholder,
+            loginForComment: COPY.loginForComment,
+            goToLogin: COPY.goToLogin,
+          }}
+          onCommentChange={setNewComment}
+          onSubmit={handleAddComment}
+          onDeleteComment={setDeleteTargetCommentId}
+        />
 
         {showReportModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-sm rounded-[2.5rem] bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="w-full max-w-sm animate-in zoom-in-95 rounded-[2.5rem] bg-white p-8 shadow-2xl duration-200">
               <h2 className="mb-2 text-2xl font-black text-slate-800">{COPY.reportTitle}</h2>
               <p className="mb-6 text-sm font-medium text-slate-500">{COPY.reportDescription}</p>
 

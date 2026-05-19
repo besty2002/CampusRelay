@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import type { PostStatus } from '../types';
+import { logger } from '../lib/logger';
 import {
   Loader2,
   Package,
@@ -112,7 +113,7 @@ export const ActivityDashboardPage = () => {
         }
       }
     } catch (err) {
-      console.error('Error fetching activity:', err);
+      logger.error('Error fetching activity:', err);
     } finally {
       setLoading(false);
     }

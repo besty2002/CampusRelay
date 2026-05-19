@@ -18,6 +18,7 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { ConfirmDialog } from '../../components/feedback/ConfirmDialog';
 import { useToast } from '../../components/feedback/ToastProvider';
 import type { PostCategory, PostMode, PostStatus } from '../../types';
+import { logger } from '../../lib/logger';
 
 interface AdminContext {
   role: 'school_admin' | 'super_admin';
@@ -161,7 +162,7 @@ export const AdminPostsPage = () => {
       setPosts(normalizedPosts);
       setTotalCount(count || 0);
     } catch (error) {
-      console.error('Posts fetch error:', error);
+      logger.error('Posts fetch error:', error);
     } finally {
       setLoading(false);
     }

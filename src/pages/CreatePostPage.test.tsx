@@ -26,7 +26,11 @@ const supabaseMocks = vi.hoisted(() => {
           data: [
             {
               school_id: 'school-1',
-              schools: { id: 'school-1', name_ja: '弘道小学校', type: 'elementary' },
+              schools: { id: 'school-1', name_ja: '江北小学校', type: 'elementary' },
+            },
+            {
+              school_id: 'school-2',
+              schools: { id: 'school-2', name_ja: '新田学園中学校', type: 'middle' },
             },
           ],
         })
@@ -65,9 +69,10 @@ vi.mock('browser-image-compression', () => ({
   default: vi.fn(async (file: File) => file),
 }));
 
-describe('CreatePostPage limits', () => {
+describe('CreatePostPage enhancements', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
   });
 
   it('truncates title and description to the configured maximum lengths', async () => {
@@ -78,11 +83,13 @@ describe('CreatePostPage limits', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('弘道小学校')).toBeTruthy();
+      expect(screen.getByText('江北小学校')).toBeTruthy();
     });
 
-    const titleInput = screen.getByPlaceholderText('例：弘道小学校の体操服（上）') as HTMLInputElement;
-    const descriptionInput = screen.getByPlaceholderText('詳細を入力してください。') as HTMLTextAreaElement;
+    const [titleInput, descriptionInput] = screen.getAllByRole('textbox') as [
+      HTMLInputElement,
+      HTMLTextAreaElement,
+    ];
 
     fireEvent.change(titleInput, { target: { value: 'a'.repeat(100) } });
     fireEvent.change(descriptionInput, { target: { value: 'b'.repeat(700) } });
@@ -91,5 +98,44 @@ describe('CreatePostPage limits', () => {
     expect(descriptionInput.value).toHaveLength(500);
     expect(screen.getByText('60/60')).toBeTruthy();
     expect(screen.getByText('500/500')).toBeTruthy();
+  });
+
+  it('restores the saved draft and preferred school for create mode', async () => {
+    window.localStorage.setItem('campusrelay:create-post:last-school:user-1', 'school-2');
+    window.localStorage.setItem(
+      'campusrelay:create-post:draft:user-1',
+      JSON.stringify({
+        mode: 'GIVEAWAY',
+        category: 'Textbook',
+        condition: 'Good',
+        title: '下書きタイトル',
+        description: '下書き本文',
+        exchangeWanted: '',
+        itemSize: '',
+        targetSchoolId: 'school-2',
+        savedAt: '2026-05-19T10:00:00.000Z',
+      })
+    );
+
+    render(
+      <ToastProvider>
+        <CreatePostPage />
+      </ToastProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('前回の入力内容を復元しました。')).toBeTruthy();
+    });
+
+    const [titleInput, descriptionInput] = screen.getAllByRole('textbox') as [
+      HTMLInputElement,
+      HTMLTextAreaElement,
+    ];
+
+    expect(titleInput.value).toBe('下書きタイトル');
+    expect(descriptionInput.value).toBe('下書き本文');
+
+    const preferredSchoolButton = screen.getByRole('button', { name: /新田学園中学校/ });
+    expect(preferredSchoolButton.className).toContain('bg-lime-500');
   });
 });

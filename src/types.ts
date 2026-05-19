@@ -103,6 +103,13 @@ export interface ChatMessage {
   profiles: {
     display_name: string;
   };
+  client_state?: 'sending' | 'failed';
+  retry_payload?: {
+    kind: 'text' | 'image';
+    text?: string;
+    file?: File;
+    image_url?: string;
+  };
 }
 
 export interface Review {

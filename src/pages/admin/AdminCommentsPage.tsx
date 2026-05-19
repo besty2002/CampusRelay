@@ -13,6 +13,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { ConfirmDialog } from '../../components/feedback/ConfirmDialog';
 import { useToast } from '../../components/feedback/ToastProvider';
+import { logger } from '../../lib/logger';
 
 interface AdminContext {
   role: 'school_admin' | 'super_admin';
@@ -105,7 +106,7 @@ export const AdminCommentsPage = () => {
       setComments(normalizedComments);
       setTotalCount(count || 0);
     } catch (error) {
-      console.error('Comments fetch error:', error);
+      logger.error('Comments fetch error:', error);
       showToast({
         tone: 'error',
         title: 'コメント一覧を読み込めませんでした',

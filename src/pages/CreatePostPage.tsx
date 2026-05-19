@@ -55,6 +55,21 @@ const MAX_TITLE_LENGTH = 60;
 const MAX_DESCRIPTION_LENGTH = 500;
 const MAX_IMAGE_COUNT = 5;
 
+type CreatePostDraft = {
+  mode: PostMode;
+  category: PostCategory;
+  condition: PostCondition;
+  title: string;
+  description: string;
+  exchangeWanted: string;
+  itemSize: string;
+  targetSchoolId: string | null;
+  savedAt: string;
+};
+
+const getDraftKey = (userId: string) => `campusrelay:create-post:draft:${userId}`;
+const getLastSchoolKey = (userId: string) => `campusrelay:create-post:last-school:${userId}`;
+
 const SCHOOL_TYPE_LABELS: Record<string, string> = {
   elementary: '小学校',
   middle: '中学校',
@@ -166,6 +181,9 @@ export const CreatePostPage = () => {
   const [previews, setPreviews] = useState<string[]>([]);
   const [existingImages, setExistingImages] = useState<PostImageRow[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [draftReady, setDraftReady] = useState(false);
 
   const isDirty = useMemo(
     () =>
@@ -202,6 +220,43 @@ export const CreatePostPage = () => {
     };
   }, [previews]);
 
+  useEffect(() => {
+    if (!user || isEditMode || !draftReady) return;
+
+    const draftKey = getDraftKey(user.id);
+    const hasDraftContent = Boolean(
+      title.trim() ||
+        description.trim() ||
+        exchangeWanted.trim() ||
+        itemSize.trim() ||
+        targetSchoolId ||
+        mode !== 'GIVEAWAY' ||
+        category !== 'Textbook' ||
+        condition !== 'Good'
+    );
+
+    if (!hasDraftContent) {
+      localStorage.removeItem(draftKey);
+      setDraftSavedAt(null);
+      return;
+    }
+
+    const payload: CreatePostDraft = {
+      mode,
+      category,
+      condition,
+      title,
+      description,
+      exchangeWanted,
+      itemSize,
+      targetSchoolId,
+      savedAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem(draftKey, JSON.stringify(payload));
+    setDraftSavedAt(payload.savedAt);
+  }, [user, isEditMode, draftReady, mode, category, condition, title, description, exchangeWanted, itemSize, targetSchoolId]);
+
   const fetchMySchools = async () => {
     if (!user) return;
     setSchoolsLoading(true);
@@ -215,16 +270,52 @@ export const CreatePostPage = () => {
       const schools = (((data as unknown) as UserSchoolRow[]) || []).map((entry) => entry.schools);
       setMySchools(schools);
 
-      if (schoolIdFromQuery) {
-        const matched = schools.find((school) => school.id === schoolIdFromQuery);
-        if (matched) setSelectedSchoolName(matched.name_ja);
-      } else if (schools.length === 1) {
-        setTargetSchoolId(schools[0].id);
-        setSelectedSchoolName(schools[0].name_ja);
+      const rememberedSchoolId = localStorage.getItem(getLastSchoolKey(user.id));
+      const rememberedSchool = rememberedSchoolId
+        ? schools.find((school) => school.id === rememberedSchoolId)
+        : null;
+      const requestedSchool = schoolIdFromQuery
+        ? schools.find((school) => school.id === schoolIdFromQuery)
+        : null;
+      const defaultSchool = requestedSchool ?? rememberedSchool ?? (schools.length === 1 ? schools[0] : null);
+
+      if (defaultSchool) {
+        setTargetSchoolId(defaultSchool.id);
+        setSelectedSchoolName(defaultSchool.name_ja);
+      }
+
+      const rawDraft = localStorage.getItem(getDraftKey(user.id));
+      if (rawDraft) {
+        try {
+          const draft = JSON.parse(rawDraft) as CreatePostDraft;
+          setMode(draft.mode);
+          setCategory(draft.category);
+          setCondition(draft.condition);
+          setTitle(draft.title);
+          setDescription(draft.description);
+          setExchangeWanted(draft.exchangeWanted);
+          setItemSize(draft.itemSize);
+          setDraftSavedAt(draft.savedAt);
+
+          const draftSchool =
+            !schoolIdFromQuery && draft.targetSchoolId
+              ? schools.find((school) => school.id === draft.targetSchoolId)
+              : null;
+
+          if (draftSchool) {
+            setTargetSchoolId(draftSchool.id);
+            setSelectedSchoolName(draftSchool.name_ja);
+          }
+
+          setDraftRestored(true);
+        } catch {
+          localStorage.removeItem(getDraftKey(user.id));
+        }
       }
     }
 
     setSchoolsLoading(false);
+    setDraftReady(true);
   };
 
   const fetchPostData = async () => {
@@ -296,6 +387,39 @@ export const CreatePostPage = () => {
     setTargetSchoolId(school.id);
     setSelectedSchoolName(school.name_ja);
     setErrors((prev) => ({ ...prev, school: undefined }));
+    if (user && !isEditMode) {
+      localStorage.setItem(getLastSchoolKey(user.id), school.id);
+    }
+  };
+
+  const clearDraft = () => {
+    if (!user) return;
+
+    localStorage.removeItem(getDraftKey(user.id));
+    setMode('GIVEAWAY');
+    setCategory('Textbook');
+    setCondition('Good');
+    setTitle('');
+    setDescription('');
+    setExchangeWanted('');
+    setItemSize('');
+    setImages([]);
+    previews.forEach((preview) => {
+      if (preview.startsWith('blob:')) {
+        URL.revokeObjectURL(preview);
+      }
+    });
+    setPreviews([]);
+    setErrors({});
+    setDraftSavedAt(null);
+    setDraftRestored(false);
+
+    const rememberedSchoolId = localStorage.getItem(getLastSchoolKey(user.id));
+    const rememberedSchool = rememberedSchoolId ? mySchools.find((school) => school.id === rememberedSchoolId) : null;
+    const defaultSchool = rememberedSchool ?? (mySchools.length === 1 ? mySchools[0] : null);
+
+    setTargetSchoolId(defaultSchool?.id ?? schoolIdFromQuery ?? null);
+    setSelectedSchoolName(defaultSchool?.name_ja ?? null);
   };
 
   const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -436,6 +560,13 @@ export const CreatePostPage = () => {
         });
       }
 
+      if (!isEditMode && user) {
+        localStorage.removeItem(getDraftKey(user.id));
+        if (targetSchoolId) {
+          localStorage.setItem(getLastSchoolKey(user.id), targetSchoolId);
+        }
+      }
+
       showToast({ tone: 'success', title: isEditMode ? COPY.updated : COPY.created });
       navigate(`/post/${currentPostId}`);
     } catch (error) {
@@ -471,6 +602,33 @@ export const CreatePostPage = () => {
         </button>
 
         <h1 className="mb-8 text-3xl font-black text-slate-800">{isEditMode ? COPY.editHeading : COPY.createHeading}</h1>
+
+        {!isEditMode && (
+          <div className="mb-6 rounded-[2rem] border border-slate-100 bg-white px-5 py-4 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-black text-slate-700">下書きを自動保存しています</p>
+                <p className="mt-1 text-xs font-medium text-slate-400">
+                  {draftRestored
+                    ? '前回の入力内容を復元しました。'
+                    : '入力内容はこの端末に一時保存されます。'}
+                </p>
+                {draftSavedAt && (
+                  <p className="mt-1 text-[11px] font-bold text-slate-300">
+                    最終保存 {new Date(draftSavedAt).toLocaleString('ja-JP')}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={clearDraft}
+                className="rounded-2xl border border-slate-200 px-4 py-2 text-xs font-black text-slate-500 transition-colors hover:border-red-200 hover:text-red-500"
+              >
+                下書きを削除
+              </button>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {!isEditMode && (

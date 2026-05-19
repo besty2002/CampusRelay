@@ -24,6 +24,7 @@ import {
 } from 'recharts';
 import { supabase } from '../../lib/supabase';
 import { StatCard } from './components/StatCard';
+import { logger } from '../../lib/logger';
 
 interface AdminContext {
   role: 'school_admin' | 'super_admin';
@@ -147,7 +148,7 @@ export const AdminOverviewPage = () => {
 
       setCategoryDist(Object.entries(categoryMap).map(([name, value]) => ({ name, value })));
     } catch (error) {
-      console.error('Stats fetch error:', error);
+      logger.error('Stats fetch error:', error);
     } finally {
       setLoading(false);
     }
