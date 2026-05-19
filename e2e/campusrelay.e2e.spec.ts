@@ -121,6 +121,21 @@ const waitForRequestRow = async (
   return null;
 };
 
+const waitForPostStatus = async (
+  client: SupabaseClient,
+  postId: string,
+  expectedStatus: 'Available' | 'Reserved' | 'Given',
+  attempts = 12
+) => {
+  for (let index = 0; index < attempts; index += 1) {
+    const { data } = await client.from('posts').select('id, status').eq('id', postId).maybeSingle();
+    if (data?.status === expectedStatus) return data;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+
+  return null;
+};
+
 const login = async (page: Page, email: string, password: string) => {
   await page.goto('/auth');
   await page.waitForTimeout(2500);
@@ -210,7 +225,7 @@ const approveRequest = async (page: Page, url: string) => {
   await page.goto(url);
   await page.locator('h1').waitFor({ state: 'visible', timeout: 15000 });
   await page.getByRole('button', { name: new RegExp(escapeRegExp(COPY.approve)) }).click();
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(3000);
 };
 
 const openChatFromDetail = async (page: Page, url: string) => {
@@ -473,7 +488,12 @@ test.describe.serial('CampusRelay end-to-end flow', () => {
       await login(pageA, ACCOUNT_A.email, ACCOUNT_A.password);
       await approveRequest(pageA, listingUrl);
       const approvedRequest = await waitForRequestRow(userAClient, listingId, 'Approved');
-      record('approve_user_a', approvedRequest?.status === 'Approved', JSON.stringify(approvedRequest));
+      const reservedPost = await waitForPostStatus(userAClient, listingId, 'Reserved');
+      record(
+        'approve_user_a',
+        approvedRequest?.status === 'Approved' && reservedPost?.status === 'Reserved',
+        JSON.stringify({ approvedRequest, reservedPost })
+      );
 
       await openChatFromDetail(pageA, listingUrl);
       await sendChatMessage(pageA, 'A says hello');
