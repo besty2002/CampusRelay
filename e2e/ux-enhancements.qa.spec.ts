@@ -101,8 +101,9 @@ test.describe('UX enhancement QA', () => {
       await page.waitForTimeout(2500);
 
       await expect(page.getByText(COPY.trustSummary)).toBeVisible();
-      await expect(page.getByText('完了取引数')).toBeVisible();
-      await expect(page.getByText('平均評価')).toBeVisible();
+      const trustSection = page.locator('section').filter({ hasText: COPY.trustSummary });
+      await expect(trustSection.getByText('完了取引数')).toBeVisible();
+      await expect(trustSection.getByText('平均評価')).toBeVisible();
 
       const userId = await readCurrentUserId(page);
       expect(userId).toBeTruthy();
@@ -110,7 +111,7 @@ test.describe('UX enhancement QA', () => {
       await page.goto(`/user/${userId}`);
       await page.waitForTimeout(2500);
       await expect(page.getByText(COPY.publicTrustSummary)).toBeVisible();
-      await expect(page.getByText('出品中のアイテム')).toBeVisible();
+      await expect(page.getByRole('heading', { name: '出品中のアイテム' })).toBeVisible();
     });
 
     await test.step('管理者ユーザー画面の一括操作 UI を確認', async () => {
