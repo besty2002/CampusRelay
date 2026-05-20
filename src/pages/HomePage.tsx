@@ -5,12 +5,10 @@ import {
   Plus,
   School,
   ArrowRight,
-  Star,
   Book,
   Shirt,
   LayoutGrid,
   Layers,
-  Heart,
   Cpu,
   Palette,
   Coffee,
@@ -24,12 +22,10 @@ import {
 import { supabase } from '../lib/supabase';
 import type { Post, PostCategory, PostCondition } from '../types';
 import { useAuth } from '../hooks/useAuth';
-import { VerifiedBadge } from '../components/VerifiedBadge';
-import { MannerTempGauge } from '../components/MannerTempGauge';
 import { PostCardSkeleton } from '../components/skeletons/PostCardSkeleton';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
-import { StatusBadge } from '../components/StatusBadge';
 import { useToast } from '../components/feedback/ToastProvider';
+import { HomePostCard } from '../components/home/HomePostCard';
 
 export const CATEGORY_MAP: Record<PostCategory, { label: string; icon: LucideIcon; color: string }> = {
   Uniform: { label: '制服・通学用品', icon: Shirt, color: 'bg-blue-50 text-blue-600' },
@@ -71,12 +67,12 @@ const RECENT_SEARCHES_KEY = 'campusrelay:home-recent-searches';
 const HOME_COPY = {
   heroTagline: '学校のニーズと出品をひとつに',
   searchPlaceholder: 'アイテム名や学校名で検索',
-  filters: 'フィルタ',
+  filters: 'フィルター',
   recentSearches: '最近の検索',
-  filterHeading: '詳細フィルタ',
+  filterHeading: '詳細フィルター',
   resetFilters: 'リセット',
   condition: '商品の状態',
-  size: 'サイズ（例: 140、M、LL）',
+  size: 'サイズ（例: 140、M、L）',
   sizePlaceholder: 'サイズを入力',
   sort: '並び順',
   wishlistLoginRequired: 'お気に入りを使うにはログインが必要です。',
@@ -92,8 +88,8 @@ const HOME_COPY = {
   exchange: '交換',
   loadingMore: '読み込み中...',
   loadedAll: 'すべてのアイテムを表示しました',
-  filterOpen: 'フィルタを開く',
-  filterClose: 'フィルタを閉じる',
+  filterOpen: 'フィルターを開く',
+  filterClose: 'フィルターを閉じる',
   searchSummary: 'の検索結果',
   sortingSummary: '並び順を変更中',
   wishlistAdd: 'お気に入りに追加する',
@@ -533,95 +529,22 @@ export const HomePage = () => {
       ) : (
         <div className="grid gap-6">
           {posts.map((post) => {
-            const thumbnail = post.post_images?.slice().sort((a, b) => a.sort_order - b.sort_order)[0]?.storage_path;
             const isWishlisted = wishlistIds.includes(post.id);
             const categoryInfo = CATEGORY_MAP[post.category];
-            const hasDistinctDescription = Boolean(post.description?.trim() && post.description.trim() !== post.title.trim());
 
             return (
-              <div key={post.id} className="relative">
-                <div
-                  role="link"
-                  tabIndex={0}
-                  onClick={() => navigate(`/post/${post.id}`)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      navigate(`/post/${post.id}`);
-                    }
-                  }}
-                  className="group bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-2xl hover:shadow-slate-200/50 transition-all flex gap-5 active:scale-[0.98] relative cursor-pointer"
-                >
-                  <div className="w-28 h-28 shrink-0 rounded-[1.5rem] bg-slate-50 overflow-hidden border border-slate-50 shadow-inner relative">
-                    <StatusBadge status={post.status} className="absolute top-2 left-2 z-10 shadow-sm backdrop-blur-md bg-white/90" />
-                    {thumbnail ? (
-                      <img src={thumbnail} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-300">
-                        <School size={32} strokeWidth={1} />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0 flex flex-col justify-between py-1 text-left">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2 mb-1.5 pr-8">
-                        <span
-                          className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
-                            post.mode === 'GIVEAWAY' ? 'bg-lime-50 text-lime-600' : 'bg-purple-50 text-purple-600'
-                          }`}
-                        >
-                          {post.mode === 'GIVEAWAY' ? HOME_COPY.freeGiveaway : HOME_COPY.exchange}
-                        </span>
-                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${categoryInfo?.color || 'bg-slate-100'}`}>
-                          {categoryInfo?.label}
-                        </span>
-                        {post.item_size && (
-                          <span className="px-2 py-0.5 bg-slate-800 text-white rounded-md text-[9px] font-black uppercase tracking-wider">
-                            Size: {post.item_size}
-                          </span>
-                        )}
-                        <span className="text-[10px] font-bold text-slate-400 truncate">{post.schools?.name_ja}</span>
-                      </div>
-                      <h2 className="text-xl font-black text-slate-800 truncate group-hover:text-lime-600 transition-colors mb-1">{post.title}</h2>
-                      {hasDistinctDescription && <p className="text-slate-500 text-xs line-clamp-1 font-medium">{post.description}</p>}
-                    </div>
-
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-                      <Link
-                        to={`/user/${post.user_id}`}
-                        onClick={(event) => event.stopPropagation()}
-                        className="flex items-center gap-2 hover:text-lime-600 transition-colors"
-                      >
-                        <div className="w-6 h-6 bg-sky-50 rounded-full flex items-center justify-center text-sky-600 font-black text-[10px]">
-                          {post.profiles.display_name[0]}
-                        </div>
-                        <span className="text-xs font-bold">{post.profiles.display_name}</span>
-                        <VerifiedBadge verified={post.profiles.email_verified} size="sm" showTooltip={false} />
-                      </Link>
-
-                      <div className="flex items-center gap-2">
-                        <MannerTempGauge temp={post.profiles.manner_temp ?? 36.5} size="sm" />
-                        <div className="flex items-center gap-1 text-[10px] font-black text-slate-400">
-                          <Star size={12} className="fill-amber-400 text-amber-400" />
-                          <span className="text-slate-700">{post.profiles.avg_rating}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={(event) => toggleWishlist(event, post.id)}
-                  aria-label={isWishlisted ? `${post.title}${HOME_COPY.wishlistRemove}` : `${post.title}${HOME_COPY.wishlistAdd}`}
-                  title={isWishlisted ? HOME_COPY.wishlistRemove : HOME_COPY.wishlistAdd}
-                  className={`absolute top-4 right-4 p-2 rounded-xl transition-all z-10 ${
-                    isWishlisted ? 'bg-pink-50 text-pink-500' : 'bg-slate-50 text-slate-300 hover:text-pink-400'
-                  }`}
-                >
-                  <Heart size={18} fill={isWishlisted ? 'currentColor' : 'none'} />
-                </button>
-              </div>
+              <HomePostCard
+                key={post.id}
+                post={post}
+                categoryColor={categoryInfo?.color || 'bg-slate-100'}
+                categoryLabel={categoryInfo?.label || ''}
+                modeLabel={post.mode === 'GIVEAWAY' ? HOME_COPY.freeGiveaway : HOME_COPY.exchange}
+                isWishlisted={isWishlisted}
+                wishlistAddLabel={HOME_COPY.wishlistAdd}
+                wishlistRemoveLabel={HOME_COPY.wishlistRemove}
+                onOpenPost={() => navigate(`/post/${post.id}`)}
+                onToggleWishlist={toggleWishlist}
+              />
             );
           })}
 
@@ -644,3 +567,4 @@ export const HomePage = () => {
     </div>
   );
 };
+

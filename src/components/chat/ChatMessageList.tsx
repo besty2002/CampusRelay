@@ -264,6 +264,7 @@ export const ChatMessageList = ({
         <button
           onClick={onScrollToBottom}
           className="absolute bottom-24 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-500 shadow-lg transition-colors hover:text-[#06C755]"
+          aria-label="最新メッセージへ移動"
         >
           <ChevronDown size={20} />
         </button>

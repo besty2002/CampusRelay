@@ -105,6 +105,7 @@ vi.mock('../lib/supabase', () => ({
 
 vi.mock('react-router-dom', () => ({
   Link: ({ children, ...props }: LinkProps) => <a {...props}>{children}</a>,
+  useNavigate: () => vi.fn(),
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 

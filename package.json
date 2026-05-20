@@ -12,7 +12,8 @@
     "cleanup:e2e": "node scripts/cleanup-e2e-data.mjs",
     "test:e2e:clean": "npm.cmd run cleanup:e2e && npm.cmd run test:e2e",
     "preview": "vite preview",
-    "test:e2e": "set \"PLAYWRIGHT_BROWSERS_PATH=0\" && playwright test"
+    "test:e2e": "set \"PLAYWRIGHT_BROWSERS_PATH=0\" && playwright test",
+    "test:e2e:admin": "set \"PLAYWRIGHT_BROWSERS_PATH=0\" && playwright test e2e/admin-users.e2e.spec.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",

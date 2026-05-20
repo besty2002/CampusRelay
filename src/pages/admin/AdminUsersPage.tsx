@@ -323,7 +323,9 @@ export const AdminUsersPage = () => {
 
         showToast({
           tone: 'success',
-          title: isBan ? `選択した ${targetIds.length} 人をBANしました` : `選択した ${targetIds.length} 人のBANを解除しました`,
+          title: isBan
+            ? `選択した ${targetIds.length} 人をBANしました`
+            : `選択した ${targetIds.length} 人のBANを解除しました`,
         });
       } else {
         const grant = bulkActionTarget.action === 'verify';
@@ -339,7 +341,9 @@ export const AdminUsersPage = () => {
 
         showToast({
           tone: 'success',
-          title: grant ? `選択した ${targetIds.length} 人を認証済みにしました` : `選択した ${targetIds.length} 人の認証を解除しました`,
+          title: grant
+            ? `選択した ${targetIds.length} 人を認証済みにしました`
+            : `選択した ${targetIds.length} 人の認証を解除しました`,
         });
       }
 
@@ -752,3 +756,5 @@ export const AdminUsersPage = () => {
     </>
   );
 };
+
+

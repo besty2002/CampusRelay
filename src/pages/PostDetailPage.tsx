@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+﻿import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   AlertCircle,
@@ -24,6 +24,7 @@ import { ConfirmDialog } from '../components/feedback/ConfirmDialog';
 import { useToast } from '../components/feedback/ToastProvider';
 import { PostRequestList } from '../components/post/PostRequestList';
 import { PostCommentsSection } from '../components/post/PostCommentsSection';
+import { PostTradeStatusCard } from '../components/post/PostTradeStatusCard';
 
 type PostComment = {
   id: string;
@@ -35,134 +36,6 @@ type PostComment = {
   };
 };
 
-/*
-const LEGACY_STATUS_COPY = {
-  Available: {
-    title: '�܂��������W���Ă��܂�',
-    ownerDescription: '�C�ɂȂ鑊�肪���ꂽ��A�`���b�g�Řb���Ă�����n�\�������F�ł��܂��B',
-    visitorDescription: '�`���b�g�ő��k�������ƁA���n�\���𑗂��Ă������n�߂��܂��B',
-  },
-  Reserved: {
-    title: '���n�悪���܂�܂���',
-    ownerDescription: '�I�񂾑���ƃ`���b�g�œ�����󂯓n�����@�����߂āA����������������߂Ă��������B',
-    visitorDescription: '���݂͑I�΂ꂽ����Ƃ̎���������ł��B���e���ς��܂ŏ������҂����������B',
-  },
-  Given: {
-    title: '���n�͊������܂���',
-    ownerDescription: '�󂯓n���͊������Ă��܂��B�K�v�ɉ����đ���ւ̃��r���[���c���Ă��������B',
-    visitorDescription: '���̃A�C�e���̏��n�͊����ς݂ł��B�������ւ̃��r���[����������s���܂��B',
-  },
-  Hidden: {
-    title: '���̓��e�͌��J��~���ł�',
-    ownerDescription: '���݂͌��J����Ă��Ȃ����߁A���̃��[�U�[�ɂ͕\������܂���B',
-    visitorDescription: '���݂��̓��e�͌��J����Ă��Ȃ����߁A�����i�߂邱�Ƃ͂ł��܂���B',
-  },
-} as const;
-
-const LEGACY_REQUEST_STATUS_COPY = {
-  Pending: {
-    label: '�\����',
-    className: 'bg-sky-50 text-sky-600',
-    description: '�o�i�҂���̊m�F��҂��Ă��܂��B',
-  },
-  Approved: {
-    label: '���F�ς�',
-    className: 'bg-lime-50 text-lime-600',
-    description: '�`���b�g�œ�����ꏊ�𑊒k���܂��傤�B',
-  },
-  Rejected: {
-    label: '������',
-    className: 'bg-slate-100 text-slate-500',
-    description: '����͕ʂ̑���Ƃ̎�����i��ł��܂��B',
-  },
-} as const;
-
-const LEGACY_CATEGORY_LABELS: Record<Post['category'], string> = {
-  Uniform: '����',
-  Textbook: '���ȏ��E����',
-  Digital: '�f�W�^���@��',
-  Life: '�����p�i',
-  ArtSport: '�����E�A�[�g',
-  Other: '���̑�',
-};
-
-const LEGACY_CONDITION_LABELS: Record<PostCondition, string> = {
-  'Like New': '���g�p�ɋ߂�',
-  Good: '�ڗ��������Ȃ�',
-  Used: '�g�p������',
-};
-
-const LEGACY_COPY = {
-  back: '�߂�',
-  wishlistAdd: '���C�ɓ���ɒǉ�����',
-  wishlistRemove: '���C�ɓ��肩��O��',
-  loginRequired: '���O�C�����K�v�ł�',
-  wishlistLoginDescription: '���C�ɓ���ɒǉ�����ɂ̓��O�C�����Ă��������B',
-  requestLoginDescription: '���n�\���𑗂�ɂ̓��O�C�����Ă��������B',
-  commentLoginDescription: '�R�����g����ɂ̓��O�C�����Ă��������B',
-  reportLoginDescription: '�ʕ񂷂�ɂ̓��O�C�����Ă��������B',
-  chatLoginDescription: '�`���b�g���n�߂�ɂ̓��O�C�����Ă��������B',
-  editPost: '���e��ҏW����',
-  deletePost: '���e���폜����',
-  report: '�ʕ�',
-  deleteSuccess: '���e���폜���܂���',
-  deleteError: '���e�̍폜�Ɏ��s���܂���',
-  requestMessage: '���Џ����Ă������������ł��B��낵�����肢���܂��B',
-  requestDuplicate: '���łɏ��n�\���𑗂��Ă��܂�',
-  requestSuccess: '���n�\���𑗂�܂���',
-  requestError: '���n�\���Ɏ��s���܂���',
-  approveSuccess: '���n�\�������F���܂���',
-  approveError: '���n�\���̏��F�Ɏ��s���܂���',
-  completeSuccess: '����������ɂ��܂���',
-  completeError: '��������̍X�V�Ɏ��s���܂���',
-  commentAddSuccess: '�R�����g�𓊍e���܂���',
-  commentAddError: '�R�����g�̓��e�Ɏ��s���܂���',
-  commentDeleteSuccess: '�R�����g���폜���܂���',
-  commentDeleteError: '�R�����g�̍폜�Ɏ��s���܂���',
-  reportReasonRequired: '�ʕ񗝗R����͂��Ă�������',
-  reportSuccess: '�ʕ���󂯕t���܂���',
-  reportError: '�ʕ�Ɏ��s���܂���',
-  chatError: '�`���b�g���J�n�ł��܂���ł���',
-  reviewTargetMissing: '���r���[���肪������܂���',
-  notFound: '���e��������܂���ł����B',
-  tradeStatus: '����X�e�[�^�X',
-  yourRequest: '���Ȃ��̐\����',
-  currentPartner: '���݂̎������',
-  partnerFallback: '������������',
-  exchangeWanted: '�����łق�������',
-  requestList: '���n�\�����X�g',
-  noRequests: '�܂��\���͓͂��Ă��܂���B',
-  ownerCompleteCountPrefix: '�������',
-  approveButton: '���F����',
-  nextStep: '���̃X�e�b�v',
-  nextStepDescription: '�`���b�g�œ����Əꏊ�����߂���A�󂯓n��������Ɏ������߂Ă��������B',
-  completeButton: '����������ɂ���',
-  givenNotice: '���̃A�C�e���͏��n�����ς݂ł��B�K�v�ɉ����ă��r���[���c���܂��B',
-  reviewButton: '����Ƀ��r���[������',
-  startChat: '�`���b�g�ő��k����',
-  requestButton: '���n����]����',
-  requestingButton: '�\����...',
-  requestDoneButton: '�\���ς݂ł�',
-  commentsTitle: '�R�����g',
-  commentsEmpty: '�܂��R�����g�͂���܂���B�C�ɂȂ邱�Ƃ�����΋C�y�ɕ����Ă݂܂��傤�B',
-  anonymousUser: '���[�U�[',
-  commentDelete: '�폜����',
-  commentPlaceholder: '���e�ɂ��ċC�ɂȂ邱�Ƃ������Ă݂܂��傤�B',
-  loginForComment: '�R�����g����ɂ̓��O�C�����K�v�ł��B',
-  goToLogin: '���O�C���y�[�W��',
-  reportTitle: '���e��ʕ񂷂�',
-  reportDescription: '���p�K��ɔ�������e��s���ȓ��e���������ꍇ�́A���R��Y���Ă��m�点���������B',
-  reportPlaceholder: '�ʕ񗝗R����͂��Ă��������B',
-  cancel: '�L�����Z��',
-  submitReport: '�ʕ񂷂�',
-  reviewFallbackName: '�������',
-  deletePostConfirmTitle: '���̓��e���폜���܂����H',
-  deletePostConfirmDescription: '�폜����ƁA���e���e��i�s���̂����͌��ɖ߂��܂���B',
-  deleteCommentConfirmTitle: '���̃R�����g���폜���܂����H',
-  deleteCommentConfirmDescription: '�폜�����R�����g�͌��ɖ߂��܂���B',
-} as const;
-
-*/
 const STATUS_COPY = {
   Available: {
     title: '\u307e\u3060\u8b72\u308a\u5148\u3092\u52df\u96c6\u3057\u3066\u3044\u307e\u3059',
@@ -490,7 +363,7 @@ export const PostDetailPage = () => {
       showToast({
         tone: 'error',
         title: COPY.deleteError,
-        description: getErrorMessage(error, '������x���������������B'),
+        description: getErrorMessage(error, '時間をおいてもう一度お試しください。'),
       });
     } finally {
       setBusyAction(null);
@@ -547,7 +420,7 @@ export const PostDetailPage = () => {
       showToast({
         tone: 'error',
         title: COPY.approveError,
-        description: getErrorMessage(error, '������x���������������B'),
+        description: getErrorMessage(error, '時間をおいてもう一度お試しください。'),
       });
     }
   };
@@ -563,7 +436,7 @@ export const PostDetailPage = () => {
       showToast({
         tone: 'error',
         title: COPY.completeError,
-        description: getErrorMessage(error, '������x���������������B'),
+        description: getErrorMessage(error, '時間をおいてもう一度お試しください。'),
       });
     }
   };
@@ -682,7 +555,7 @@ export const PostDetailPage = () => {
       showToast({
         tone: 'error',
         title: COPY.chatError,
-        description: getErrorMessage(error, '������x���������������B'),
+        description: getErrorMessage(error, '時間をおいてもう一度お試しください。'),
       });
     }
   };
@@ -797,13 +670,13 @@ export const PostDetailPage = () => {
                       setViewerOpen(true);
                     }}
                   >
-                    <img src={image.storage_path} alt={`${post.title}�̉摜 ${index + 1}`} className="h-full w-full object-cover" />
+                    <img src={image.storage_path} alt={`${post.title}の画像 ${index + 1}`} className="h-full w-full object-cover" />
                   </div>
                 ))}
               </div>
               {sortedImages.length > 1 && (
                 <div className="bg-white py-3 text-center text-xs font-bold text-slate-400">
-                  {sortedImages.length}���̉摜
+                  {sortedImages.length}枚の画像
                 </div>
               )}
               <ImageViewer
@@ -833,38 +706,23 @@ export const PostDetailPage = () => {
                 {CONDITION_LABELS[post.condition] ?? post.condition}
               </span>
               {post.mode === 'EXCHANGE' && (
-                <span className="rounded-lg bg-purple-50 px-3 py-1 text-[10px] font-black uppercase text-purple-600">����</span>
+                <span className="rounded-lg bg-purple-50 px-3 py-1 text-[10px] font-black uppercase text-purple-600">交換</span>
               )}
             </div>
 
-            <div className="mb-8 rounded-[2rem] border border-lime-100 bg-lime-50/70 p-6">
-              <p className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-lime-600">{COPY.tradeStatus}</p>
-              <h2 className="mb-2 text-xl font-black text-slate-800">{tradeCopy?.title}</h2>
-              <p className="text-sm font-medium leading-relaxed text-slate-600">
-                {isOwner ? tradeCopy?.ownerDescription : tradeCopy?.visitorDescription}
-              </p>
-
-              {myRequestStatus && !isOwner && (
-                <div className="mt-4 rounded-2xl border border-slate-100 bg-white px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-black text-slate-700">{COPY.yourRequest}</span>
-                    <span className={`rounded-full px-3 py-1 text-[11px] font-black ${myRequestStatus.className}`}>
-                      {myRequestStatus.label}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm text-slate-500">{myRequestStatus.description}</p>
-                </div>
-              )}
-
-              {approvedRequest && (post.status === 'Reserved' || post.status === 'Given') && (
-                <div className="mt-4 rounded-2xl border border-slate-100 bg-white px-4 py-3">
-                  <p className="mb-1 text-sm font-black text-slate-700">{COPY.currentPartner}</p>
-                  <Link to={`/user/${approvedRequest.requester_id}`} className="text-sm font-bold text-lime-700 hover:text-lime-800">
-                    {approvedRequest.profiles?.display_name ?? COPY.partnerFallback}
-                  </Link>
-                </div>
-              )}
-            </div>
+            <PostTradeStatusCard
+              post={post}
+              isOwner={isOwner}
+              tradeCopy={tradeCopy}
+              myRequestStatus={myRequestStatus}
+              approvedRequest={approvedRequest}
+              labels={{
+                tradeStatus: COPY.tradeStatus,
+                yourRequest: COPY.yourRequest,
+                currentPartner: COPY.currentPartner,
+                partnerFallback: COPY.partnerFallback,
+              }}
+            />
 
             {hasDistinctDescription && (
               <p className="mb-12 whitespace-pre-wrap text-lg font-medium leading-relaxed text-slate-600">
@@ -895,7 +753,7 @@ export const PostDetailPage = () => {
                 </div>
                 <div className="mt-0.5 flex items-center gap-3">
                   <span className="rounded-md bg-lime-500 px-2 py-0.5 text-[10px] font-black uppercase text-white">
-                    {COPY.ownerCompleteCountPrefix} {post.profiles.completed_count}��
+                    {COPY.ownerCompleteCountPrefix} {post.profiles.completed_count}件
                   </span>
                   <span className="flex items-center gap-1 text-[10px] font-black uppercase text-slate-400">
                     <Star size={12} className="fill-amber-400 text-amber-400" />
@@ -1088,3 +946,4 @@ export const PostDetailPage = () => {
     </>
   );
 };
+

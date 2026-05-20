@@ -1,7 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
 
-const APP_URL = 'http://127.0.0.1:5173';
-
 const ACCOUNT_A = {
   email: 'test-user-a@example.com',
   password: 'Test1234!',
@@ -23,7 +21,7 @@ const COPY = {
 } as const;
 
 const login = async (page: Page) => {
-  await page.goto(`${APP_URL}/auth`);
+  await page.goto('/auth');
   await page.waitForTimeout(2500);
   await page.locator('input[type="email"]').fill(ACCOUNT_A.email);
   await page.locator('input[type="password"]').fill(ACCOUNT_A.password);
@@ -69,8 +67,8 @@ test.describe('UX enhancement QA', () => {
 
     await login(page);
 
-    await test.step('출품 폼 임시저장과 복원', async () => {
-      await page.goto(`${APP_URL}/post/new`);
+    await test.step('出品フォームの下書き復元を確認', async () => {
+      await page.goto('/post/new');
       await page.waitForTimeout(3000);
 
       const titleInput = page.locator('input:not([type="file"])').first();
@@ -94,8 +92,8 @@ test.describe('UX enhancement QA', () => {
       await expect(descriptionInput).toHaveValue('');
     });
 
-    await test.step('프로필 신뢰 요약과 공개 프로필 확인', async () => {
-      await page.goto(`${APP_URL}/me`);
+    await test.step('プロフィールの信頼サマリーを確認', async () => {
+      await page.goto('/me');
       await page.waitForTimeout(2500);
 
       await expect(page.getByText(COPY.trustSummary)).toBeVisible();
@@ -111,7 +109,7 @@ test.describe('UX enhancement QA', () => {
       const userId = await readCurrentUserId(page);
       expect(userId).toBeTruthy();
 
-      await page.goto(`${APP_URL}/user/${userId}`);
+      await page.goto(`/user/${userId}`);
       await page.waitForTimeout(2500);
       await expect(page.getByText(COPY.publicTrustSummary)).toBeVisible();
 
@@ -120,8 +118,8 @@ test.describe('UX enhancement QA', () => {
       }
     });
 
-    await test.step('관리자 사용자 일괄 작업 UI 확인', async () => {
-      await page.goto(`${APP_URL}/admin/users`);
+    await test.step('管理画面の一括操作UIを確認', async () => {
+      await page.goto('/admin/users');
       await page.waitForTimeout(3000);
 
       const adminTitleVisible = await page.getByText(COPY.adminUsers).isVisible().catch(() => false);

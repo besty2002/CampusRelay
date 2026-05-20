@@ -1,4 +1,4 @@
-import { ArrowLeft, Menu, Wifi, WifiOff, RefreshCcw } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, LogOut, Menu, RefreshCcw, Wifi, WifiOff } from 'lucide-react';
 
 type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'offline';
 
@@ -12,12 +12,11 @@ interface ChatRoomHeaderProps {
   onOpenPost: () => void;
   onOpenProfile: () => void;
   onCreateAppointment: () => void;
+  onReportChat: () => void;
+  onCloseChat: () => void;
 }
 
-const CONNECTION_COPY: Record<
-  ConnectionState,
-  { label: string; icon: typeof Wifi; className: string }
-> = {
+const CONNECTION_COPY: Record<ConnectionState, { label: string; icon: typeof Wifi; className: string }> = {
   connecting: {
     label: '接続中',
     icon: RefreshCcw,
@@ -50,6 +49,8 @@ export const ChatRoomHeader = ({
   onOpenPost,
   onOpenProfile,
   onCreateAppointment,
+  onReportChat,
+  onCloseChat,
 }: ChatRoomHeaderProps) => {
   const { label, icon: StatusIcon, className } = CONNECTION_COPY[connectionState];
 
@@ -61,9 +62,12 @@ export const ChatRoomHeader = ({
       <div className="flex-1 min-w-0 text-center">
         <h2 className="font-bold text-base truncate">{partnerName}</h2>
         <div className="flex items-center justify-center gap-1.5 mt-0.5">
-          <StatusIcon size={10} className={`${className} ${connectionState === 'connecting' || connectionState === 'reconnecting' ? 'animate-spin' : ''}`} />
+          <StatusIcon
+            size={10}
+            className={`${className} ${connectionState === 'connecting' || connectionState === 'reconnecting' ? 'animate-spin' : ''}`}
+          />
           <span className={`text-[10px] font-medium ${className}`}>{label}</span>
-          {lastActiveLabel && <span className="text-[10px] text-white/65">• {lastActiveLabel}</span>}
+          {lastActiveLabel && <span className="text-[10px] text-white/65">・ {lastActiveLabel}</span>}
         </div>
       </div>
       <button
@@ -74,7 +78,7 @@ export const ChatRoomHeader = ({
         <Menu size={20} />
       </button>
       {showHeaderMenu && (
-        <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden py-1 z-50 animate-in slide-in-from-top-1 fade-in duration-100">
+        <div className="absolute top-full right-0 mt-2 w-60 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden py-1 z-50 animate-in slide-in-from-top-1 fade-in duration-100">
           <button
             onClick={onOpenPost}
             className="w-full px-4 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
@@ -85,13 +89,27 @@ export const ChatRoomHeader = ({
             onClick={onOpenProfile}
             className="w-full px-4 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
           >
-            相手のプロフィールを見る
+            相手プロフィールを見る
           </button>
           <button
             onClick={onCreateAppointment}
             className="w-full px-4 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100"
           >
             取引予定を作成
+          </button>
+          <button
+            onClick={onReportChat}
+            className="flex w-full items-center gap-2 border-t border-slate-100 px-4 py-3 text-left text-sm font-bold text-amber-600 transition-colors hover:bg-amber-50"
+          >
+            <AlertTriangle size={15} />
+            通報する
+          </button>
+          <button
+            onClick={onCloseChat}
+            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-bold text-slate-500 transition-colors hover:bg-slate-50"
+          >
+            <LogOut size={15} />
+            チャットを閉じる
           </button>
         </div>
       )}

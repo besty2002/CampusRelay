@@ -62,6 +62,9 @@ export const ChatRoomPage = () => {
   const [appointmentDraft, setAppointmentDraft] = useState<{ date: string; location: string } | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewTargetUserId, setReviewTargetUserId] = useState('');
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [submittingReport, setSubmittingReport] = useState(false);
   const headerMenuRef = useRef<HTMLDivElement>(null);
 
   // Fetch room details and initial messages
@@ -757,6 +760,45 @@ export const ChatRoomPage = () => {
     }
   };
 
+  const handleCloseChat = () => {
+    setShowHeaderMenu(false);
+    showToast({ title: 'チャットを閉じました', tone: 'success' });
+    navigate('/messages');
+  };
+
+  const handleSubmitReport = async () => {
+    if (!user || !room || !otherParty) return;
+
+    if (!reportReason.trim()) {
+      showToast({ title: '通報理由を入力してください', tone: 'info' });
+      return;
+    }
+
+    setSubmittingReport(true);
+    const reason = `[チャット:${room.id}] ${reportReason.trim()}`;
+    const extendedReport = {
+      reporter_id: user.id,
+      target_type: 'user',
+      target_user_id: otherParty.id,
+      post_id: room.post_id,
+      category: 'harassment',
+      reason,
+      status: 'Pending',
+    };
+
+    const { error } = await supabase.from('reports').insert(extendedReport);
+
+    setSubmittingReport(false);
+    if (error) {
+      showToast({ title: '通報を送信できませんでした', description: error.message, tone: 'error' });
+      return;
+    }
+
+    showToast({ title: '通報を受け付けました', description: '管理者が内容を確認します。', tone: 'success' });
+    setReportReason('');
+    setShowReportModal(false);
+  };
+
   // Loading state
   if (loading) return (
     <div className="fixed inset-0 w-full flex justify-center bg-[#8ECBAF] z-[100]">
@@ -811,6 +853,11 @@ export const ChatRoomPage = () => {
             setShowHeaderMenu(false);
             openNewAppointmentModal();
           }}
+          onReportChat={() => {
+            setShowHeaderMenu(false);
+            setShowReportModal(true);
+          }}
+          onCloseChat={handleCloseChat}
         />
       </div>
 
@@ -870,8 +917,44 @@ export const ChatRoomPage = () => {
           toUserName={isSeller ? room.buyer?.display_name : room.seller?.display_name}
         />
       )}
+
+      {showReportModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 px-5 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
+            <h3 className="text-xl font-black text-slate-900">チャットを通報する</h3>
+            <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
+              不適切な発言や取引上の不安がある場合、内容を管理者へ送信できます。
+            </p>
+            <textarea
+              value={reportReason}
+              onChange={(event) => setReportReason(event.target.value)}
+              placeholder="通報理由を入力してください。"
+              className="mt-5 h-32 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-700 outline-none transition-colors focus:border-amber-300 focus:bg-white"
+            />
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReportModal(false);
+                  setReportReason('');
+                }}
+                className="flex-1 rounded-2xl bg-slate-100 py-3 text-sm font-black text-slate-500 transition-colors hover:bg-slate-200"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSubmitReport()}
+                disabled={submittingReport}
+                className="flex-1 rounded-2xl bg-amber-500 py-3 text-sm font-black text-white shadow-lg shadow-amber-200 transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {submittingReport ? '送信中...' : '通報する'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     </div>
   );
 };
-
