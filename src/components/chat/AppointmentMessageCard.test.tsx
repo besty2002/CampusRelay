@@ -16,7 +16,7 @@ const baseMessage: ChatMessage = {
   },
   appointment_data: {
     date: '2026-05-17T12:30:00',
-    location: '北千住駅',
+    location: 'ベル前',
     status: 'proposed',
   },
 };
@@ -37,13 +37,13 @@ describe('AppointmentMessageCard', () => {
     );
 
     fireEvent.click(screen.getByText('承認する'));
-    fireEvent.click(screen.getByText('取消'));
+    fireEvent.click(screen.getByText('キャンセル'));
 
     expect(onAccept).toHaveBeenCalledTimes(1);
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
-  it('shows a retry action when an appointment was canceled', () => {
+  it('shows a repropose action when an appointment was canceled', () => {
     const onEdit = vi.fn();
 
     render(
@@ -84,5 +84,6 @@ describe('AppointmentMessageCard', () => {
     );
 
     expect(screen.getByText('完了待ち')).toBeTruthy();
+    expect(screen.getByText('予定が確定しました。取引後に完了へ進めます。')).toBeTruthy();
   });
 });

@@ -10,12 +10,10 @@ export const CreatePostDraftCard = ({ draftRestored, draftSavedAt, onClearDraft 
       <div>
         <p className="text-sm font-black text-slate-700">下書きを自動保存しています</p>
         <p className="mt-1 text-xs font-medium text-slate-400">
-          {draftRestored ? '前回の入力内容を復元しました。' : '入力内容はこの端末に一時保存されます。'}
+          {draftRestored ? '保存していた入力内容を復元しました。' : '入力内容はこの端末に一定時間ごとに保存されます。'}
         </p>
         {draftSavedAt && (
-          <p className="mt-1 text-[11px] font-bold text-slate-300">
-            最終保存: {new Date(draftSavedAt).toLocaleString('ja-JP')}
-          </p>
+          <p className="mt-1 text-[11px] font-bold text-slate-300">最終保存: {new Date(draftSavedAt).toLocaleString('ja-JP')}</p>
         )}
       </div>
       <button

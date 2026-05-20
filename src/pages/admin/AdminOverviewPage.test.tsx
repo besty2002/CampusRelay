@@ -14,7 +14,7 @@ const supabaseMocks = vi.hoisted(() => {
       eq: vi.fn(() => builder),
       gte: vi.fn(() => builder),
       neq: vi.fn(() => builder),
-      order: vi.fn(() => Promise.resolve(response)),
+      order: vi.fn(() => builder),
       returns: vi.fn(() => Promise.resolve(response)),
     };
     return builder;
@@ -98,7 +98,11 @@ describe('AdminOverviewPage', () => {
     });
 
     expect(screen.getByText('本日の新規登録')).toBeTruthy();
-    expect(screen.getByText('カテゴリ分布')).toBeTruthy();
-    expect(screen.getByText(/School Admin は担当学校のデータのみ管理できます/)).toBeTruthy();
+    expect(screen.getByText('カテゴリー分布')).toBeTruthy();
+    expect(
+      screen.getByText(
+        /School Admin は担当学校のデータのみ管理できます。広域の管理が必要な場合は Super Admin にお問い合わせください。/
+      )
+    ).toBeTruthy();
   });
 });

@@ -196,7 +196,7 @@ export const AdminOverviewPage = () => {
                     fontSize: 13,
                     fontWeight: 700,
                   }}
-                  formatter={(value) => [`${value} 件`, '投稿数']}
+                  formatter={(value) => [`${value} 件`, '出品数']}
                 />
                 <Bar dataKey="count" fill="#84cc16" radius={[8, 8, 0, 0]} />
               </BarChart>
@@ -205,7 +205,7 @@ export const AdminOverviewPage = () => {
         </div>
 
         <div className="rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-sm">
-          <h3 className="mb-6 text-lg font-black text-slate-800">カテゴリ分布</h3>
+          <h3 className="mb-6 text-lg font-black text-slate-800">カテゴリー分布</h3>
           <div className="h-64">
             {categoryDist.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -233,7 +233,7 @@ export const AdminOverviewPage = () => {
                       fontSize: 13,
                       fontWeight: 700,
                     }}
-                    formatter={(value) => [`${value} 件`, '投稿数']}
+                    formatter={(value) => [`${value} 件`, '出品数']}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -249,7 +249,7 @@ export const AdminOverviewPage = () => {
       {role === 'school_admin' && (
         <div className="mt-8 rounded-[2rem] border border-sky-100 bg-sky-50 p-6">
           <p className="text-sm font-bold text-sky-700">
-            School Admin は担当学校のデータのみ管理できます。全体管理が必要な場合は Super Admin にお問い合わせください。
+            School Admin は担当学校のデータのみ管理できます。広域の管理が必要な場合は Super Admin にお問い合わせください。
           </p>
         </div>
       )}

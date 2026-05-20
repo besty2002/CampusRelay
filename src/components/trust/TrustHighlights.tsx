@@ -26,7 +26,7 @@ export const TrustHighlights = ({
 
       <div className="grid gap-3 md:grid-cols-3">
         <div className="rounded-2xl bg-slate-50 p-4">
-          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">完了取引</p>
+          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">完了取引数</p>
           <p className="mt-2 text-2xl font-black text-slate-800">{completedCount}</p>
         </div>
         <div className="rounded-2xl bg-slate-50 p-4">
@@ -38,7 +38,7 @@ export const TrustHighlights = ({
           </div>
         </div>
         <div className="rounded-2xl bg-slate-50 p-4">
-          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">最近の声</p>
+          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">最近の件数</p>
           <div className="mt-2 flex items-center gap-2">
             <MessageSquareMore size={18} className="text-sky-500" />
             <span className="text-2xl font-black text-slate-800">{recentReviewCount}</span>
@@ -47,7 +47,7 @@ export const TrustHighlights = ({
       </div>
 
       <div className="mt-5">
-        <p className="mb-2 text-[11px] font-black uppercase tracking-widest text-slate-400">よく付くレビュータグ</p>
+        <p className="mb-2 text-[11px] font-black uppercase tracking-widest text-slate-400">よく届くレビュータグ</p>
         {topTags.length === 0 ? (
           <p className="text-sm font-medium text-slate-400">まだレビュータグは集まっていません。</p>
         ) : (

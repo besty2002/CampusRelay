@@ -1,30 +1,17 @@
 ﻿import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import {
-  AlertCircle,
-  ArrowLeft,
-  CheckCircle2,
-  Edit,
-  Heart,
-  Loader2,
-  MessageCircle,
-  Star,
-  Trash2,
-  User,
-} from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Post, PostCondition, PostRequest } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { ReviewModal } from '../components/ReviewModal';
-import { StatusBadge } from '../components/StatusBadge';
-import { VerifiedBadge } from '../components/VerifiedBadge';
-import { MannerTempGauge } from '../components/MannerTempGauge';
 import { ImageViewer } from '../components/ImageViewer';
 import { ConfirmDialog } from '../components/feedback/ConfirmDialog';
 import { useToast } from '../components/feedback/ToastProvider';
-import { PostRequestList } from '../components/post/PostRequestList';
 import { PostCommentsSection } from '../components/post/PostCommentsSection';
-import { PostTradeStatusCard } from '../components/post/PostTradeStatusCard';
+import { PostDetailToolbar } from '../components/post/PostDetailToolbar';
+import { PostDetailHero } from '../components/post/PostDetailHero';
+import { PostDetailActionPanel } from '../components/post/PostDetailActionPanel';
 
 type PostComment = {
   id: string;
@@ -585,12 +572,6 @@ export const PostDetailPage = () => {
     return <div className="p-8 text-center font-bold text-slate-500">{COPY.notFound}</div>;
   }
 
-  const sellerProfile = post.profiles as Post['profiles'] & {
-    verified_school_domain?: string;
-    email_verified?: boolean;
-    manner_temp?: number;
-  };
-
   const canRequest = !requesting && myRequest?.status !== 'Pending' && myRequest?.status !== 'Approved';
   const requestButtonLabel = requesting
     ? COPY.requestingButton
@@ -601,61 +582,21 @@ export const PostDetailPage = () => {
   return (
     <>
       <div className="relative mx-auto max-w-2xl p-4 pb-32 pt-12">
-        <div className="mb-8 flex items-center justify-between">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-1 font-bold text-slate-400 transition-colors hover:text-lime-600"
-            aria-label={COPY.back}
-            title={COPY.back}
-          >
-            <ArrowLeft size={20} />
-            {COPY.back}
-          </button>
-
-          <div className="flex gap-2">
-            <button
-              onClick={toggleWishlist}
-              className={`rounded-xl border p-2 shadow-sm transition-all ${
-                isWishlisted ? 'border-pink-100 bg-pink-50 text-pink-500' : 'border-slate-100 bg-white text-slate-400 hover:text-pink-400'
-              }`}
-              aria-label={isWishlisted ? COPY.wishlistRemove : COPY.wishlistAdd}
-              title={isWishlisted ? COPY.wishlistRemove : COPY.wishlistAdd}
-            >
-              <Heart size={20} fill={isWishlisted ? 'currentColor' : 'none'} />
-            </button>
-
-            {isOwner ? (
-              <>
-                <button
-                  onClick={() => navigate(`/post/edit/${post.id}`)}
-                  className="rounded-xl border border-slate-100 bg-white p-2 text-slate-400 shadow-sm transition-all hover:text-lime-600"
-                  aria-label={COPY.editPost}
-                  title={COPY.editPost}
-                >
-                  <Edit size={20} />
-                </button>
-                <button
-                  onClick={() => setConfirmDeletePost(true)}
-                  className="rounded-xl border border-slate-100 bg-white p-2 text-slate-400 shadow-sm transition-all hover:text-red-500"
-                  aria-label={COPY.deletePost}
-                  title={COPY.deletePost}
-                >
-                  <Trash2 size={20} />
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setShowReportModal(true)}
-                className="flex items-center gap-1 rounded-xl border border-slate-100 bg-white px-3 py-1.5 text-xs font-bold text-slate-400 shadow-sm transition-all hover:text-red-500"
-                aria-label={COPY.report}
-                title={COPY.report}
-              >
-                <AlertCircle size={14} />
-                {COPY.report}
-              </button>
-            )}
-          </div>
-        </div>
+        <PostDetailToolbar
+          backLabel={COPY.back}
+          wishlistActive={isWishlisted}
+          wishlistAddLabel={COPY.wishlistAdd}
+          wishlistRemoveLabel={COPY.wishlistRemove}
+          isOwner={isOwner}
+          editLabel={COPY.editPost}
+          deleteLabel={COPY.deletePost}
+          reportLabel={COPY.report}
+          onBack={() => navigate(-1)}
+          onToggleWishlist={toggleWishlist}
+          onEdit={() => navigate(`/post/edit/${post.id}`)}
+          onDelete={() => setConfirmDeletePost(true)}
+          onReport={() => setShowReportModal(true)}
+        />
 
         <div className="mb-8 overflow-hidden rounded-[3rem] border border-slate-100 bg-white shadow-xl shadow-slate-200/50">
           {sortedImages.length > 0 && (
@@ -688,174 +629,52 @@ export const PostDetailPage = () => {
             </>
           )}
 
-          <div className="p-8 md:p-12">
-            <div className="mb-6 flex items-start justify-between">
-              <StatusBadge status={post.status} className="!px-3 !py-1" />
-              <span className="text-[10px] font-black uppercase tracking-tighter text-slate-300">
-                {new Date(post.created_at).toLocaleDateString()}
-              </span>
-            </div>
+          <PostDetailHero
+            post={post}
+            isOwner={isOwner}
+            tradeCopy={tradeCopy}
+            myRequestStatus={myRequestStatus}
+            approvedRequest={approvedRequest}
+            hasDistinctDescription={hasDistinctDescription}
+            categoryLabels={CATEGORY_LABELS}
+            conditionLabels={CONDITION_LABELS}
+            copy={{
+              tradeStatus: COPY.tradeStatus,
+              yourRequest: COPY.yourRequest,
+              currentPartner: COPY.currentPartner,
+              partnerFallback: COPY.partnerFallback,
+              exchangeWanted: COPY.exchangeWanted,
+              ownerCompleteCountPrefix: COPY.ownerCompleteCountPrefix,
+            }}
+          />
 
-            <h1 className="mb-4 text-4xl font-black leading-tight text-slate-800">{post.title}</h1>
-
-            <div className="mb-8 flex flex-wrap gap-2">
-              <span className="rounded-lg bg-slate-50 px-3 py-1 text-[10px] font-black uppercase text-slate-500">
-                {CATEGORY_LABELS[post.category] ?? post.category}
-              </span>
-              <span className="rounded-lg bg-slate-50 px-3 py-1 text-[10px] font-black uppercase text-slate-500">
-                {CONDITION_LABELS[post.condition] ?? post.condition}
-              </span>
-              {post.mode === 'EXCHANGE' && (
-                <span className="rounded-lg bg-purple-50 px-3 py-1 text-[10px] font-black uppercase text-purple-600">交換</span>
-              )}
-            </div>
-
-            <PostTradeStatusCard
-              post={post}
-              isOwner={isOwner}
-              tradeCopy={tradeCopy}
-              myRequestStatus={myRequestStatus}
-              approvedRequest={approvedRequest}
-              labels={{
-                tradeStatus: COPY.tradeStatus,
-                yourRequest: COPY.yourRequest,
-                currentPartner: COPY.currentPartner,
-                partnerFallback: COPY.partnerFallback,
-              }}
-            />
-
-            {hasDistinctDescription && (
-              <p className="mb-12 whitespace-pre-wrap text-lg font-medium leading-relaxed text-slate-600">
-                {post.description}
-              </p>
-            )}
-
-            {post.mode === 'EXCHANGE' && post.exchange_wanted && (
-              <div className="mb-12 rounded-[2rem] border-2 border-purple-100 bg-purple-50 p-6">
-                <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-purple-400">{COPY.exchangeWanted}</h3>
-                <p className="text-xl font-black text-purple-900">{post.exchange_wanted}</p>
-              </div>
-            )}
-
-            <div className="flex items-center gap-4 rounded-[2rem] bg-slate-50 p-6">
-              <Link
-                to={`/user/${post.user_id}`}
-                className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-lime-500 shadow-sm transition-transform hover:scale-105"
-              >
-                <User size={28} />
-              </Link>
-              <div className="flex-1">
-                <div className="flex items-center gap-1.5">
-                  <Link to={`/user/${post.user_id}`} className="text-lg font-black text-slate-800 transition-colors hover:text-lime-600">
-                    {post.profiles.display_name}
-                  </Link>
-                  <VerifiedBadge verified={sellerProfile.email_verified} domain={sellerProfile.verified_school_domain} />
-                </div>
-                <div className="mt-0.5 flex items-center gap-3">
-                  <span className="rounded-md bg-lime-500 px-2 py-0.5 text-[10px] font-black uppercase text-white">
-                    {COPY.ownerCompleteCountPrefix} {post.profiles.completed_count}件
-                  </span>
-                  <span className="flex items-center gap-1 text-[10px] font-black uppercase text-slate-400">
-                    <Star size={12} className="fill-amber-400 text-amber-400" />
-                    {post.profiles.avg_rating} ({post.profiles.rating_count})
-                  </span>
-                </div>
-                <div className="mt-1">
-                  <MannerTempGauge temp={sellerProfile.manner_temp ?? 36.5} size="sm" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-slate-100 bg-slate-50 p-8">
-            {!isOwner && post.status === 'Available' && (
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={handleStartChat}
-                  className="flex w-full items-center justify-center gap-3 rounded-[2rem] bg-sky-500 py-5 text-xl font-black text-white shadow-xl shadow-sky-500/30 transition-all hover:bg-sky-600 active:scale-[0.98]"
-                >
-                  <MessageCircle size={24} />
-                  {COPY.startChat}
-                </button>
-                <button
-                  onClick={handleRequest}
-                  disabled={!canRequest}
-                  className="flex w-full items-center justify-center gap-3 rounded-[2rem] bg-lime-500 py-5 text-xl font-black text-white shadow-xl shadow-lime-500/30 transition-all hover:bg-lime-600 active:scale-[0.98] disabled:opacity-60"
-                >
-                  <CheckCircle2 size={24} />
-                  {requestButtonLabel}
-                </button>
-              </div>
-            )}
-
-            {isOwner && post.status === 'Available' && (
-              <PostRequestList
-                requests={requests}
-                requestStatusCopy={REQUEST_STATUS_COPY}
-                emptyLabel={COPY.noRequests}
-                title={COPY.requestList}
-                approveLabel={COPY.approveButton}
-                ownerCompleteCountPrefix={COPY.ownerCompleteCountPrefix}
-                onApprove={handleApprove}
-              />
-            )}
-
-            {isOwner && post.status === 'Reserved' && (
-              <div className="space-y-4">
-                <div className="rounded-[2rem] border border-slate-100 bg-white p-5">
-                  <p className="mb-1 text-sm font-black text-slate-700">{COPY.nextStep}</p>
-                  <p className="text-sm text-slate-500">{COPY.nextStepDescription}</p>
-                </div>
-                <button
-                  onClick={handleStartChat}
-                  className="flex w-full items-center justify-center gap-3 rounded-[2rem] bg-sky-500 py-5 text-xl font-black text-white shadow-xl shadow-sky-500/30 transition-all hover:bg-sky-600 active:scale-[0.98]"
-                >
-                  <MessageCircle size={24} />
-                  {COPY.startChat}
-                </button>
-                <button
-                  onClick={handleComplete}
-                  className="w-full rounded-[2rem] bg-slate-800 py-5 text-xl font-black text-white shadow-xl shadow-slate-800/30 transition-all hover:bg-black active:scale-[0.98]"
-                >
-                  {COPY.completeButton}
-                </button>
-              </div>
-            )}
-
-            {canOpenReservedChat && !isOwner && (
-              <div className="space-y-4">
-                <div className="rounded-[2rem] border border-slate-100 bg-white p-5">
-                  <p className="mb-1 text-sm font-black text-slate-700">{COPY.nextStep}</p>
-                  <p className="text-sm text-slate-500">{COPY.nextStepDescription}</p>
-                </div>
-                <button
-                  onClick={handleStartChat}
-                  className="flex w-full items-center justify-center gap-3 rounded-[2rem] bg-sky-500 py-5 text-xl font-black text-white shadow-xl shadow-sky-500/30 transition-all hover:bg-sky-600 active:scale-[0.98]"
-                >
-                  <MessageCircle size={24} />
-                  {COPY.startChat}
-                </button>
-              </div>
-            )}
-
-            {post.status === 'Given' && (
-              <div className="space-y-6">
-                <div className="w-full rounded-[2rem] border-2 border-dashed border-slate-200 bg-white px-5 py-5 text-center font-bold text-slate-500">
-                  {COPY.givenNotice}
-                </div>
-
-                {user && (
-                  <button
-                    onClick={openReview}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-500 py-4 text-lg font-black text-white shadow-lg shadow-amber-500/20 transition-all hover:bg-amber-600 active:scale-[0.98]"
-                  >
-                    <Star size={20} />
-                    {COPY.reviewButton}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+          <PostDetailActionPanel
+            isOwner={isOwner}
+            postStatus={post.status}
+            canOpenReservedChat={canOpenReservedChat}
+            canRequest={canRequest}
+            requesting={requesting}
+            requestButtonLabel={requestButtonLabel}
+            requests={requests}
+            requestStatusCopy={REQUEST_STATUS_COPY}
+            copy={{
+              startChat: COPY.startChat,
+              requestList: COPY.requestList,
+              noRequests: COPY.noRequests,
+              approveButton: COPY.approveButton,
+              ownerCompleteCountPrefix: COPY.ownerCompleteCountPrefix,
+              nextStep: COPY.nextStep,
+              nextStepDescription: COPY.nextStepDescription,
+              completeButton: COPY.completeButton,
+              givenNotice: COPY.givenNotice,
+              reviewButton: COPY.reviewButton,
+            }}
+            onStartChat={handleStartChat}
+            onRequest={handleRequest}
+            onApprove={handleApprove}
+            onComplete={handleComplete}
+            onReview={openReview}
+          />
         </div>
         <PostCommentsSection
           comments={comments}

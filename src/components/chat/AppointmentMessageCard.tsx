@@ -12,15 +12,15 @@ interface AppointmentMessageCardProps {
 const APPOINTMENT_STATUS_COPY = {
   proposed: {
     badge: '提案中',
-    description: '返答を待っています',
+    description: '内容を確認して返答してください。',
   },
   accepted: {
     badge: '完了待ち',
-    description: '受け渡しが終わったら取引を完了にしてください',
+    description: '予定が確定しました。取引後に完了へ進めます。',
   },
   canceled: {
-    badge: 'キャンセル済み',
-    description: '必要なら内容を調整して再提案できます',
+    badge: '再調整中',
+    description: '必要なら日時を調整して再提案できます。',
   },
 } as const;
 
@@ -37,14 +37,14 @@ export const AppointmentMessageCard = ({
   const statusCopy = APPOINTMENT_STATUS_COPY[appointment_data.status];
 
   return (
-    <div className={`p-4 ${isMe ? 'bg-[#05B54D]' : 'bg-lime-50'} rounded-2xl m-1 min-w-[220px]`}>
-      <div className={`flex items-center gap-2 mb-3 border-b pb-2 ${isMe ? 'border-white/20' : 'border-lime-200/50'}`}>
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isMe ? 'bg-white/20 text-white' : 'bg-lime-200 text-lime-700'}`}>
+    <div className={`m-1 min-w-[220px] rounded-2xl p-4 ${isMe ? 'bg-[#05B54D]' : 'bg-lime-50'}`}>
+      <div className={`mb-3 flex items-center gap-2 border-b pb-2 ${isMe ? 'border-white/20' : 'border-lime-200/50'}`}>
+        <div className={`flex h-8 w-8 items-center justify-center rounded-full ${isMe ? 'bg-white/20 text-white' : 'bg-lime-200 text-lime-700'}`}>
           <CalendarIcon size={16} />
         </div>
         <div className="min-w-0">
           <h4 className={`text-xs font-black ${isMe ? 'text-white' : 'text-slate-800'}`}>取引予定</h4>
-          <div className="flex items-center gap-2 mt-0.5">
+          <div className="mt-0.5 flex items-center gap-2">
             <span
               className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black ${
                 isMe ? 'bg-white/15 text-white' : 'bg-lime-100 text-lime-700'
@@ -59,7 +59,7 @@ export const AppointmentMessageCard = ({
         </div>
       </div>
 
-      <div className="space-y-2 mb-3">
+      <div className="mb-3 space-y-2">
         <div className="flex items-start gap-2">
           <CalendarIcon size={14} className={`mt-0.5 shrink-0 ${isMe ? 'text-white/70' : 'text-slate-400'}`} />
           <span className={`text-[13px] font-medium ${isMe ? 'text-white' : 'text-slate-700'}`}>
@@ -73,25 +73,25 @@ export const AppointmentMessageCard = ({
         </div>
         <div className="flex items-start gap-2">
           <MapPin size={14} className={`mt-0.5 shrink-0 ${isMe ? 'text-white/70' : 'text-slate-400'}`} />
-          <span className={`text-[13px] font-medium break-all ${isMe ? 'text-white' : 'text-slate-700'}`}>
+          <span className={`break-all text-[13px] font-medium ${isMe ? 'text-white' : 'text-slate-700'}`}>
             {appointment_data.location}
           </span>
         </div>
       </div>
 
       {!isMe && appointment_data.status === 'proposed' && (
-        <div className="flex gap-2 mt-2">
+        <div className="mt-2 flex gap-2">
           <button
             onClick={onAccept}
-            className="flex-1 py-2 bg-lime-500 hover:bg-lime-600 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
+            className="flex-1 rounded-xl bg-lime-500 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:bg-lime-600"
           >
             承認する
           </button>
           <button
             onClick={onCancel}
-            className="flex-1 py-2 bg-white hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl border border-slate-200 transition-colors"
+            className="flex-1 rounded-xl border border-slate-200 bg-white py-2 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50"
           >
-            取消
+            キャンセル
           </button>
         </div>
       )}
@@ -100,13 +100,13 @@ export const AppointmentMessageCard = ({
         <div className="mt-2 flex gap-2">
           <button
             onClick={onEdit}
-            className="flex-1 py-2 bg-white/15 hover:bg-white/25 text-white text-xs font-bold rounded-xl transition-colors"
+            className="flex-1 rounded-xl bg-white/15 py-2 text-xs font-bold text-white transition-colors hover:bg-white/25"
           >
-            日程を編集する
+            日時を調整する
           </button>
           <button
             onClick={onCancel}
-            className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl transition-colors inline-flex items-center justify-center"
+            className="inline-flex items-center justify-center rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-white/20"
             aria-label="予定を取り消す"
             title="予定を取り消す"
           >
@@ -118,10 +118,10 @@ export const AppointmentMessageCard = ({
       {appointment_data.status === 'canceled' && (
         <button
           onClick={onEdit}
-          className={`mt-2 w-full py-2 text-xs font-bold rounded-xl transition-colors inline-flex items-center justify-center gap-1.5 ${
+          className={`mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-bold transition-colors ${
             isMe
-              ? 'bg-white/15 hover:bg-white/25 text-white'
-              : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+              ? 'bg-white/15 text-white hover:bg-white/25'
+              : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
           }`}
         >
           <RotateCcw size={14} />

@@ -46,14 +46,14 @@ const supabaseMocks = vi.hoisted(() => {
     user_id: 'owner-1',
     mode: 'GIVEAWAY',
     title: '絵の具セット',
-    description: '授業で使っていた絵の具セットです。',
+    description: '学校で使っていた絵の具セットです。',
     category: 'Textbook',
     condition: 'Good',
     status: 'Reserved',
     created_at: '2026-05-16T00:00:00.000Z',
     profiles: {
       id: 'owner-1',
-      display_name: '出品者',
+      display_name: '出品者A',
       role: 'user',
       completed_count: 3,
       avg_rating: 4.8,
@@ -192,7 +192,7 @@ describe('PostDetailPage trade flow', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /チャット|繝√Ε/ })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /チャットで相談する/ })).toBeTruthy();
     });
   });
 

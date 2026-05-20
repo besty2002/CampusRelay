@@ -9,7 +9,7 @@ export default defineConfig({
     timeout: 20_000,
   },
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:3002',
     headless: true,
     viewport: { width: 430, height: 932 },
     screenshot: 'only-on-failure',

@@ -17,8 +17,8 @@ describe('App startup', () => {
 
     render(<App />);
 
-    expect(screen.getByText("Campus Relay can't start yet")).toBeTruthy();
-    expect(screen.getByText(/Missing now: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY/)).toBeTruthy();
-    expect(screen.getByText(/You can start from/i)).toBeTruthy();
+    expect(screen.getByText('Campus Relay を開始できません')).toBeTruthy();
+    expect(screen.getByText(/不足中のキー: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY/)).toBeTruthy();
+    expect(screen.getByText(/`.env.example` をベースに設定できます。/)).toBeTruthy();
   });
 });

@@ -38,9 +38,10 @@ const supabaseMocks = vi.hoisted(() => {
   const postsBuilder = createBuilder([
     {
       id: 'post-1',
+      school_id: 'school-1',
       user_id: 'user-a',
-      title: '絵の具',
-      description: '絵の具',
+      title: '絵の具セット',
+      description: '絵の具セット',
       category: 'Textbook',
       condition: 'Good',
       mode: 'GIVEAWAY',
@@ -51,17 +52,20 @@ const supabaseMocks = vi.hoisted(() => {
         completed_count: 1,
         avg_rating: 5,
         rating_count: 1,
+        email_verified: true,
+        manner_temp: 36.7,
       },
       post_images: [],
     },
     {
       id: 'post-2',
+      school_id: 'school-1',
       user_id: 'user-b',
-      title: '江北',
-      description: '江北 江北 江北',
-      category: 'Textbook',
+      title: '体操服',
+      description: '体操服 上下セット',
+      category: 'Uniform',
       condition: 'Good',
-      mode: 'GIVEAWAY',
+      mode: 'EXCHANGE',
       status: 'Available',
       created_at: '2026-05-17T00:00:00.000Z',
       profiles: {
@@ -69,6 +73,8 @@ const supabaseMocks = vi.hoisted(() => {
         completed_count: 0,
         avg_rating: 0,
         rating_count: 0,
+        email_verified: false,
+        manner_temp: 36.5,
       },
       post_images: [],
     },
@@ -95,10 +101,6 @@ vi.mock('react-router-dom', () => ({
   Link: ({ children, ...props }: LinkProps) => <a {...props}>{children}</a>,
   useParams: () => ({ schoolId: routerMocks.schoolId }),
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
-}));
-
-vi.mock('./HomePage', () => ({
-  CATEGORY_MAP: {},
 }));
 
 vi.mock('../hooks/useInfiniteScroll', () => ({
@@ -136,15 +138,15 @@ describe('FeedPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('School A')).toBeTruthy();
-      expect(screen.getByText('絵の具')).toBeTruthy();
-      expect(screen.getByText('江北 江北 江北')).toBeTruthy();
+      expect(screen.getByText('絵の具セット')).toBeTruthy();
+      expect(screen.getByText('体操服 上下セット')).toBeTruthy();
     });
 
-    expect(screen.getAllByText('絵の具')).toHaveLength(1);
-    expect(screen.getAllByText('江北')).toHaveLength(1);
+    expect(screen.getAllByText('絵の具セット')).toHaveLength(1);
+    expect(screen.getAllByText('体操服')).toHaveLength(1);
   });
 
-  it('adds an accessible label to the filter toggle button', async () => {
+  it('shows the improved filter summary controls in Japanese', async () => {
     routerMocks.schoolId = 'school-1';
 
     render(<FeedPage />);
@@ -153,6 +155,8 @@ describe('FeedPage', () => {
       expect(screen.getByText('School A')).toBeTruthy();
     });
 
-    expect(screen.getByLabelText('フィルタを開く')).toBeTruthy();
+    expect(screen.getByLabelText('フィルターを開く')).toBeTruthy();
+    expect(screen.getByText('この学校の出品を表示中')).toBeTruthy();
+    expect(screen.getByText('2件')).toBeTruthy();
   });
 });

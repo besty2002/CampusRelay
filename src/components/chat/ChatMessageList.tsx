@@ -20,6 +20,14 @@ const isSameDay = (a: string, b: string) => {
   return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
 };
 
+const getReadStateLabel = (message: ChatMessage, lastOutgoingMessageId?: string) => {
+  if (message.client_state === 'failed') return '送信失敗';
+  if (message.client_state === 'sending') return '送信中';
+  if (message.is_read) return '既読';
+  if (lastOutgoingMessageId === message.id) return '確認待ち';
+  return '送信済み';
+};
+
 const TypingIndicator = () => (
   <div className="mb-3 flex justify-start">
     <div className="flex items-end gap-2">
@@ -100,7 +108,7 @@ export const ChatMessageList = ({
             <p className="truncate text-xs font-bold text-slate-700 transition-colors group-hover:text-[#06C755]">
               {room?.posts?.title}
             </p>
-            <p className="text-[10px] font-bold text-[#06C755]">アイテムを見る →</p>
+            <p className="text-[10px] font-bold text-[#06C755]">商品詳細を見る →</p>
           </div>
         </Link>
 
@@ -113,7 +121,7 @@ export const ChatMessageList = ({
 
       {isSeller && showStatusMenu && (
         <div className="relative z-20 -mt-1 mb-2 mr-3 flex justify-end">
-          <div className="w-28 overflow-hidden rounded-xl border border-slate-100 bg-white py-1 shadow-lg">
+          <div className="w-32 overflow-hidden rounded-xl border border-slate-100 bg-white py-1 shadow-lg">
             <button
               onClick={() => onStatusChange('Available')}
               className="flex w-full items-center gap-2 px-3 py-2.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50"
@@ -188,7 +196,11 @@ export const ChatMessageList = ({
                     >
                       {msg.image_url && (
                         <div className="cursor-pointer p-1" onClick={() => window.open(msg.image_url, '_blank')}>
-                          <img src={msg.image_url} alt="送信画像" className="max-h-[250px] max-w-[200px] rounded-xl object-cover sm:max-w-[240px]" />
+                          <img
+                            src={msg.image_url}
+                            alt="送信画像"
+                            className="max-h-[250px] max-w-[200px] rounded-xl object-cover sm:max-w-[240px]"
+                          />
                         </div>
                       )}
 
@@ -218,15 +230,7 @@ export const ChatMessageList = ({
                       <div className={`flex shrink-0 flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                         {isMe && (
                           <span className="text-[10px] font-medium leading-none text-white/80">
-                            {msg.client_state === 'failed'
-                              ? '送信失敗'
-                              : msg.client_state === 'sending'
-                                ? '送信中'
-                                : msg.is_read
-                                  ? '既読'
-                                  : lastOutgoingMessage?.id === msg.id
-                                    ? '未読'
-                                    : '配信済み'}
+                            {getReadStateLabel(msg, lastOutgoingMessage?.id)}
                           </span>
                         )}
                         <span className="text-[10px] leading-tight text-white/60">{time}</span>
@@ -246,7 +250,7 @@ export const ChatMessageList = ({
                   {isMe && msg.client_state === 'failed' && (
                     <div className="mt-1 flex items-center gap-1 text-[11px] font-medium text-rose-100/90">
                       <AlertCircle size={12} />
-                      通信が不安定です。再送できます。
+                      送信に失敗しました。再送できます。
                     </div>
                   )}
                 </div>

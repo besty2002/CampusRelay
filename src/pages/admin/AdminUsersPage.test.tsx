@@ -17,33 +17,36 @@ const routerMocks = vi.hoisted(() => ({
 }));
 
 const supabaseMocks = vi.hoisted(() => {
+  const response = {
+    data: [
+      {
+        id: 'user-1',
+        display_name: '管理対象ユーザー',
+        avatar_url: null,
+        role: 'user',
+        completed_count: 2,
+        avg_rating: 4.7,
+        manner_temp: 36.5,
+        email_verified: false,
+        is_banned: false,
+        created_at: '2026-05-16T00:00:00.000Z',
+      },
+    ],
+    count: 1,
+    error: null,
+  };
+
   const builder: Record<string, unknown> = {
     select: vi.fn(() => builder),
     order: vi.fn(() => builder),
-    range: vi.fn(async () => ({
-      data: [
-        {
-          id: 'user-1',
-          display_name: '対象ユーザー',
-          avatar_url: null,
-          role: 'user',
-          completed_count: 2,
-          avg_rating: 4.7,
-          manner_temp: 36.5,
-          email_verified: false,
-          is_banned: false,
-          created_at: '2026-05-16T00:00:00.000Z',
-        },
-      ],
-      count: 1,
-      error: null,
-    })),
+    range: vi.fn(() => builder),
     ilike: vi.fn(() => builder),
     eq: vi.fn(() => builder),
     or: vi.fn(() => builder),
     update: vi.fn(() => builder),
     neq: vi.fn(() => builder),
     in: vi.fn(() => builder),
+    then: (resolve: (value: typeof response) => unknown) => Promise.resolve(resolve(response)),
   };
 
   const notificationBuilder: Record<string, unknown> = {
@@ -96,6 +99,7 @@ describe('AdminUsersPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     routerMocks.role = 'super_admin';
+    window.localStorage.clear();
   });
 
   it('opens the ban modal before banning a user', async () => {
@@ -106,10 +110,10 @@ describe('AdminUsersPage', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText('対象ユーザー').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('管理対象ユーザー').length).toBeGreaterThan(0);
     });
 
-    const banButtons = screen.getAllByTitle(/BAN/);
+    const banButtons = screen.getAllByTitle(/BAN|アカウントを停止する/);
     fireEvent.click(banButtons[0]);
 
     expect(screen.getByText('アカウントを停止しますか？')).toBeTruthy();
@@ -123,13 +127,40 @@ describe('AdminUsersPage', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByLabelText('対象ユーザー を選択')).toBeTruthy();
+      expect(screen.getByLabelText('管理対象ユーザー を選択')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByLabelText('対象ユーザー を選択'));
+    fireEvent.click(screen.getByLabelText('管理対象ユーザー を選択'));
 
-    expect(screen.getByText('1 人を選択中')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '認証を付与' })).toBeTruthy();
+    expect(screen.getAllByText('選択中 1名').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: '一括認証' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '一括BAN' })).toBeTruthy();
+  });
+
+  it('restores saved filters from localStorage', async () => {
+    window.localStorage.setItem(
+      'campusrelay:admin-users-filters',
+      JSON.stringify({
+        searchQuery: 'saved-user',
+        filterRole: 'school_admin',
+        filterBanned: 'banned',
+        filterVerification: 'unverified',
+      })
+    );
+
+    render(
+      <ToastProvider>
+        <AdminUsersPage />
+      </ToastProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('saved-user')).toBeTruthy();
+    });
+
+    const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
+    expect(selects[0].value).toBe('school_admin');
+    expect(selects[1].value).toBe('banned');
+    expect(selects[2].value).toBe('unverified');
   });
 });

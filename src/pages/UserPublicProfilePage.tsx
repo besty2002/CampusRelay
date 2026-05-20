@@ -50,6 +50,7 @@ const getReviewerName = (reviewer: PublicReview['from_profiles']): string => {
   if (Array.isArray(reviewer)) {
     return reviewer[0]?.display_name ?? '匿名ユーザー';
   }
+
   return reviewer?.display_name ?? '匿名ユーザー';
 };
 
@@ -114,7 +115,7 @@ export const UserPublicProfilePage = () => {
       }
     };
 
-    fetchPublicData();
+    void fetchPublicData();
   }, [userId]);
 
   if (loading) {
@@ -164,7 +165,7 @@ export const UserPublicProfilePage = () => {
 
         <div className="grid w-full grid-cols-2 gap-4 border-t border-slate-50 pt-6">
           <div className="text-center">
-            <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">取引完了数</p>
+            <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">完了取引数</p>
             <p className="text-2xl font-black text-slate-800">{profile.completed_count}</p>
           </div>
           <div className="border-l border-slate-50 text-center">

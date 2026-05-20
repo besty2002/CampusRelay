@@ -34,12 +34,12 @@ const ChatRoomPage = lazy(() => import('./pages/ChatRoomPage').then((module) => 
 const SchoolVerificationPage = lazy(() => import('./pages/SchoolVerificationPage').then((module) => ({ default: module.SchoolVerificationPage })));
 
 const PAGE_LOADER_COPY = {
-  localSetup: 'Local setup needed',
-  startTitle: "Campus Relay can't start yet",
+  localSetup: 'ローカル設定が必要です',
+  startTitle: 'Campus Relay を開始できません',
   startDescription:
-    'This local build is missing Supabase environment variables, so the app was stopping before the first screen rendered. Add the keys below to `.env` in the project root, then restart the dev server.',
-  missingNow: 'Missing now',
-  startHint: 'You can start from `.env.example`. Once those values are set, the normal app will load again.',
+    'このローカル環境では Supabase の環境変数が不足しているため、最初の画面を表示する前にアプリが停止しています。プロジェクト直下の `.env` に下記キーを設定してから、開発サーバーを再起動してください。',
+  missingNow: '不足中のキー',
+  startHint: '`.env.example` をベースに設定できます。値を追加すると通常どおりアプリが起動します。',
 };
 
 const NAV_COPY = {

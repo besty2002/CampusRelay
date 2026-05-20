@@ -124,7 +124,7 @@ describe('CreatePostPage enhancements', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('前回の入力内容を復元しました。')).toBeTruthy();
+      expect(screen.getByText('保存していた入力内容を復元しました。')).toBeTruthy();
     });
 
     const [titleInput, descriptionInput] = screen.getAllByRole('textbox') as [

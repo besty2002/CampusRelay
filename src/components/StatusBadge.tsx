@@ -60,7 +60,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       } ${className}`}
     >
       <Icon size={12} className={iconColor} strokeWidth={3} />
-      {showText && <span className="text-[10px] font-black uppercase tracking-wider">{label}</span>}
+      {showText && <span className="text-[10px] font-black tracking-wider">{label}</span>}
     </div>
   );
 };

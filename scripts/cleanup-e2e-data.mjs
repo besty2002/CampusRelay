@@ -32,6 +32,11 @@ const accounts = [
     email: process.env.E2E_ACCOUNT_C_EMAIL || 'test-user-c@example.com',
     password: process.env.E2E_ACCOUNT_C_PASSWORD || 'Test1234!',
   },
+  {
+    label: 'D',
+    email: process.env.E2E_ACCOUNT_D_EMAIL || 'test-user-d@example.com',
+    password: process.env.E2E_ACCOUNT_D_PASSWORD || 'Test1234!',
+  },
 ];
 
 const makeClient = async (email, password) => {
