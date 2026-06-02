@@ -1,12 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import {
-  ShieldAlert,
-  ArrowLeft,
-  Loader2,
-  Crown,
-  Shield,
-} from 'lucide-react';
+import { ShieldAlert, ArrowLeft, Loader2, Crown, Shield } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../components/feedback/ToastProvider';
@@ -37,7 +31,7 @@ export const AdminLayout = () => {
       showToast({
         tone: 'error',
         title: '管理者権限がありません',
-        description: 'ホーム画面から通常ユーザーとしてご利用ください。',
+        description: 'ホーム画面から一般ユーザーとしてご利用ください。',
       });
       navigate('/');
       setLoading(false);

@@ -124,6 +124,19 @@ export interface Review {
   from_profiles?: { display_name: string };
 }
 
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  is_active: boolean;
+  show_as_popup: boolean;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by?: string | null;
+}
+
 export const MANNER_TAGS_POSITIVE = [
   '時間を守る',
   '丁寧な対応',

@@ -2,11 +2,14 @@ import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Bell, Home, Loader2, MessageCircle, PlusSquare, ShieldCheck, User } from 'lucide-react';
+import { AnnouncementPopup } from './components/announcements/AnnouncementPopup';
 import { OfflineBanner } from './components/OfflineBanner';
 import { ToastProvider } from './components/feedback/ToastProvider';
 import { useAuth } from './hooks/useAuth';
 import { isSupabaseConfigured, missingPublicEnvVars } from './lib/env';
+import { logger } from './lib/logger';
 import { supabase } from './lib/supabase';
+import type { Announcement } from './types';
 
 const AuthPage = lazy(() => import('./pages/AuthPage').then((module) => ({ default: module.AuthPage })));
 const SchoolSelectPage = lazy(() => import('./pages/SchoolSelectPage').then((module) => ({ default: module.SchoolSelectPage })));
@@ -23,6 +26,9 @@ const AdminPostsPage = lazy(() => import('./pages/admin/AdminPostsPage').then((m
 const AdminCommentsPage = lazy(() => import('./pages/admin/AdminCommentsPage').then((module) => ({ default: module.AdminCommentsPage })));
 const AdminAuditLogPage = lazy(() => import('./pages/admin/AdminAuditLogPage').then((module) => ({ default: module.AdminAuditLogPage })));
 const AdminInvitesPage = lazy(() => import('./pages/admin/AdminInvitesPage').then((module) => ({ default: module.AdminInvitesPage })));
+const AdminAnnouncementsPage = lazy(() =>
+  import('./pages/admin/AdminAnnouncementsPage').then((module) => ({ default: module.AdminAnnouncementsPage }))
+);
 const AdminAuthPage = lazy(() => import('./pages/admin/AdminAuthPage').then((module) => ({ default: module.AdminAuthPage })));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then((module) => ({ default: module.NotificationsPage })));
 const NotificationSettingsPage = lazy(() => import('./pages/NotificationSettingsPage').then((module) => ({ default: module.NotificationSettingsPage })));
@@ -72,6 +78,18 @@ const Layout = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [announcement, setAnnouncement] = useState<Announcement | null>(null);
+
+  const isAnnouncementVisible = useCallback((item: Announcement) => {
+    const now = Date.now();
+    const startsAt = item.starts_at ? new Date(item.starts_at).getTime() : null;
+    const endsAt = item.ends_at ? new Date(item.ends_at).getTime() : null;
+    return (startsAt === null || startsAt <= now) && (endsAt === null || endsAt >= now);
+  }, []);
+
+  const getDismissKey = useCallback((item: Announcement) => {
+    return `campusrelay:announcement:dismissed:${item.id}:${item.updated_at}`;
+  }, []);
 
   const fetchUnreadCount = useCallback(async () => {
     if (!user) {
@@ -104,6 +122,30 @@ const Layout = ({ children }: { children: ReactNode }) => {
     setIsAdmin(data?.role === 'school_admin' || data?.role === 'super_admin');
   }, [user]);
 
+  const fetchAnnouncement = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('announcements')
+        .select('*')
+        .eq('is_active', true)
+        .eq('show_as_popup', true)
+        .order('updated_at', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+
+      const nextAnnouncement =
+        ((data as Announcement[] | null) || []).find(
+          (item) => isAnnouncementVisible(item) && !window.localStorage.getItem(getDismissKey(item))
+        ) ?? null;
+
+      setAnnouncement(nextAnnouncement);
+    } catch (error) {
+      logger.warn('Announcement popup skipped', error);
+      setAnnouncement(null);
+    }
+  }, [getDismissKey, isAnnouncementVisible]);
+
   useEffect(() => {
     if (!user) {
       setIsAdmin(false);
@@ -132,6 +174,15 @@ const Layout = ({ children }: { children: ReactNode }) => {
     };
   }, [checkAdmin, fetchUnreadCount, user]);
 
+  useEffect(() => {
+    if (location.pathname.startsWith('/admin')) {
+      setAnnouncement(null);
+      return;
+    }
+
+    void fetchAnnouncement();
+  }, [fetchAnnouncement, location.pathname]);
+
   const isAuthPage = location.pathname === '/auth' || location.pathname === '/admin/auth';
   const isChatRoom = location.pathname.startsWith('/chat/');
   const isActivityPage = location.pathname === '/activity';
@@ -141,6 +192,15 @@ const Layout = ({ children }: { children: ReactNode }) => {
       <>
         <OfflineBanner />
         {children}
+        <AnnouncementPopup
+          announcement={announcement}
+          onClose={() => setAnnouncement(null)}
+          onDismissForNow={() => {
+            if (!announcement) return;
+            window.localStorage.setItem(getDismissKey(announcement), '1');
+            setAnnouncement(null);
+          }}
+        />
       </>
     );
   }
@@ -149,6 +209,15 @@ const Layout = ({ children }: { children: ReactNode }) => {
     <div className="min-h-screen bg-slate-50 pb-20">
       <OfflineBanner />
       <div className="mx-auto max-w-4xl">{children}</div>
+      <AnnouncementPopup
+        announcement={announcement}
+        onClose={() => setAnnouncement(null)}
+        onDismissForNow={() => {
+          if (!announcement) return;
+          window.localStorage.setItem(getDismissKey(announcement), '1');
+          setAnnouncement(null);
+        }}
+      />
 
       <nav className="fixed bottom-0 z-50 w-full border-t border-slate-100 bg-white/80 px-2 py-3 backdrop-blur-lg">
         <div className="mx-auto flex max-w-md items-end justify-between gap-1">
@@ -377,6 +446,7 @@ function App() {
                 <Route path="reports" element={<AdminReportsPage />} />
                 <Route path="posts" element={<AdminPostsPage />} />
                 <Route path="comments" element={<AdminCommentsPage />} />
+                <Route path="announcements" element={<AdminAnnouncementsPage />} />
                 <Route path="audit" element={<AdminAuditLogPage />} />
                 <Route path="invites" element={<AdminInvitesPage />} />
               </Route>

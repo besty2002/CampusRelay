@@ -65,7 +65,7 @@ describe('AdminAuthPage', () => {
 
     expect(screen.getByText('管理者アカウント登録')).toBeTruthy();
     expect(screen.getByPlaceholderText('ADMIN-XXXX-XXXX')).toBeTruthy();
-    expect(screen.getByPlaceholderText('表示名')).toBeTruthy();
+    expect(screen.getByPlaceholderText('表示名を入力')).toBeTruthy();
   });
 
   it('shows a validation error when registration is submitted without an invite code', async () => {
@@ -78,10 +78,10 @@ describe('AdminAuthPage', () => {
     fireEvent.click(screen.getByText('招待コードを持っていますか？ 新規登録へ'));
 
     fireEvent.change(screen.getByPlaceholderText('ADMIN-XXXX-XXXX'), { target: { value: '   ' } });
-    fireEvent.change(screen.getByPlaceholderText('表示名'), { target: { value: 'Admin User' } });
+    fireEvent.change(screen.getByPlaceholderText('表示名を入力'), { target: { value: 'Admin User' } });
     fireEvent.change(screen.getByPlaceholderText('admin@example.com'), { target: { value: 'admin@example.com' } });
     fireEvent.change(screen.getByPlaceholderText('6文字以上'), { target: { value: 'password123' } });
-    fireEvent.click(screen.getByText('アカウントを作成'));
+    fireEvent.click(screen.getByText('アカウントを登録'));
 
     await waitFor(() => {
       expect(screen.getByText('招待コードを入力してください。')).toBeTruthy();

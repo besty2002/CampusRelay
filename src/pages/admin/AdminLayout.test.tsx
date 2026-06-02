@@ -81,7 +81,7 @@ describe('AdminLayout', () => {
 
     expect(screen.getByText('概要')).toBeTruthy();
     expect(screen.getByText('通報')).toBeTruthy();
-    expect(screen.queryByText('招待コード')).toBeNull();
+    expect(screen.queryByText('お知らせ')).toBeNull();
     expect(screen.queryByText('監査ログ')).toBeNull();
   });
 
@@ -98,7 +98,7 @@ describe('AdminLayout', () => {
       expect(screen.getByText('管理者パネル')).toBeTruthy();
     });
 
-    expect(screen.getByText('招待コード')).toBeTruthy();
+    expect(screen.getByText('お知らせ')).toBeTruthy();
     expect(screen.getByText('監査ログ')).toBeTruthy();
     expect(screen.getByText('ユーザー')).toBeTruthy();
   });
